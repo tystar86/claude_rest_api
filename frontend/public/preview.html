@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Previews</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <style>
+    /* ── shared ── */
+    body { font-family: 'Segoe UI', sans-serif; }
+    .tab-btn { cursor: pointer; padding: .5rem 1.5rem; border: none; background: none; font-weight: 600; border-bottom: 3px solid transparent; }
+    .tab-btn.active { border-bottom-color: #0d6efd; color: #0d6efd; }
+    .design { display: none; }
+    .design.active { display: block; }
+
+    /* ── Design 1: Minimal Editorial ── */
+    .d1 { background: #faf9f7; min-height: 100vh; }
+    .d1 .top-nav { background: #fff; border-bottom: 1px solid #e8e5e0; padding: .9rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    .d1 .brand { font-size: 1.3rem; font-weight: 700; letter-spacing: -.5px; color: #1a1a1a; }
+    .d1 .nav-links a { color: #555; text-decoration: none; margin-left: 1.5rem; font-size: .9rem; }
+    .d1 .hero { background: #fff; border: 1px solid #e8e5e0; border-radius: 12px; padding: 2rem; margin-bottom: 1.5rem; }
+    .d1 .hero-label { font-size: .7rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #999; margin-bottom: .5rem; }
+    .d1 .hero-title { font-size: 1.9rem; font-weight: 700; color: #1a1a1a; margin-bottom: .5rem; line-height: 1.2; }
+    .d1 .hero-meta { font-size: .85rem; color: #888; }
+    .d1 .hero-excerpt { color: #555; margin-top: .8rem; font-size: .95rem; line-height: 1.7; }
+    .d1 .hero-tag { display: inline-block; background: #f0ede8; color: #555; border-radius: 20px; padding: .2rem .8rem; font-size: .75rem; margin-right: .3rem; }
+    .d1 .section-title { font-size: .7rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #999; margin-bottom: 1rem; }
+    .d1 .post-row { display: flex; justify-content: space-between; align-items: flex-start; padding: .9rem 0; border-bottom: 1px solid #f0ede8; }
+    .d1 .post-row:last-child { border-bottom: none; }
+    .d1 .post-title { font-weight: 600; font-size: .95rem; color: #1a1a1a; margin-bottom: .2rem; }
+    .d1 .post-meta { font-size: .8rem; color: #aaa; }
+    .d1 .count-pill { background: #f0ede8; color: #888; border-radius: 20px; padding: .15rem .7rem; font-size: .8rem; }
+    .d1 .author-row { display: flex; align-items: center; padding: .7rem 0; border-bottom: 1px solid #f0ede8; }
+    .d1 .author-avatar { width: 34px; height: 34px; border-radius: 50%; background: #e8e5e0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem; color: #888; margin-right: .8rem; flex-shrink: 0; }
+    .d1 .author-name { font-weight: 600; font-size: .9rem; color: #1a1a1a; }
+    .d1 .author-posts { font-size: .78rem; color: #aaa; }
+    .d1 .tag-pills { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .d1 .tag-pill { background: #fff; border: 1px solid #e8e5e0; border-radius: 20px; padding: .3rem .9rem; font-size: .8rem; color: #555; display: flex; align-items: center; gap: .4rem; }
+    .d1 .tag-count { background: #f0ede8; border-radius: 10px; padding: .05rem .45rem; font-size: .7rem; color: #888; }
+    .d1 .card-box { background: #fff; border: 1px solid #e8e5e0; border-radius: 12px; padding: 1.5rem; height: 100%; }
+
+    /* ── Design 2: Bold Data-Driven ── */
+    .d2 { background: linear-gradient(-225deg, #473B7B 0%, #3584A7 51%, #30D2BE 100%); min-height: 100vh; color: #e0e0e0; }
+    .d2 .top-nav { background: rgba(0,0,0,.25); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(255,255,255,.1); padding: .9rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    .d2 .brand { font-size: 1.3rem; font-weight: 800; color: #fff; letter-spacing: -.5px; }
+    .d2 .brand span { color: #30D2BE; }
+    .d2 .nav-links a { color: rgba(255,255,255,.7); text-decoration: none; margin-left: 1.5rem; font-size: .9rem; }
+    .d2 .stat-card { background: rgba(255,255,255,.12); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.2); border-radius: 12px; padding: 1.4rem 1.6rem; }
+    .d2 .stat-label { font-size: .72rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.5); margin-bottom: .3rem; }
+    .d2 .stat-value { font-size: 2.4rem; font-weight: 800; color: #fff; line-height: 1; }
+    .d2 .stat-sub { font-size: .8rem; color: #30D2BE; margin-top: .3rem; }
+    .d2 .section-title { font-size: .7rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,.4); margin-bottom: 1rem; }
+    .d2 .panel { background: rgba(255,255,255,.12); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.2); border-radius: 12px; padding: 1.4rem; height: 100%; }
+    .d2 .table-row { display: flex; justify-content: space-between; align-items: center; padding: .7rem 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .d2 .table-row:last-child { border: none; }
+    .d2 .table-title { font-size: .9rem; color: #fff; font-weight: 500; }
+    .d2 .table-meta { font-size: .78rem; color: rgba(255,255,255,.45); }
+    .d2 .tag-badge { background: rgba(48,210,190,.2); color: #30D2BE; border: 1px solid rgba(48,210,190,.4); border-radius: 6px; padding: .2rem .6rem; font-size: .75rem; font-weight: 600; }
+    .d2 .bar-wrap { display: flex; align-items: center; gap: .8rem; padding: .6rem 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .d2 .bar-wrap:last-child { border: none; }
+    .d2 .bar-label { font-size: .85rem; color: rgba(255,255,255,.8); width: 90px; flex-shrink: 0; }
+    .d2 .bar-track { flex: 1; background: rgba(255,255,255,.1); border-radius: 4px; height: 8px; }
+    .d2 .bar-fill { background: linear-gradient(90deg, #473B7B, #30D2BE); border-radius: 4px; height: 8px; }
+    .d2 .bar-num { font-size: .8rem; color: rgba(255,255,255,.4); width: 28px; text-align: right; }
+    .d2 .rank { font-size: .85rem; font-weight: 800; color: #30D2BE; width: 24px; }
+    .d2 .author-name { font-size: .88rem; color: #fff; }
+    .d2 .badge-count { background: rgba(255,255,255,.1); color: #30D2BE; border-radius: 20px; padding: .15rem .6rem; font-size: .78rem; font-weight: 700; }
+
+    /* ── Design 3: Balanced Professional ── */
+    .d3 { background: #f4f6fb; min-height: 100vh; }
+    .d3 .top-nav { background: #1e3a5f; padding: .9rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    .d3 .brand { font-size: 1.3rem; font-weight: 700; color: #fff; }
+    .d3 .nav-links a { color: rgba(255,255,255,.7); text-decoration: none; margin-left: 1.5rem; font-size: .9rem; }
+    .d3 .stat-card { background: #fff; border-radius: 12px; padding: 1.3rem 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,.07); display: flex; align-items: center; gap: 1rem; }
+    .d3 .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+    .d3 .stat-value { font-size: 1.9rem; font-weight: 800; color: #1e3a5f; line-height: 1; }
+    .d3 .stat-label { font-size: .8rem; color: #888; margin-top: .15rem; }
+    .d3 .panel { background: #fff; border-radius: 12px; padding: 1.4rem; box-shadow: 0 1px 4px rgba(0,0,0,.07); height: 100%; }
+    .d3 .panel-title { font-size: .8rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #1e3a5f; margin-bottom: 1rem; padding-bottom: .6rem; border-bottom: 2px solid #f0f3f9; }
+    .d3 .post-row { padding: .75rem 0; border-bottom: 1px solid #f0f3f9; }
+    .d3 .post-row:last-child { border: none; }
+    .d3 .post-title { font-size: .92rem; font-weight: 600; color: #1e3a5f; margin-bottom: .2rem; }
+    .d3 .post-meta { font-size: .78rem; color: #aaa; display: flex; align-items: center; gap: .6rem; }
+    .d3 .meta-chip { background: #f0f3f9; color: #1e3a5f; border-radius: 4px; padding: .1rem .45rem; font-size: .72rem; font-weight: 600; }
+    .d3 .tag-row { display: flex; align-items: center; gap: .8rem; padding: .6rem 0; border-bottom: 1px solid #f0f3f9; }
+    .d3 .tag-row:last-child { border: none; }
+    .d3 .tag-name { font-size: .88rem; color: #1e3a5f; font-weight: 500; width: 100px; flex-shrink: 0; }
+    .d3 .tag-track { flex: 1; background: #f0f3f9; border-radius: 4px; height: 8px; }
+    .d3 .tag-fill { background: #1e3a5f; border-radius: 4px; height: 8px; opacity: .7; }
+    .d3 .tag-num { font-size: .78rem; color: #aaa; width: 28px; text-align: right; }
+    .d3 .author-row { display: flex; align-items: center; gap: .8rem; padding: .65rem 0; border-bottom: 1px solid #f0f3f9; }
+    .d3 .author-row:last-child { border: none; }
+    .d3 .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85rem; color: #fff; flex-shrink: 0; }
+    .d3 .author-name { font-size: .9rem; font-weight: 600; color: #1e3a5f; }
+    .d3 .author-posts { font-size: .78rem; color: #aaa; }
+    .d3 .author-badge { margin-left: auto; background: #e8f0fe; color: #1e3a5f; border-radius: 20px; padding: .15rem .65rem; font-size: .78rem; font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<!-- Tab switcher -->
+<div style="background:#fff;border-bottom:1px solid #e0e0e0;padding:.4rem 2rem;position:sticky;top:0;z-index:100;">
+  <button class="tab-btn active" onclick="show('d1',this)">Option 1 · Minimal Editorial</button>
+  <button class="tab-btn" onclick="show('d2',this)">Option 2 · Bold Data-Driven</button>
+  <button class="tab-btn" onclick="show('d3',this)">Option 3 · Balanced Professional</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     DESIGN 1 — MINIMAL EDITORIAL
+════════════════════════════════════════════════════════ -->
+<div class="design d1 active" id="d1">
+  <nav class="top-nav">
+    <div class="brand">The Blog</div>
+    <div class="nav-links">
+      <a href="#">Posts</a><a href="#">Tags</a><a href="#">Users</a>
+    </div>
+    <div style="display:flex;gap:.8rem;">
+      <span style="font-size:.85rem;color:#888;cursor:pointer;">Login</span>
+      <span style="font-size:.85rem;background:#1a1a1a;color:#fff;padding:.3rem .9rem;border-radius:6px;cursor:pointer;">Register</span>
+    </div>
+  </nav>
+
+  <div style="max-width:900px;margin:0 auto;padding:2rem 1.5rem;">
+
+    <!-- Hero: latest post -->
+    <div class="hero">
+      <div class="hero-label">Latest Post</div>
+      <div class="hero-title">Pytest Advanced Techniques</div>
+      <div class="hero-meta">by <strong>fiona</strong> · Feb 10, 2025</div>
+      <div class="hero-excerpt">pytest is the de facto standard for testing in Python. While most developers know the basics, there is a vast ecosystem of advanced features that can dramatically improve the quality, speed, and maintainability of your test suite...</div>
+      <div style="margin-top:1rem;">
+        <span class="hero-tag">Testing</span>
+        <span class="hero-tag">Python</span>
+        <span class="hero-tag">CI/CD</span>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <!-- Most Commented -->
+      <div class="col-md-6">
+        <div class="card-box">
+          <div class="section-title">Most Commented</div>
+          <div class="post-row">
+            <div>
+              <div class="post-title">Pytest Advanced Techniques</div>
+              <div class="post-meta">fiona · Feb 10</div>
+            </div>
+            <span class="count-pill">12 comments</span>
+          </div>
+          <div class="post-row">
+            <div>
+              <div class="post-title">Getting Started with Django</div>
+              <div class="post-meta">alice_admin · Jan 10</div>
+            </div>
+            <span class="count-pill">8 comments</span>
+          </div>
+          <div class="post-row">
+            <div>
+              <div class="post-title">Building REST APIs with DRF</div>
+              <div class="post-meta">bob_mod · Jan 11</div>
+            </div>
+            <span class="count-pill">5 comments</span>
+          </div>
+          <div class="post-row">
+            <div>
+              <div class="post-title">Django Security Best Practices</div>
+              <div class="post-meta">grace · Jan 16</div>
+            </div>
+            <span class="count-pill">3 comments</span>
+          </div>
+          <div class="post-row">
+            <div>
+              <div class="post-title">Async Tasks with Celery</div>
+              <div class="post-meta">noah · Jan 23</div>
+            </div>
+            <span class="count-pill">2 comments</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Authors -->
+      <div class="col-md-6">
+        <div class="card-box">
+          <div class="section-title">Top Authors</div>
+          <div class="author-row">
+            <div class="author-avatar">A</div>
+            <div>
+              <div class="author-name">alice_admin</div>
+              <div class="author-posts">3 posts · Admin</div>
+            </div>
+            <span class="count-pill" style="margin-left:auto;">3</span>
+          </div>
+          <div class="author-row">
+            <div class="author-avatar">B</div>
+            <div>
+              <div class="author-name">bob_mod</div>
+              <div class="author-posts">2 posts · Moderator</div>
+            </div>
+            <span class="count-pill" style="margin-left:auto;">2</span>
+          </div>
+          <div class="author-row">
+            <div class="author-avatar">F</div>
+            <div>
+              <div class="author-name">fiona</div>
+              <div class="author-posts">1 post</div>
+            </div>
+            <span class="count-pill" style="margin-left:auto;">1</span>
+          </div>
+          <div class="author-row">
+            <div class="author-avatar">G</div>
+            <div>
+              <div class="author-name">george</div>
+              <div class="author-posts">1 post</div>
+            </div>
+            <span class="count-pill" style="margin-left:auto;">1</span>
+          </div>
+          <div class="author-row">
+            <div class="author-avatar">E</div>
+            <div>
+              <div class="author-name">ethan</div>
+              <div class="author-posts">1 post</div>
+            </div>
+            <span class="count-pill" style="margin-left:auto;">1</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tags -->
+      <div class="col-12">
+        <div class="card-box">
+          <div class="section-title">Most Used Tags</div>
+          <div class="tag-pills">
+            <span class="tag-pill">Django <span class="tag-count">6</span></span>
+            <span class="tag-pill">Python <span class="tag-count">5</span></span>
+            <span class="tag-pill">REST API <span class="tag-count">4</span></span>
+            <span class="tag-pill">Testing <span class="tag-count">3</span></span>
+            <span class="tag-pill">Docker <span class="tag-count">3</span></span>
+            <span class="tag-pill">Security <span class="tag-count">2</span></span>
+            <span class="tag-pill">PostgreSQL <span class="tag-count">2</span></span>
+            <span class="tag-pill">Celery <span class="tag-count">2</span></span>
+            <span class="tag-pill">Redis <span class="tag-count">2</span></span>
+            <span class="tag-pill">DevOps <span class="tag-count">2</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     DESIGN 2 — BOLD DATA-DRIVEN
+════════════════════════════════════════════════════════ -->
+<div class="design d2" id="d2">
+  <nav class="top-nav">
+    <div class="brand">The<span>Blog</span></div>
+    <div class="nav-links">
+      <a href="#">Posts</a><a href="#">Tags</a><a href="#">Users</a>
+    </div>
+    <div style="display:flex;gap:.8rem;">
+      <span style="font-size:.85rem;color:#666;cursor:pointer;">Login</span>
+      <span style="font-size:.85rem;background:#7c5cfc;color:#fff;padding:.3rem .9rem;border-radius:6px;cursor:pointer;">Register</span>
+    </div>
+  </nav>
+
+  <div style="max-width:960px;margin:0 auto;padding:2rem 1.5rem;">
+
+    <!-- Stat cards -->
+    <div class="row g-3 mb-4">
+      <div class="col-3">
+        <div class="stat-card">
+          <div class="stat-label">Total Posts</div>
+          <div class="stat-value">33</div>
+          <div class="stat-sub">↑ 4 this week</div>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="stat-card">
+          <div class="stat-label">Comments</div>
+          <div class="stat-value">12</div>
+          <div class="stat-sub">↑ 12 new</div>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="stat-card">
+          <div class="stat-label">Authors</div>
+          <div class="stat-value">33</div>
+          <div class="stat-sub">↑ 3 joined</div>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="stat-card">
+          <div class="stat-label">Tags</div>
+          <div class="stat-value">33</div>
+          <div class="stat-sub">Active topics</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <!-- Latest + Most Commented posts table -->
+      <div class="col-md-7">
+        <div class="panel">
+          <div class="section-title">Latest Posts</div>
+          <div class="table-row">
+            <div>
+              <div class="table-title">Pytest Advanced Techniques</div>
+              <div class="table-meta">fiona · Feb 10</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:.8rem;">
+              <span class="tag-badge">Testing</span>
+              <span style="font-size:.8rem;color:#666;">12 💬</span>
+            </div>
+          </div>
+          <div class="table-row">
+            <div>
+              <div class="table-title">From Django to FastAPI</div>
+              <div class="table-meta">george · Feb 11</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:.8rem;">
+              <span class="tag-badge">Python</span>
+              <span style="font-size:.8rem;color:#666;">0 💬</span>
+            </div>
+          </div>
+          <div class="table-row">
+            <div>
+              <div class="table-title">DRF Serializers in Depth</div>
+              <div class="table-meta">diana · Feb 8</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:.8rem;">
+              <span class="tag-badge">DRF</span>
+              <span style="font-size:.8rem;color:#666;">0 💬</span>
+            </div>
+          </div>
+          <div class="table-row">
+            <div>
+              <div class="table-title">Twelve-Factor App Methodology</div>
+              <div class="table-meta">ethan · Feb 9</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:.8rem;">
+              <span class="tag-badge">DevOps</span>
+              <span style="font-size:.8rem;color:#666;">0 💬</span>
+            </div>
+          </div>
+          <div class="table-row">
+            <div>
+              <div class="table-title">Git Branching Strategies</div>
+              <div class="table-meta">alan · Feb 5</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:.8rem;">
+              <span class="tag-badge">Git</span>
+              <span style="font-size:.8rem;color:#666;">0 💬</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right col -->
+      <div class="col-md-5">
+        <!-- Top authors bar -->
+        <div class="panel mb-3">
+          <div class="section-title">Top Authors</div>
+          <div class="bar-wrap">
+            <span class="rank">#1</span>
+            <span class="bar-label" style="width:80px;">alice_admin</span>
+            <div class="bar-track"><div class="bar-fill" style="width:100%;"></div></div>
+            <span class="bar-num">3</span>
+          </div>
+          <div class="bar-wrap">
+            <span class="rank">#2</span>
+            <span class="bar-label" style="width:80px;">bob_mod</span>
+            <div class="bar-track"><div class="bar-fill" style="width:67%;"></div></div>
+            <span class="bar-num">2</span>
+          </div>
+          <div class="bar-wrap">
+            <span class="rank">#3</span>
+            <span class="bar-label" style="width:80px;">carol_mod</span>
+            <div class="bar-track"><div class="bar-fill" style="width:33%;"></div></div>
+            <span class="bar-num">1</span>
+          </div>
+          <div class="bar-wrap">
+            <span class="rank">#4</span>
+            <span class="bar-label" style="width:80px;">fiona</span>
+            <div class="bar-track"><div class="bar-fill" style="width:33%;"></div></div>
+            <span class="bar-num">1</span>
+          </div>
+          <div class="bar-wrap">
+            <span class="rank">#5</span>
+            <span class="bar-label" style="width:80px;">george</span>
+            <div class="bar-track"><div class="bar-fill" style="width:33%;"></div></div>
+            <span class="bar-num">1</span>
+          </div>
+        </div>
+
+        <!-- Most used tags bar -->
+        <div class="panel">
+          <div class="section-title">Most Used Tags</div>
+          <div class="bar-wrap">
+            <span class="bar-label">Django</span>
+            <div class="bar-track"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,#7c5cfc,#a78bfa);"></div></div>
+            <span class="bar-num">6</span>
+          </div>
+          <div class="bar-wrap">
+            <span class="bar-label">Python</span>
+            <div class="bar-track"><div class="bar-fill" style="width:83%;background:linear-gradient(90deg,#7c5cfc,#a78bfa);"></div></div>
+            <span class="bar-num">5</span>
+          </div>
+          <div class="bar-wrap">
+            <span class="bar-label">REST API</span>
+            <div class="bar-track"><div class="bar-fill" style="width:67%;background:linear-gradient(90deg,#7c5cfc,#a78bfa);"></div></div>
+            <span class="bar-num">4</span>
+          </div>
+          <div class="bar-wrap">
+            <span class="bar-label">Testing</span>
+            <div class="bar-track"><div class="bar-fill" style="width:50%;background:linear-gradient(90deg,#7c5cfc,#a78bfa);"></div></div>
+            <span class="bar-num">3</span>
+          </div>
+          <div class="bar-wrap">
+            <span class="bar-label">Docker</span>
+            <div class="bar-track"><div class="bar-fill" style="width:50%;background:linear-gradient(90deg,#7c5cfc,#a78bfa);"></div></div>
+            <span class="bar-num">3</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     DESIGN 3 — BALANCED PROFESSIONAL
+════════════════════════════════════════════════════════ -->
+<div class="design d3" id="d3">
+  <nav class="top-nav">
+    <div class="brand">The Blog</div>
+    <div class="nav-links">
+      <a href="#">Posts</a><a href="#">Tags</a><a href="#">Users</a>
+    </div>
+    <div style="display:flex;gap:.8rem;align-items:center;">
+      <span style="font-size:.85rem;color:rgba(255,255,255,.7);cursor:pointer;">Login</span>
+      <span style="font-size:.85rem;background:#fff;color:#1e3a5f;padding:.3rem .9rem;border-radius:6px;cursor:pointer;font-weight:600;">Register</span>
+    </div>
+  </nav>
+
+  <div style="max-width:960px;margin:0 auto;padding:2rem 1.5rem;">
+
+    <!-- Stat cards row -->
+    <div class="row g-3 mb-4">
+      <div class="col-4">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#e8f0fe;color:#1e3a5f;"><i class="bi bi-file-text"></i></div>
+          <div>
+            <div class="stat-value">33</div>
+            <div class="stat-label">Total Posts</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#fce8e8;color:#c0392b;"><i class="bi bi-chat-dots"></i></div>
+          <div>
+            <div class="stat-value">12</div>
+            <div class="stat-label">Comments</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#e8f8f0;color:#1e7a4a;"><i class="bi bi-people"></i></div>
+          <div>
+            <div class="stat-value">33</div>
+            <div class="stat-label">Authors</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <!-- Left: Latest posts -->
+      <div class="col-md-6">
+        <div class="panel">
+          <div class="panel-title">Latest Posts</div>
+          <div class="post-row">
+            <div class="post-title">Pytest Advanced Techniques</div>
+            <div class="post-meta">
+              <span>fiona</span>
+              <span class="meta-chip">Testing</span>
+              <span class="meta-chip">12 💬</span>
+            </div>
+          </div>
+          <div class="post-row">
+            <div class="post-title">From Django to FastAPI</div>
+            <div class="post-meta">
+              <span>george</span>
+              <span class="meta-chip">Python</span>
+            </div>
+          </div>
+          <div class="post-row">
+            <div class="post-title">DRF Serializers in Depth</div>
+            <div class="post-meta">
+              <span>diana</span>
+              <span class="meta-chip">DRF</span>
+            </div>
+          </div>
+          <div class="post-row">
+            <div class="post-title">Twelve-Factor App Methodology</div>
+            <div class="post-meta">
+              <span>ethan</span>
+              <span class="meta-chip">DevOps</span>
+            </div>
+          </div>
+          <div class="post-row">
+            <div class="post-title">Git Branching Strategies</div>
+            <div class="post-meta">
+              <span>alan</span>
+              <span class="meta-chip">Git</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right col -->
+      <div class="col-md-6">
+        <!-- Top authors -->
+        <div class="panel mb-3">
+          <div class="panel-title">Top Authors</div>
+          <div class="author-row">
+            <div class="avatar" style="background:#1e3a5f;">A</div>
+            <div>
+              <div class="author-name">alice_admin</div>
+              <div class="author-posts">Admin</div>
+            </div>
+            <span class="author-badge">3 posts</span>
+          </div>
+          <div class="author-row">
+            <div class="avatar" style="background:#2e7d52;">B</div>
+            <div>
+              <div class="author-name">bob_mod</div>
+              <div class="author-posts">Moderator</div>
+            </div>
+            <span class="author-badge">2 posts</span>
+          </div>
+          <div class="author-row">
+            <div class="avatar" style="background:#7b3fa0;">C</div>
+            <div>
+              <div class="author-name">carol_mod</div>
+              <div class="author-posts">Moderator</div>
+            </div>
+            <span class="author-badge">1 post</span>
+          </div>
+          <div class="author-row">
+            <div class="avatar" style="background:#c0392b;">F</div>
+            <div>
+              <div class="author-name">fiona</div>
+              <div class="author-posts">User</div>
+            </div>
+            <span class="author-badge">1 post</span>
+          </div>
+        </div>
+
+        <!-- Most used tags -->
+        <div class="panel">
+          <div class="panel-title">Most Used Tags</div>
+          <div class="tag-row">
+            <span class="tag-name">Django</span>
+            <div class="tag-track"><div class="tag-fill" style="width:100%;"></div></div>
+            <span class="tag-num">6</span>
+          </div>
+          <div class="tag-row">
+            <span class="tag-name">Python</span>
+            <div class="tag-track"><div class="tag-fill" style="width:83%;"></div></div>
+            <span class="tag-num">5</span>
+          </div>
+          <div class="tag-row">
+            <span class="tag-name">REST API</span>
+            <div class="tag-track"><div class="tag-fill" style="width:67%;"></div></div>
+            <span class="tag-num">4</span>
+          </div>
+          <div class="tag-row">
+            <span class="tag-name">Testing</span>
+            <div class="tag-track"><div class="tag-fill" style="width:50%;"></div></div>
+            <span class="tag-num">3</span>
+          </div>
+          <div class="tag-row">
+            <span class="tag-name">Docker</span>
+            <div class="tag-track"><div class="tag-fill" style="width:50%;"></div></div>
+            <span class="tag-num">3</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function show(id, btn) {
+    document.querySelectorAll('.design').forEach(d => d.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+  }
+</script>
+</body>
+</html>

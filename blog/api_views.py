@@ -1,14 +1,20 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.middleware.csrf import get_token
+from django.utils import timezone
+from django.utils.text import slugify
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from django.db.models import Count
+
 from accounts.models import Profile
-from .models import Post, Tag
+from .models import Comment, CommentVote, Post, Tag
 from .serializers import (
+    CommentListSerializer,
+    CommentSerializer,
     PostDetailSerializer,
     PostSerializer,
     TagSerializer,
@@ -34,25 +40,77 @@ def paginate(qs, request, serializer_class):
     }
 
 
+def build_unique_slug(model_cls, source_text, instance_id=None):
+    base = slugify(source_text or "").strip("-")[:50] or "item"
+    candidate = base
+    n = 2
+    while True:
+        qs = model_cls.objects.filter(slug=candidate)
+        if instance_id is not None:
+            qs = qs.exclude(id=instance_id)
+        if not qs.exists():
+            return candidate
+        candidate = f"{base}-{n}"
+        n += 1
+
+
+def can_manage_tags(user):
+    if not user.is_authenticated:
+        return False
+    role = getattr(getattr(user, "profile", None), "role", "user")
+    return role in ("moderator", "admin")
+
+
 # ── Dashboard ──────────────────────────────────────────────────────────────────
 
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def dashboard(request):
+    total_posts = Post.objects.count()
+    total_comments = Comment.objects.count()
+    total_authors = User.objects.filter(posts__isnull=False).distinct().count()
+    active_tags = Tag.objects.filter(posts__isnull=False).distinct().count()
+
+    bodies = Post.objects.values_list("body", flat=True)
+    word_counts = [len((body or "").split()) for body in bodies]
+    average_depth_words = (
+        round(sum(word_counts) / len(word_counts)) if word_counts else 0
+    )
+
     return Response(
         {
+            "stats": {
+                "total_posts": total_posts,
+                "comments": total_comments,
+                "authors": total_authors,
+                "active_tags": active_tags,
+                "average_depth_words": average_depth_words,
+            },
             "latest_posts": PostSerializer(
                 Post.objects.select_related("author")
                 .prefetch_related("tags")
                 .order_by("-created_at")[:10],
                 many=True,
             ).data,
-            "latest_tags": TagSerializer(
-                Tag.objects.order_by("-id")[:10], many=True
+            "most_commented_posts": PostSerializer(
+                Post.objects.select_related("author")
+                .prefetch_related("tags")
+                .annotate(comment_count=Count("comments"))
+                .order_by("-comment_count")[:10],
+                many=True,
             ).data,
-            "latest_users": UserSerializer(
-                User.objects.select_related("profile").order_by("-date_joined")[:10],
+            "most_used_tags": TagSerializer(
+                Tag.objects.annotate(post_count=Count("posts")).order_by("-post_count")[
+                    :10
+                ],
+                many=True,
+            ).data,
+            "top_authors": UserSerializer(
+                User.objects.select_related("profile")
+                .annotate(post_count=Count("posts"))
+                .filter(post_count__gt=0)
+                .order_by("-post_count")[:10],
                 many=True,
             ).data,
         }
@@ -64,16 +122,66 @@ def dashboard(request):
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+def comment_list(request):
+    qs = Comment.objects.select_related("author", "post").order_by("-created_at")
+    return Response(paginate(qs, request, CommentListSerializer))
+
+
+# ── Posts ──────────────────────────────────────────────────────────────────────
+
+
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
 def post_list(request):
-    qs = (
-        Post.objects.select_related("author")
-        .prefetch_related("tags")
-        .order_by("-created_at")
+    if request.method == "GET":
+        qs = (
+            Post.objects.select_related("author")
+            .prefetch_related("tags")
+            .order_by("-created_at")
+        )
+        return Response(paginate(qs, request, PostSerializer))
+
+    if not request.user.is_authenticated:
+        return Response(
+            {"detail": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    title = (request.data.get("title") or "").strip()
+    body = (request.data.get("body") or "").strip()
+    excerpt = (request.data.get("excerpt") or "").strip()
+    status_value = request.data.get("status", Post.Status.DRAFT)
+    tag_ids = request.data.get("tag_ids") or []
+
+    if not title or not body:
+        return Response(
+            {"detail": "title and body are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if status_value not in (Post.Status.DRAFT, Post.Status.PUBLISHED):
+        return Response(
+            {"detail": "Invalid status."}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    post = Post.objects.create(
+        title=title,
+        slug=build_unique_slug(Post, title),
+        author=request.user,
+        body=body,
+        excerpt=excerpt,
+        status=status_value,
+        published_at=timezone.now() if status_value == Post.Status.PUBLISHED else None,
     )
-    return Response(paginate(qs, request, PostSerializer))
+    if tag_ids:
+        tags = Tag.objects.filter(id__in=tag_ids)
+        post.tags.set(tags)
+    post.refresh_from_db()
+    return Response(
+        PostDetailSerializer(post, context={"request": request}).data,
+        status=status.HTTP_201_CREATED,
+    )
 
 
-@api_view(["GET"])
+@api_view(["GET", "PATCH", "DELETE"])
 @permission_classes([AllowAny])
 def post_detail(request, slug):
     try:
@@ -84,38 +192,147 @@ def post_detail(request, slug):
         )
     except Post.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
-    return Response(PostDetailSerializer(post).data)
+
+    if request.method == "GET":
+        return Response(PostDetailSerializer(post, context={"request": request}).data)
+
+    if not request.user.is_authenticated:
+        return Response(
+            {"detail": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    role = getattr(getattr(request.user, "profile", None), "role", "user")
+    can_manage_post = post.author_id == request.user.id or role in (
+        "moderator",
+        "admin",
+    )
+    if not can_manage_post:
+        return Response(
+            {"detail": "You can edit/delete only your own posts."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if request.method == "DELETE":
+        post.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    title = request.data.get("title")
+    body = request.data.get("body")
+    excerpt = request.data.get("excerpt")
+    status_value = request.data.get("status")
+    tag_ids = request.data.get("tag_ids")
+
+    if title is not None:
+        title = title.strip()
+        if not title:
+            return Response(
+                {"detail": "title cannot be empty."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        post.title = title
+        post.slug = build_unique_slug(Post, title, instance_id=post.id)
+    if body is not None:
+        body = body.strip()
+        if not body:
+            return Response(
+                {"detail": "body cannot be empty."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        post.body = body
+    if excerpt is not None:
+        post.excerpt = excerpt.strip()
+    if status_value is not None:
+        if status_value not in (Post.Status.DRAFT, Post.Status.PUBLISHED):
+            return Response(
+                {"detail": "Invalid status."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        post.status = status_value
+        post.published_at = (
+            timezone.now() if status_value == Post.Status.PUBLISHED else None
+        )
+
+    post.save()
+    if tag_ids is not None:
+        tags = Tag.objects.filter(id__in=tag_ids)
+        post.tags.set(tags)
+    post.refresh_from_db()
+    return Response(PostDetailSerializer(post, context={"request": request}).data)
 
 
 # ── Tags ───────────────────────────────────────────────────────────────────────
 
 
-@api_view(["GET"])
+@api_view(["GET", "POST"])
 @permission_classes([AllowAny])
 def tag_list(request):
-    qs = Tag.objects.order_by("name")
-    return Response(paginate(qs, request, TagSerializer))
+    if request.method == "GET":
+        qs = Tag.objects.order_by("name")
+        return Response(paginate(qs, request, TagSerializer))
+
+    if not can_manage_tags(request.user):
+        return Response(
+            {"detail": "Only moderators/admins can manage tags."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    name = (request.data.get("name") or "").strip()
+    if not name:
+        return Response(
+            {"detail": "name is required."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if Tag.objects.filter(name__iexact=name).exists():
+        return Response(
+            {"detail": "Tag name already exists."}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    tag = Tag.objects.create(name=name, slug=build_unique_slug(Tag, name))
+    return Response(TagSerializer(tag).data, status=status.HTTP_201_CREATED)
 
 
-@api_view(["GET"])
+@api_view(["GET", "PATCH", "DELETE"])
 @permission_classes([AllowAny])
 def tag_detail(request, slug):
     try:
         tag = Tag.objects.get(slug=slug)
     except Tag.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
-    posts_qs = (
-        Post.objects.filter(tags=tag)
-        .select_related("author")
-        .prefetch_related("tags")
-        .order_by("-created_at")
-    )
-    return Response(
-        {
-            "tag": TagSerializer(tag).data,
-            **paginate(posts_qs, request, PostSerializer),
-        }
-    )
+
+    if request.method == "GET":
+        posts_qs = (
+            Post.objects.filter(tags=tag)
+            .select_related("author")
+            .prefetch_related("tags")
+            .order_by("-created_at")
+        )
+        return Response(
+            {
+                "tag": TagSerializer(tag).data,
+                **paginate(posts_qs, request, PostSerializer),
+            }
+        )
+
+    if not can_manage_tags(request.user):
+        return Response(
+            {"detail": "Only moderators/admins can manage tags."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if request.method == "DELETE":
+        tag.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    name = (request.data.get("name") or "").strip()
+    if not name:
+        return Response(
+            {"detail": "name is required."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if Tag.objects.filter(name__iexact=name).exclude(id=tag.id).exists():
+        return Response(
+            {"detail": "Tag name already exists."}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    tag.name = name
+    tag.slug = build_unique_slug(Tag, name, instance_id=tag.id)
+    tag.save()
+    return Response(TagSerializer(tag).data)
 
 
 # ── Users ──────────────────────────────────────────────────────────────────────
@@ -216,3 +433,118 @@ def current_user(request):
             {"detail": "Not authenticated."}, status=status.HTTP_401_UNAUTHORIZED
         )
     return Response(UserSerializer(request.user).data)
+
+
+# ── Comment Votes ──────────────────────────────────────────────────────────────
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def comment_vote(request, comment_id):
+    vote_type = request.data.get("vote")
+    if vote_type not in (CommentVote.VoteType.LIKE, CommentVote.VoteType.DISLIKE):
+        return Response(
+            {"detail": "vote must be 'like' or 'dislike'."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        comment = Comment.objects.get(id=comment_id)
+    except Comment.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    existing = CommentVote.objects.filter(comment=comment, user=request.user).first()
+    if existing:
+        if existing.vote == vote_type:
+            existing.delete()  # toggle off
+        else:
+            existing.vote = vote_type
+            existing.save()
+    else:
+        CommentVote.objects.create(comment=comment, user=request.user, vote=vote_type)
+
+    comment.refresh_from_db()
+    return Response(CommentSerializer(comment, context={"request": request}).data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def comment_create(request, slug):
+    body = (request.data.get("body") or "").strip()
+    if not body:
+        return Response(
+            {"detail": "Comment body is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        post = Post.objects.get(slug=slug)
+    except Post.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    parent_id = request.data.get("parent_id")
+    parent = None
+    if parent_id is not None:
+        try:
+            parent = Comment.objects.get(id=parent_id, post=post)
+        except Comment.DoesNotExist:
+            return Response(
+                {"detail": "Parent comment not found."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    comment = Comment.objects.create(
+        post=post,
+        author=request.user,
+        body=body,
+        parent=parent,
+        is_approved=True,
+    )
+    return Response(
+        CommentSerializer(comment, context={"request": request}).data,
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def comment_update(request, comment_id):
+    try:
+        comment = Comment.objects.get(id=comment_id)
+    except Comment.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if comment.author_id != request.user.id:
+        return Response(
+            {"detail": "You can edit only your own comments."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    body = (request.data.get("body") or "").strip()
+    if not body:
+        return Response(
+            {"detail": "Comment body is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    comment.body = body
+    comment.save(update_fields=["body", "updated_at"])
+    comment.refresh_from_db()
+    return Response(CommentSerializer(comment, context={"request": request}).data)
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def comment_delete(request, comment_id):
+    try:
+        comment = Comment.objects.get(id=comment_id)
+    except Comment.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if comment.author_id != request.user.id:
+        return Response(
+            {"detail": "You can delete only your own comments."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    comment.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)

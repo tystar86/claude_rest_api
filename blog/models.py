@@ -53,3 +53,21 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.author} on '{self.post}'"
+
+
+class CommentVote(models.Model):
+    class VoteType(models.TextChoices):
+        LIKE = "like", "Like"
+        DISLIKE = "dislike", "Dislike"
+
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name="votes")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="comment_votes"
+    )
+    vote = models.CharField(max_length=10, choices=VoteType)
+
+    class Meta:
+        unique_together = [("comment", "user")]
+
+    def __str__(self):
+        return f"{self.user} {self.vote}d comment #{self.comment_id}"

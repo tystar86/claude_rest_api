@@ -4,6 +4,8 @@ from . import api_views
 
 urlpatterns = [
     path("dashboard/", api_views.dashboard),
+    path("comments/", api_views.comment_list),
+    path("posts/<slug:slug>/comments/", api_views.comment_create),
     path("posts/", api_views.post_list),
     path("posts/<slug:slug>/", api_views.post_detail),
     path("tags/", api_views.tag_list),
@@ -15,4 +17,7 @@ urlpatterns = [
     path("auth/register/", api_views.register_view),
     path("auth/logout/", api_views.logout_view),
     path("auth/user/", api_views.current_user),
+    path("comments/<int:comment_id>/vote/", api_views.comment_vote),
+    path("comments/<int:comment_id>/", api_views.comment_update),
+    path("comments/<int:comment_id>/delete/", api_views.comment_delete),
 ]
