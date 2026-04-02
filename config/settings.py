@@ -1,24 +1,25 @@
 import os
 from pathlib import Path
-
+from typing import Any
 from dotenv import load_dotenv
 
 load_dotenv(f".env.{os.environ.get('DJANGO_ENV', 'local')}")
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR: Path = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ["SECRET_KEY"]
+SECRET_KEY: str = os.environ["SECRET_KEY"]
 
-DEBUG = os.environ.get("DEBUG", "False") == "True"
+DEBUG: bool = os.environ.get("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
+ALLOWED_HOSTS: list[str | None] = os.environ.get("ALLOWED_HOSTS", "").split(",")
 
-INSTALLED_APPS = [
+INSTALLED_APPS: list[str] = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
     "rest_framework",
     "corsheaders",
@@ -32,8 +33,9 @@ INSTALLED_APPS = [
     "accounts",
 ]
 
-MIDDLEWARE = [
+MIDDLEWARE: list[str | None] = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -44,9 +46,9 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
 ]
 
-ROOT_URLCONF = "config.urls"
+ROOT_URLCONF: str = "config.urls"
 
-TEMPLATES = [
+TEMPLATES: list[dict[str, Any]] = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [BASE_DIR / "templates"],
@@ -61,21 +63,21 @@ TEMPLATES = [
     },
 ]
 
-AUTHENTICATION_BACKENDS = [
+AUTHENTICATION_BACKENDS: list[str | None] = [
     "django.contrib.auth.backends.ModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
-SITE_ID = 1
+SITE_ID: int = 1
 
 # django-allauth
-ACCOUNT_LOGIN_METHODS = {"email"}
-ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
-ACCOUNT_EMAIL_VERIFICATION = "none"
-LOGIN_REDIRECT_URL = "http://localhost:5173/dashboard"
-LOGOUT_REDIRECT_URL = "http://localhost:5173/dashboard"
+ACCOUNT_LOGIN_METHODS: set[str] = {"email"}
+ACCOUNT_SIGNUP_FIELDS: list[str] = ["email*", "username*", "password1*", "password2*"]
+ACCOUNT_EMAIL_VERIFICATION: str = "none"
+LOGIN_REDIRECT_URL: str = "http://localhost:5173/dashboard"
+LOGOUT_REDIRECT_URL: str = "http://localhost:5173/dashboard"
 
-SOCIALACCOUNT_PROVIDERS = {
+SOCIALACCOUNT_PROVIDERS: dict[str, Any] = {
     "google": {
         "APP": {
             "client_id": os.environ.get("GOOGLE_CLIENT_ID", ""),
@@ -86,9 +88,9 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-WSGI_APPLICATION = "config.wsgi.application"
+WSGI_APPLICATION: str = "config.wsgi.application"
 
-DATABASES = {
+DATABASES: dict[str, Any] = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ["DB_NAME"],
@@ -100,7 +102,7 @@ DATABASES = {
     }
 }
 
-AUTH_PASSWORD_VALIDATORS = [
+AUTH_PASSWORD_VALIDATORS: list[dict[str, Any]] = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
     },
@@ -109,62 +111,87 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
-USE_I18N = True
-USE_TZ = True
+LANGUAGE_CODE: str = "en-us"
+TIME_ZONE: str = "UTC"
+USE_I18N: bool = True
+USE_TZ: bool = True
 
-STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_URL: str = "static/"
+STATIC_ROOT: Path = BASE_DIR / "staticfiles"
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+STORAGES: dict[str, Any] = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+DEFAULT_AUTO_FIELD: str = "django.db.models.BigAutoField"
 
 # Security
-X_FRAME_OPTIONS = os.environ.get("X_FRAME_OPTIONS", "DENY")
-SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "False") == "True"
-SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", 0))
-SECURE_HSTS_INCLUDE_SUBDOMAINS = (
+X_FRAME_OPTIONS: str = os.environ.get("X_FRAME_OPTIONS", "DENY")
+SECURE_CONTENT_TYPE_NOSNIFF: bool = True
+SECURE_SSL_REDIRECT: bool = os.environ.get("SECURE_SSL_REDIRECT", "False") == "True"
+SECURE_HSTS_SECONDS: int = int(os.environ.get("SECURE_HSTS_SECONDS", 0))
+SECURE_HSTS_INCLUDE_SUBDOMAINS: bool = (
     os.environ.get("SECURE_HSTS_INCLUDE_SUBDOMAINS", "False") == "True"
 )
-SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "False") == "True"
-SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "False") == "True"
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_AGE = int(os.environ.get("SESSION_COOKIE_AGE", 1209600))
-CSRF_COOKIE_SECURE = os.environ.get("CSRF_COOKIE_SECURE", "False") == "True"
-CSRF_COOKIE_HTTPONLY = True
-CSRF_TRUSTED_ORIGINS = [
+SECURE_HSTS_PRELOAD: bool = os.environ.get("SECURE_HSTS_PRELOAD", "False") == "True"
+SESSION_COOKIE_SECURE: bool = os.environ.get("SESSION_COOKIE_SECURE", "False") == "True"
+SESSION_COOKIE_HTTPONLY: bool = True
+SESSION_COOKIE_AGE: int = int(os.environ.get("SESSION_COOKIE_AGE", 1209600))
+CSRF_COOKIE_SECURE: bool = os.environ.get("CSRF_COOKIE_SECURE", "False") == "True"
+CSRF_COOKIE_HTTPONLY: bool = True
+CSRF_TRUSTED_ORIGINS: list[str] = [
     o for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o
 ]
 if DEBUG and not CSRF_TRUSTED_ORIGINS:
-    CSRF_TRUSTED_ORIGINS = [
+    CSRF_TRUSTED_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
 
-PASSWORD_HASHERS = os.environ.get(
+PASSWORD_HASHERS: list[str] = os.environ.get(
     "PASSWORD_HASHERS",
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
 ).split(",")
 
 # DRF
-REST_FRAMEWORK = {
+REST_FRAMEWORK: dict[str, Any] = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "blog.throttles.BurstAnonThrottle",
+        "blog.throttles.BurstUserThrottle",
+        "blog.throttles.EndpointActorThrottle",
+        "blog.throttles.GlobalAPIThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        # Per anonymous IP across API
+        "anon": os.environ.get("DRF_THROTTLE_ANON", "120/min"),
+        # Per authenticated user across API
+        "user": os.environ.get("DRF_THROTTLE_USER", "240/min"),
+        # Per endpoint + per actor (user or IP)
+        "endpoint_actor": os.environ.get("DRF_THROTTLE_ENDPOINT_ACTOR", "60/min"),
+        # Overall global API cap
+        "api_global": os.environ.get("DRF_THROTTLE_API_GLOBAL", "1000/min"),
+    },
 }
 
 # CORS
-CORS_ALLOWED_ORIGINS = [
+CORS_ALLOWED_ORIGINS: list[str] = [
     o for o in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if o
 ]
 if DEBUG and not CORS_ALLOWED_ORIGINS:
-    CORS_ALLOWED_ORIGINS = [
+    CORS_ALLOWED_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
-CORS_ALLOW_CREDENTIALS = True
-CSRF_COOKIE_HTTPONLY = False  # React needs to read the CSRF cookie
+CORS_ALLOW_CREDENTIALS: bool = True
+CSRF_COOKIE_HTTPONLY: bool = False  # React needs to read the CSRF cookie
