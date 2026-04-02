@@ -18,10 +18,20 @@ dependencies = [
     "whitenoise>=6.9.0",
 ]
 
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.test_settings"
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short -n auto --cov=. --cov-report=term-missing"
+
 [dependency-groups]
 dev = [
     "pre-commit>=4.5.1",
     "pytest>=9.0.2",
+    "pytest-cov>=7.1.0",
+    "pytest-django>=4.9.0",
+    "pytest-xdist>=3.8.0",
     "robotframework>=7.3.2",
     "robotframework-browser>=18.10.0",
     "robotframework-requests>=0.9.7",
