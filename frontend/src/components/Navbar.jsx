@@ -23,7 +23,7 @@ export default function Navbar({ fluid = false }) {
             {user ? (
               <>
                 <li className="nav-item">
-                  <span className="navbar-text nav-user-chip">
+                  <Link to="/profile" className="navbar-text nav-user-chip text-decoration-none">
                     <i className="bi bi-person-circle me-1" />
                     {user.username}
                     {user.profile?.role !== "user" && (
@@ -31,7 +31,7 @@ export default function Navbar({ fluid = false }) {
                         {user.profile?.role}
                       </span>
                     )}
-                  </span>
+                  </Link>
                 </li>
                 <li className="nav-item">
                   <button className="btn nav-auth-btn nav-auth-btn-secondary btn-sm" onClick={handleLogout}>

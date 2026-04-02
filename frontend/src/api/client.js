@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8000/api",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api",
   withCredentials: true,
 });
 
@@ -45,6 +45,8 @@ export const fetchUsers = (page = 1) => api.get(`/users/?page=${page}`).then((r)
 export const fetchUser = (username, page = 1) => api.get(`/users/${username}/?page=${page}`).then((r) => r.data);
 
 export const fetchCurrentUser = () => api.get("/auth/user/").then((r) => r.data);
+export const updateProfile = (data) => api.patch("/auth/profile/", data).then((r) => r.data);
+export const fetchUserComments = (username, page = 1) => api.get(`/users/${username}/comments/?page=${page}`).then((r) => r.data);
 export const loginUser = (email, password) => api.post("/auth/login/", { email, password }).then((r) => r.data);
 export const registerUser = (email, username, password) => api.post("/auth/register/", { email, username, password }).then((r) => r.data);
 export const logoutUser = () => api.post("/auth/logout/").then((r) => r.data);
