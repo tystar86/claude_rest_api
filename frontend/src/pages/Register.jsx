@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { registerUser } from "../api/client";
+import { GOOGLE_LOGIN_URL, registerUser } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
 export default function Register() {
@@ -56,7 +56,7 @@ export default function Register() {
             </form>
             <hr className="my-4" />
             <div className="d-grid">
-              <a href="http://localhost:8000/accounts/google/login/" className="btn btn-outline-danger">
+              <a href={GOOGLE_LOGIN_URL} className="btn btn-outline-danger">
                 <i className="bi bi-google me-1" />Continue with Google
               </a>
             </div>

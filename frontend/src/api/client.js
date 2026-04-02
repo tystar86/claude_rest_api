@@ -1,9 +1,22 @@
 import axios from "axios";
 
+const apiBaseURL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api",
+  baseURL: apiBaseURL,
   withCredentials: true,
 });
+
+/** Django host (no `/api`) for django-allauth `/accounts/...` links */
+function backendOrigin() {
+  try {
+    return new URL(apiBaseURL).origin;
+  } catch {
+    return "http://localhost:8000";
+  }
+}
+
+export const GOOGLE_LOGIN_URL = `${backendOrigin()}/accounts/google/login/`;
 
 function getCookie(name) {
   const value = `; ${document.cookie}`;
