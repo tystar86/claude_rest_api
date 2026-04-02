@@ -50,6 +50,11 @@ services:
       - key: CSRF_COOKIE_SECURE
         value: "True"
 
+      - key: ACCOUNT_DEFAULT_HTTP_PROTOCOL
+        value: "https"
+      - key: SITE_DOMAIN
+        value: "claude-rest-api.onrender.com"
+
       # Google OAuth (optional)
       - key: GOOGLE_CLIENT_ID
         sync: false
