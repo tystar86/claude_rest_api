@@ -1,4 +1,4 @@
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.middleware.csrf import get_token
 from django.utils import timezone
@@ -433,6 +433,67 @@ def current_user(request):
             {"detail": "Not authenticated."}, status=status.HTTP_401_UNAUTHORIZED
         )
     return Response(UserSerializer(request.user).data)
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def update_profile(request):
+    user = request.user
+    new_username = request.data.get("username")
+    current_password = request.data.get("current_password")
+    new_password = request.data.get("new_password")
+
+    errors = {}
+    password_changed = False
+
+    if new_username is not None:
+        new_username = new_username.strip()
+        if not new_username:
+            errors["username"] = "Username cannot be empty."
+        elif User.objects.filter(username=new_username).exclude(id=user.id).exists():
+            errors["username"] = "Username already taken."
+        else:
+            user.username = new_username
+
+    if new_password is not None:
+        if not current_password:
+            errors["current_password"] = (
+                "Current password is required to change password."
+            )
+        elif not user.check_password(current_password):
+            errors["current_password"] = "Current password is incorrect."
+        else:
+            new_password = new_password.strip()
+            if len(new_password) < 8:
+                errors["new_password"] = "Password must be at least 8 characters."
+            else:
+                user.set_password(new_password)
+                password_changed = True
+
+    if errors:
+        return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+
+    user.save()
+    if password_changed:
+        update_session_auth_hash(request, user)
+
+    return Response(UserSerializer(user).data)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def user_comments(request, username):
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    qs = (
+        Comment.objects.filter(author=user)
+        .select_related("post")
+        .order_by("-created_at")
+    )
+    return Response(paginate(qs, request, CommentListSerializer))
 
 
 # ── Comment Votes ──────────────────────────────────────────────────────────────
