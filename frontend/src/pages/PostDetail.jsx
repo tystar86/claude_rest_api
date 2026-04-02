@@ -278,6 +278,7 @@ export default function PostDetail() {
   const [editingPost, setEditingPost] = useState(false);
   const [postForm, setPostForm] = useState({ title: "", body: "", excerpt: "", status: "draft", tag_ids: [] });
   const [allTags, setAllTags] = useState([]);
+  const [tagsError, setTagsError] = useState("");
   const [postBusy, setPostBusy] = useState(false);
   const [postError, setPostError] = useState("");
   const [newComment, setNewComment] = useState("");
@@ -292,17 +293,24 @@ export default function PostDetail() {
 
   useEffect(() => {
     fetchPost(slug).then(setPost).catch(() => setNotFound(true));
-    fetchTags(1).then(async (firstPage) => {
-      let results = [...firstPage.results];
-      if (firstPage.total_pages > 1) {
-        const rest = await Promise.all(
-          Array.from({ length: firstPage.total_pages - 1 }, (_, i) => fetchTags(i + 2))
-        );
-        rest.forEach((p) => { results = results.concat(p.results); });
-      }
-      setAllTags(results);
-    });
   }, [slug]);
+
+  useEffect(() => {
+    if (!editingPost || allTags.length > 0) return;
+    setTagsError("");
+    fetchTags(1)
+      .then(async (firstPage) => {
+        let results = [...firstPage.results];
+        if (firstPage.total_pages > 1) {
+          const rest = await Promise.all(
+            Array.from({ length: firstPage.total_pages - 1 }, (_, i) => fetchTags(i + 2))
+          );
+          rest.forEach((p) => { results = results.concat(p.results); });
+        }
+        setAllTags(results);
+      })
+      .catch(() => setTagsError("Failed to load tags."));
+  }, [editingPost]);
 
   useEffect(() => {
     if (!post) return;
@@ -488,6 +496,9 @@ export default function PostDetail() {
                   onChange={(e) => setPostForm((prev) => ({ ...prev, excerpt: e.target.value }))}
                   disabled={postBusy}
                 />
+                {tagsError && (
+                  <div className="text-danger small mb-2">{tagsError}</div>
+                )}
                 {allTags.length > 0 && (
                   <div className="mb-2">
                     <label className="form-label small mb-1" style={{ color: "#173f88" }}>Tags</label>

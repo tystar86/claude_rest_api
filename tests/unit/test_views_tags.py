@@ -222,7 +222,9 @@ class TestCanManageTagsSerializerField:
     def test_superuser_can_manage_tags(self, api_client, db):
         """Django superuser has can_manage_tags=True."""
         su = User.objects.create_superuser(
-            username="super", email="super@example.com", password="pass"
+            username="super",
+            email="super@example.com",
+            password="pass",  # noqa: S106
         )
         Profile.objects.get_or_create(user=su)
         api_client.force_authenticate(user=su)
@@ -234,7 +236,7 @@ class TestCanManageTagsSerializerField:
         staff = User.objects.create_user(
             username="staffuser",
             email="staff@example.com",
-            password="pass",
+            password="pass",  # noqa: S106
             is_staff=True,
         )
         Profile.objects.get_or_create(user=staff)

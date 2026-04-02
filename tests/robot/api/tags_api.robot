@@ -6,6 +6,7 @@ Test Setup       Register Test User
 
 *** Test Cases ***
 Tag List Returns 200 For Anonymous
+    [Setup]    Create API Session
     ${resp}=    GET On Session    api    /api/tags/
     Should Be Equal As Integers    ${resp.status_code}    200
     ${json}=    Set Variable    ${resp.json()}
@@ -30,6 +31,7 @@ Mixed Case Tag Name Is Normalised
     Should Be Equal    ${tag["name"]}    robot-mixed
 
 Anonymous User Cannot Create Tag
+    [Setup]    Create API Session
     ${token}=    Get CSRF Token
     ${headers}=    Create Dictionary    X-CSRFToken=${token}
     ${payload}=    Create Dictionary    name=anon-tag
@@ -87,7 +89,8 @@ Empty Tag Name Returns 400
 Created Tag Appears In Tag List
     Login Test User
     ${tag}=    Create Tag Via API    listed-tag
-    ${resp}=    GET On Session    api    /api/tags/
+    ${slug}=    Get From Dictionary    ${tag}    slug
+    ${resp}=    GET On Session    api    /api/tags/${slug}/
+    Should Be Equal As Integers    ${resp.status_code}    200
     ${json}=    Set Variable    ${resp.json()}
-    ${names}=    Evaluate    [t["name"] for t in $json["results"]]
-    List Should Contain Value    ${names}    listed-tag
+    Should Be Equal    ${json["tag"]["name"]}    listed-tag

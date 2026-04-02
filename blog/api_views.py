@@ -15,6 +15,7 @@ from .models import Comment, CommentVote, Post, Tag
 from .serializers import (
     CommentListSerializer,
     CommentSerializer,
+    CurrentUserSerializer,
     PostDetailSerializer,
     PostSerializer,
     TagSerializer,
@@ -393,7 +394,7 @@ def login_view(request):
             {"detail": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST
         )
     login(request, user)
-    return Response(UserSerializer(user).data)
+    return Response(CurrentUserSerializer(user).data)
 
 
 @api_view(["POST"])
@@ -418,7 +419,7 @@ def register_view(request):
     user = User.objects.create_user(username=username, email=email, password=password)
     Profile.objects.get_or_create(user=user)
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-    return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+    return Response(CurrentUserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["POST"])
@@ -434,7 +435,7 @@ def current_user(request):
         return Response(
             {"detail": "Not authenticated."}, status=status.HTTP_401_UNAUTHORIZED
         )
-    return Response(UserSerializer(request.user).data)
+    return Response(CurrentUserSerializer(request.user).data)
 
 
 @api_view(["PATCH"])
@@ -479,7 +480,7 @@ def update_profile(request):
     if password_changed:
         update_session_auth_hash(request, user)
 
-    return Response(UserSerializer(user).data)
+    return Response(CurrentUserSerializer(user).data)
 
 
 @api_view(["GET"])

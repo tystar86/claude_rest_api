@@ -49,6 +49,8 @@ Tag Input Accepts Lowercase Only
 Created Tag Appears In Tag List
     Register Test User
     Login Test User
-    ${tag}=    Create Tag Via API    ui-robot-tag
+    ${ts}=    Get Time    epoch
+    ${tag_name}=    Set Variable    ui-robot-tag-${ts}
+    Create Tag Via API    ${tag_name}
     Go To    ${TAGS_URL}
-    Wait For Elements State    text=ui-robot-tag    visible    10s
+    Wait For Elements State    text=${tag_name}    visible    10s

@@ -14,6 +14,13 @@ class ProfileSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer(read_only=True)
     post_count = serializers.IntegerField(source="posts.count", read_only=True)
+
+    class Meta:
+        model = User
+        fields = ("id", "username", "email", "date_joined", "profile", "post_count")
+
+
+class CurrentUserSerializer(UserSerializer):
     can_manage_tags = serializers.SerializerMethodField()
 
     def get_can_manage_tags(self, obj):
@@ -22,17 +29,8 @@ class UserSerializer(serializers.ModelSerializer):
         role = getattr(getattr(obj, "profile", None), "role", "user")
         return role in ("moderator", "admin")
 
-    class Meta:
-        model = User
-        fields = [
-            "id",
-            "username",
-            "email",
-            "date_joined",
-            "profile",
-            "post_count",
-            "can_manage_tags",
-        ]
+    class Meta(UserSerializer.Meta):
+        fields = UserSerializer.Meta.fields + ("can_manage_tags",)
 
 
 class TagSerializer(serializers.ModelSerializer):
