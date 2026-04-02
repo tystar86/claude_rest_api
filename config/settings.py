@@ -19,6 +19,7 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "django.contrib.sites",
     "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
     "rest_framework",
@@ -79,6 +80,10 @@ LOGIN_REDIRECT_URL: str = os.environ.get(
 )
 LOGOUT_REDIRECT_URL: str = os.environ.get(
     "LOGOUT_REDIRECT_URL", "http://localhost:5173/dashboard"
+)
+
+ACCOUNT_DEFAULT_HTTP_PROTOCOL: str = os.environ.get(
+    "ACCOUNT_DEFAULT_HTTP_PROTOCOL", "http"
 )
 
 SOCIALACCOUNT_PROVIDERS: dict[str, Any] = {
