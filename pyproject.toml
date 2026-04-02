@@ -10,15 +10,20 @@ dependencies = [
     "django-allauth[socialaccount]>=65.15.0",
     "django-cors-headers>=4.9.0",
     "djangorestframework>=3.17.1",
+    "gunicorn>=23.0.0",
     "psycopg>=3.3.3",
     "pyjwt>=2.12.1",
     "python-dotenv>=1.2.2",
     "requests>=2.33.1",
+    "whitenoise>=6.9.0",
 ]
 
 [dependency-groups]
 dev = [
     "pre-commit>=4.5.1",
     "pytest>=9.0.2",
+    "robotframework>=7.3.2",
+    "robotframework-browser>=18.10.0",
+    "robotframework-requests>=0.9.7",
     "ruff>=0.15.8",
 ]

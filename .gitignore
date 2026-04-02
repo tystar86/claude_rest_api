@@ -16,3 +16,11 @@ wheels/
 
 # Django
 staticfiles/
+
+# Robot Framework outputs
+log.html
+output.xml
+report.html
+playwright/
+.DS_Store
+playwright-log.txt
