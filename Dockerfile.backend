@@ -22,6 +22,13 @@ COPY . .
 
 RUN chmod +x start.sh
 
+# Create non-root user and hand over ownership of app files and virtualenv
+RUN addgroup --system appuser \
+    && adduser --system --ingroup appuser --no-create-home appuser \
+    && chown -R appuser:appuser /app /opt/venv
+
+USER appuser
+
 EXPOSE 8000
 
 CMD ["./start.sh"]
