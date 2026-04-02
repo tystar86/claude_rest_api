@@ -1,0 +1,16 @@
+FROM node:22-alpine
+
+RUN addgroup -S appuser && adduser -S appuser -G appuser
+
+WORKDIR /app
+
+COPY --chown=appuser:appuser package.json package-lock.json ./
+RUN npm ci
+
+COPY --chown=appuser:appuser . .
+
+USER appuser
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]

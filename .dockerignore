@@ -1,0 +1,16 @@
+.env*
+.git
+.gitignore
+.venv
+__pycache__/
+*.pyc
+node_modules/
+frontend/node_modules/
+dist/
+build/
+staticfiles/
+*.log
+output.xml
+log.html
+report.html
+playwright/

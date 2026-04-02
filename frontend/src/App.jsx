@@ -9,6 +9,7 @@ import TagList from "./pages/TagList";
 import TagDetail from "./pages/TagDetail";
 import UserList from "./pages/UserList";
 import UserDetail from "./pages/UserDetail";
+import UserProfile from "./pages/UserProfile";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 
@@ -19,8 +20,9 @@ export default function App() {
   const isPostsRoute = location.pathname.startsWith("/posts");
   const isUsersRoute = location.pathname.startsWith("/users");
   const isCommentsRoute = location.pathname.startsWith("/comments");
-  const useEmbeddedNavbar = isDashboard || isTagsRoute || isPostsRoute || isUsersRoute || isCommentsRoute;
-  const useFluidLayout = isDashboard || isTagsRoute || isPostsRoute || isUsersRoute || isCommentsRoute;
+  const isProfileRoute = location.pathname === "/profile";
+  const useEmbeddedNavbar = isDashboard || isTagsRoute || isPostsRoute || isUsersRoute || isCommentsRoute || isProfileRoute;
+  const useFluidLayout = isDashboard || isTagsRoute || isPostsRoute || isUsersRoute || isCommentsRoute || isProfileRoute;
 
   return (
     <AuthProvider>
@@ -37,6 +39,7 @@ export default function App() {
             <Route path="/tags/:slug" element={<TagDetail />} />
             <Route path="/users" element={<UserList />} />
             <Route path="/users/:username" element={<UserDetail />} />
+            <Route path="/profile" element={<UserProfile />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
           </Routes>
