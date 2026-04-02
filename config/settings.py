@@ -143,7 +143,6 @@ SESSION_COOKIE_SECURE: bool = os.environ.get("SESSION_COOKIE_SECURE", "False") =
 SESSION_COOKIE_HTTPONLY: bool = True
 SESSION_COOKIE_AGE: int = int(os.environ.get("SESSION_COOKIE_AGE", 1209600))
 CSRF_COOKIE_SECURE: bool = os.environ.get("CSRF_COOKIE_SECURE", "False") == "True"
-CSRF_COOKIE_HTTPONLY: bool = True
 CSRF_TRUSTED_ORIGINS: list[str] = [
     o for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o
 ]
