@@ -27,11 +27,14 @@ services:
       - key: DB_CONN_MAX_AGE
         value: "60"
 
-      # Set these after you know your Vercel frontend URL
       - key: CORS_ALLOWED_ORIGINS
-        sync: false
+        value: "https://claude-rest-api.vercel.app"
       - key: CSRF_TRUSTED_ORIGINS
-        sync: false
+        value: "https://claude-rest-api.vercel.app"
+      - key: LOGIN_REDIRECT_URL
+        value: "https://claude-rest-api.vercel.app/dashboard"
+      - key: LOGOUT_REDIRECT_URL
+        value: "https://claude-rest-api.vercel.app/dashboard"
 
       # Security
       - key: SECURE_SSL_REDIRECT

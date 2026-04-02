@@ -74,8 +74,12 @@ SITE_ID: int = 1
 ACCOUNT_LOGIN_METHODS: set[str] = {"email"}
 ACCOUNT_SIGNUP_FIELDS: list[str] = ["email*", "username*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION: str = "none"
-LOGIN_REDIRECT_URL: str = "http://localhost:5173/dashboard"
-LOGOUT_REDIRECT_URL: str = "http://localhost:5173/dashboard"
+LOGIN_REDIRECT_URL: str = os.environ.get(
+    "LOGIN_REDIRECT_URL", "http://localhost:5173/dashboard"
+)
+LOGOUT_REDIRECT_URL: str = os.environ.get(
+    "LOGOUT_REDIRECT_URL", "http://localhost:5173/dashboard"
+)
 
 SOCIALACCOUNT_PROVIDERS: dict[str, Any] = {
     "google": {
