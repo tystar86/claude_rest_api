@@ -177,29 +177,31 @@ export default function PostList() {
                 onChange={(nextBody) => setForm((prev) => ({ ...prev, body: nextBody }))}
                 disabled={createBusy}
               />
-              <div className="mt-2 mb-2">
-                <label className="form-label small mb-1" style={{ color: "#173f88" }}>Tags</label>
-                <select
-                  className="form-select insove-form-control"
-                  multiple
-                  value={form.tag_ids.map(String)}
-                  onChange={(e) => {
-                    const ids = Array.from(e.target.selectedOptions).map((opt) => Number(opt.value));
-                    setForm((prev) => ({ ...prev, tag_ids: ids }));
-                  }}
-                  disabled={createBusy}
-                  style={{ minHeight: "7rem" }}
-                >
-                  {tags.map((tag) => (
-                    <option key={tag.id} value={tag.id}>
-                      {tag.name}
-                    </option>
-                  ))}
-                </select>
-                <small className="text-muted">Hold Cmd/Ctrl to select multiple tags.</small>
-              </div>
+              {tags.length > 0 && (
+                <div className="mt-2 mb-2">
+                  <label className="form-label small mb-1" style={{ color: "#173f88" }}>Tags</label>
+                  <select
+                    className="form-select insove-form-control"
+                    multiple
+                    value={form.tag_ids.map(String)}
+                    onChange={(e) => {
+                      const ids = Array.from(e.target.selectedOptions).map((opt) => Number(opt.value));
+                      setForm((prev) => ({ ...prev, tag_ids: ids }));
+                    }}
+                    disabled={createBusy}
+                    style={{ minHeight: "7rem" }}
+                  >
+                    {tags.map((tag) => (
+                      <option key={tag.id} value={tag.id}>
+                        {tag.name}
+                      </option>
+                    ))}
+                  </select>
+                  <small className="text-muted">Hold Cmd/Ctrl to select multiple tags.</small>
+                </div>
+              )}
               <select
-                className="form-select insove-form-control mb-2"
+                className="form-select insove-form-control mb-2 mt-3"
                 value={form.status}
                 onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
                 disabled={createBusy}

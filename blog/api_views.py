@@ -15,6 +15,7 @@ from .models import Comment, CommentVote, Post, Tag
 from .serializers import (
     CommentListSerializer,
     CommentSerializer,
+    CurrentUserSerializer,
     PostDetailSerializer,
     PostSerializer,
     TagSerializer,
@@ -57,6 +58,8 @@ def build_unique_slug(model_cls, source_text, instance_id=None):
 def can_manage_tags(user):
     if not user.is_authenticated:
         return False
+    if user.is_superuser or user.is_staff:
+        return True
     role = getattr(getattr(user, "profile", None), "role", "user")
     return role in ("moderator", "admin")
 
@@ -267,18 +270,18 @@ def tag_list(request):
         qs = Tag.objects.order_by("name")
         return Response(paginate(qs, request, TagSerializer))
 
-    if not can_manage_tags(request.user):
+    if not request.user.is_authenticated:
         return Response(
-            {"detail": "Only moderators/admins can manage tags."},
+            {"detail": "Authentication required to create tags."},
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    name = (request.data.get("name") or "").strip()
+    name = (request.data.get("name") or "").strip().lower()
     if not name:
         return Response(
             {"detail": "name is required."}, status=status.HTTP_400_BAD_REQUEST
         )
-    if Tag.objects.filter(name__iexact=name).exists():
+    if Tag.objects.filter(name=name).exists():
         return Response(
             {"detail": "Tag name already exists."}, status=status.HTTP_400_BAD_REQUEST
         )
@@ -319,12 +322,12 @@ def tag_detail(request, slug):
         tag.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    name = (request.data.get("name") or "").strip()
+    name = (request.data.get("name") or "").strip().lower()
     if not name:
         return Response(
             {"detail": "name is required."}, status=status.HTTP_400_BAD_REQUEST
         )
-    if Tag.objects.filter(name__iexact=name).exclude(id=tag.id).exists():
+    if Tag.objects.filter(name=name).exclude(id=tag.id).exists():
         return Response(
             {"detail": "Tag name already exists."}, status=status.HTTP_400_BAD_REQUEST
         )
@@ -391,7 +394,7 @@ def login_view(request):
             {"detail": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST
         )
     login(request, user)
-    return Response(UserSerializer(user).data)
+    return Response(CurrentUserSerializer(user).data)
 
 
 @api_view(["POST"])
@@ -416,7 +419,7 @@ def register_view(request):
     user = User.objects.create_user(username=username, email=email, password=password)
     Profile.objects.get_or_create(user=user)
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-    return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+    return Response(CurrentUserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["POST"])
@@ -432,7 +435,7 @@ def current_user(request):
         return Response(
             {"detail": "Not authenticated."}, status=status.HTTP_401_UNAUTHORIZED
         )
-    return Response(UserSerializer(request.user).data)
+    return Response(CurrentUserSerializer(request.user).data)
 
 
 @api_view(["PATCH"])
@@ -477,7 +480,7 @@ def update_profile(request):
     if password_changed:
         update_session_auth_hash(request, user)
 
-    return Response(UserSerializer(user).data)
+    return Response(CurrentUserSerializer(user).data)
 
 
 @api_view(["GET"])

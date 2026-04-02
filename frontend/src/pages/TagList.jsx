@@ -7,11 +7,11 @@ import { useAuth } from "../context/AuthContext";
 export default function TagList() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const role = user?.profile?.role;
-  const canManageTags = role === "moderator" || role === "admin";
+  const canManageTags = user?.can_manage_tags === true;
 
   const loadAllTags = async () => {
     setData(null);
@@ -60,9 +60,9 @@ export default function TagList() {
 
   const handleEditTag = async (tag) => {
     const nextName = window.prompt("Edit tag name", tag.name);
-    if (!nextName || nextName.trim() === tag.name) return;
+    if (!nextName || nextName.trim().toLowerCase() === tag.name) return;
     try {
-      await updateTag(tag.slug, nextName.trim());
+      await updateTag(tag.slug, nextName.trim().toLowerCase());
       setData(await loadAllTags());
     } catch (err) {
       window.alert(err?.response?.data?.detail || "Failed to update tag.");
@@ -86,28 +86,39 @@ export default function TagList() {
       <div className="mb-4">
         <Navbar fluid />
       </div>
-      <div className="text-center mb-4">
+      <div className="position-relative text-center mb-4">
         <span className="insove-subtle-chip">total {data.count} tags</span>
+        {user && (
+          <button
+            className="btn nav-auth-btn nav-auth-btn-secondary btn-sm"
+            type="button"
+            onClick={() => setShowCreate((v) => !v)}
+            style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)" }}
+          >
+            {showCreate ? "Hide" : "New Tag"}
+          </button>
+        )}
       </div>
-      {canManageTags && (
-        <form className="insove-panel mb-3 p-3 p-md-4" onSubmit={handleCreateTag}>
-          <label className="form-label fw-semibold mb-2" style={{ color: "#173f88" }}>
-            Create new tag
-          </label>
-          <div className="d-flex align-items-center gap-2">
-            <input
-              className="form-control insove-form-control"
-              placeholder="Tag name"
-              value={newTagName}
-              onChange={(e) => setNewTagName(e.target.value)}
-              disabled={saving}
-            />
-            <button className="btn btn-primary" type="submit" disabled={saving}>
-              {saving ? "Creating..." : "Create"}
-            </button>
+      {user && showCreate && (
+        <div className="insove-panel mb-3 mx-auto" style={{ maxWidth: "760px" }}>
+          <div className="p-3 p-md-4">
+            <form onSubmit={handleCreateTag}>
+              <div className="d-flex align-items-center gap-2">
+                <input
+                  className="form-control insove-form-control"
+                  placeholder="Tag name"
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value.toLowerCase())}
+                  disabled={saving}
+                />
+                <button className="btn btn-primary" type="submit" disabled={saving}>
+                  {saving ? "Creating..." : "Create"}
+                </button>
+              </div>
+              {error && <div className="text-danger small mt-2">{error}</div>}
+            </form>
           </div>
-          {error && <div className="text-danger small mt-2">{error}</div>}
-        </form>
+        </div>
       )}
       <ul className="list-unstyled m-0 d-flex flex-row flex-wrap gap-2 gap-md-3 align-items-center">
         {data.results.length === 0 && (
