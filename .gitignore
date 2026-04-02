@@ -24,3 +24,6 @@ report.html
 playwright/
 .DS_Store
 playwright-log.txt
+.ruff_cache/
+.pytest_cache/
+.coverage
