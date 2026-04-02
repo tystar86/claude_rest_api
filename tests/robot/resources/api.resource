@@ -46,6 +46,20 @@ Login Test User
     ...    expected_status=any
     Should Be Equal As Integers    ${resp.status_code}    200
 
+Create Tag Via API
+    [Arguments]    ${name}
+    ${token}=    Get CSRF Token
+    ${headers}=    Create Dictionary    X-CSRFToken=${token}
+    ${payload}=    Create Dictionary    name=${name}
+    ${resp}=    POST On Session
+    ...    api
+    ...    /api/tags/
+    ...    json=${payload}
+    ...    headers=${headers}
+    Should Be Equal As Integers    ${resp.status_code}    201
+    ${data}=    Set Variable    ${resp.json()}
+    RETURN    ${data}
+
 Create Post Via API
     [Arguments]    ${title}    ${body}
     ${token}=    Get CSRF Token

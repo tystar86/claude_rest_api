@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { createComment, deleteComment, deletePost, fetchPost, updateComment, updatePost, voteComment } from "../api/client";
+import { createComment, deleteComment, deletePost, fetchPost, fetchTags, updateComment, updatePost, voteComment } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
 import Navbar from "../components/Navbar";
@@ -276,7 +276,8 @@ export default function PostDetail() {
   const [post, setPost] = useState(null);
   const [notFound, setNotFound] = useState(false);
   const [editingPost, setEditingPost] = useState(false);
-  const [postForm, setPostForm] = useState({ title: "", body: "", excerpt: "", status: "draft" });
+  const [postForm, setPostForm] = useState({ title: "", body: "", excerpt: "", status: "draft", tag_ids: [] });
+  const [allTags, setAllTags] = useState([]);
   const [postBusy, setPostBusy] = useState(false);
   const [postError, setPostError] = useState("");
   const [newComment, setNewComment] = useState("");
@@ -291,6 +292,16 @@ export default function PostDetail() {
 
   useEffect(() => {
     fetchPost(slug).then(setPost).catch(() => setNotFound(true));
+    fetchTags(1).then(async (firstPage) => {
+      let results = [...firstPage.results];
+      if (firstPage.total_pages > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: firstPage.total_pages - 1 }, (_, i) => fetchTags(i + 2))
+        );
+        rest.forEach((p) => { results = results.concat(p.results); });
+      }
+      setAllTags(results);
+    });
   }, [slug]);
 
   useEffect(() => {
@@ -300,6 +311,7 @@ export default function PostDetail() {
       body: post.body || "",
       excerpt: post.excerpt || "",
       status: post.status || "draft",
+      tag_ids: (post.tags || []).map((t) => t.id),
     });
   }, [post]);
 
@@ -410,6 +422,7 @@ export default function PostDetail() {
         body: postForm.body,
         excerpt: postForm.excerpt,
         status: postForm.status,
+        tag_ids: postForm.tag_ids,
       });
       setPost(updated);
       setEditingPost(false);
@@ -475,6 +488,29 @@ export default function PostDetail() {
                   onChange={(e) => setPostForm((prev) => ({ ...prev, excerpt: e.target.value }))}
                   disabled={postBusy}
                 />
+                {allTags.length > 0 && (
+                  <div className="mb-2">
+                    <label className="form-label small mb-1" style={{ color: "#173f88" }}>Tags</label>
+                    <select
+                      className="form-select insove-form-control"
+                      multiple
+                      value={postForm.tag_ids.map(String)}
+                      onChange={(e) => {
+                        const ids = Array.from(e.target.selectedOptions).map((opt) => Number(opt.value));
+                        setPostForm((prev) => ({ ...prev, tag_ids: ids }));
+                      }}
+                      disabled={postBusy}
+                      style={{ minHeight: "7rem" }}
+                    >
+                      {allTags.map((tag) => (
+                        <option key={tag.id} value={tag.id}>
+                          {tag.name}
+                        </option>
+                      ))}
+                    </select>
+                    <small className="text-muted">Hold Cmd/Ctrl to select multiple tags.</small>
+                  </div>
+                )}
                 <select
                   className="form-select insove-form-control mb-2"
                   value={postForm.status}
