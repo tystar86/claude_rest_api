@@ -26,8 +26,13 @@ Register Test User
     ...    json=${payload}
     ...    headers=${headers}
     ...    expected_status=any
-    ${allowed}=    Create List    200    201    400
-    List Should Contain Value    ${allowed}    ${resp.status_code}
+    IF    ${resp.status_code} == 400
+        ${detail}=    Get From Dictionary    ${resp.json()}    detail
+        ${duplicate_messages}=    Create List    Email already in use.    Username already taken.
+        List Should Contain Value    ${duplicate_messages}    ${detail}
+    ELSE
+        Should Be Equal As Integers    ${resp.status_code}    201
+    END
 
 Login Test User
     ${token}=    Get CSRF Token
