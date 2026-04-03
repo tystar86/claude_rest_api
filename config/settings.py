@@ -151,7 +151,6 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS: bool = (
 SECURE_HSTS_PRELOAD: bool = os.environ.get("SECURE_HSTS_PRELOAD", "False") == "True"
 SESSION_COOKIE_SECURE: bool = os.environ.get("SESSION_COOKIE_SECURE", "False") == "True"
 SESSION_COOKIE_HTTPONLY: bool = True
-SESSION_COOKIE_SAMESITE: str = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")
 SESSION_COOKIE_AGE: int = int(os.environ.get("SESSION_COOKIE_AGE", 1209600))
 
 _SAMESITE_ALLOWED = {"Lax", "Strict", "None"}
