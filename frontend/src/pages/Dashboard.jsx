@@ -99,7 +99,7 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    fetchDashboard().then(setData);
+    fetchDashboard().then(setData).catch(() => setData({}));
   }, []);
 
   if (!data) {

@@ -81,7 +81,7 @@ export default function PostList() {
 
   const loadPosts = () => {
     setData(null);
-    fetchPosts(page).then(setData);
+    fetchPosts(page).then(setData).catch(() => setData({ count: 0, total_pages: 1, page, results: [] }));
   };
 
   const loadAllTags = async () => {
