@@ -2,7 +2,7 @@ name: Run tests & formatting
 
 on:
   push:
-    branches: ["**"]
+    branches: [master, testing]
   pull_request:
 
 env:
