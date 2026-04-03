@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 from typing import Any
+
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 load_dotenv(f".env.{os.environ.get('DJANGO_ENV', 'local')}")
@@ -81,11 +83,10 @@ LOGIN_REDIRECT_URL: str = os.environ.get(
 LOGOUT_REDIRECT_URL: str = os.environ.get(
     "LOGOUT_REDIRECT_URL", "http://localhost:5173/dashboard"
 )
-
 ACCOUNT_DEFAULT_HTTP_PROTOCOL: str = os.environ.get(
     "ACCOUNT_DEFAULT_HTTP_PROTOCOL", "http"
 )
-
+SOCIALACCOUNT_LOGIN_ON_GET: bool = True
 SOCIALACCOUNT_PROVIDERS: dict[str, Any] = {
     "google": {
         "APP": {
@@ -151,6 +152,23 @@ SECURE_HSTS_PRELOAD: bool = os.environ.get("SECURE_HSTS_PRELOAD", "False") == "T
 SESSION_COOKIE_SECURE: bool = os.environ.get("SESSION_COOKIE_SECURE", "False") == "True"
 SESSION_COOKIE_HTTPONLY: bool = True
 SESSION_COOKIE_AGE: int = int(os.environ.get("SESSION_COOKIE_AGE", 1209600))
+
+_SAMESITE_ALLOWED = {"Lax", "Strict", "None"}
+_samesite_raw = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")
+SESSION_COOKIE_SAMESITE: str = (
+    _samesite_raw.capitalize() if _samesite_raw.lower() != "none" else "None"
+)
+if SESSION_COOKIE_SAMESITE not in _SAMESITE_ALLOWED:
+    raise ImproperlyConfigured(
+        f"SESSION_COOKIE_SAMESITE={_samesite_raw!r} is invalid. "
+        f"Allowed values (case-insensitive): {sorted(_SAMESITE_ALLOWED)}."
+    )
+if SESSION_COOKIE_SAMESITE == "None" and not SESSION_COOKIE_SECURE:
+    raise ImproperlyConfigured(
+        "SESSION_COOKIE_SAMESITE='None' requires SESSION_COOKIE_SECURE=True "
+        "or browsers will reject the cookie. Set SESSION_COOKIE_SECURE=True "
+        "(HTTPS) or change SESSION_COOKIE_SAMESITE to 'Lax' or 'Strict'."
+    )
 CSRF_COOKIE_SECURE: bool = os.environ.get("CSRF_COOKIE_SECURE", "False") == "True"
 CSRF_TRUSTED_ORIGINS: list[str] = [
     o for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o
