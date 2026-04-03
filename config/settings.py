@@ -170,7 +170,21 @@ if SESSION_COOKIE_SAMESITE == "None" and not SESSION_COOKIE_SECURE:
         "(HTTPS) or change SESSION_COOKIE_SAMESITE to 'Lax' or 'Strict'."
     )
 CSRF_COOKIE_SECURE: bool = os.environ.get("CSRF_COOKIE_SECURE", "False") == "True"
-CSRF_COOKIE_SAMESITE: str = os.environ.get("CSRF_COOKIE_SAMESITE", "Lax")
+_csrf_samesite_raw = os.environ.get("CSRF_COOKIE_SAMESITE", "Lax")
+CSRF_COOKIE_SAMESITE: str = (
+    _csrf_samesite_raw.capitalize() if _csrf_samesite_raw.lower() != "none" else "None"
+)
+if CSRF_COOKIE_SAMESITE not in _SAMESITE_ALLOWED:
+    raise ImproperlyConfigured(
+        f"CSRF_COOKIE_SAMESITE={_csrf_samesite_raw!r} is invalid. "
+        f"Allowed values (case-insensitive): {sorted(_SAMESITE_ALLOWED)}."
+    )
+if CSRF_COOKIE_SAMESITE == "None" and not CSRF_COOKIE_SECURE:
+    raise ImproperlyConfigured(
+        "CSRF_COOKIE_SAMESITE='None' requires CSRF_COOKIE_SECURE=True "
+        "or browsers will reject the cookie. Set CSRF_COOKIE_SECURE=True "
+        "(HTTPS) or change CSRF_COOKIE_SAMESITE to 'Lax' or 'Strict'."
+    )
 CSRF_TRUSTED_ORIGINS: list[str] = [
     o for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o
 ]
