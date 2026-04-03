@@ -27,8 +27,8 @@ function getCookie(name) {
 async function ensureCsrfCookie() {
   const token = getCookie("csrftoken");
   if (token) return token;
-  await api.get("/auth/csrf/");
-  return getCookie("csrftoken");
+  const { data } = await api.get("/auth/csrf/");
+  return getCookie("csrftoken") || data.csrfToken;
 }
 
 api.interceptors.request.use(async (config) => {
