@@ -81,11 +81,10 @@ LOGIN_REDIRECT_URL: str = os.environ.get(
 LOGOUT_REDIRECT_URL: str = os.environ.get(
     "LOGOUT_REDIRECT_URL", "http://localhost:5173/dashboard"
 )
-
 ACCOUNT_DEFAULT_HTTP_PROTOCOL: str = os.environ.get(
     "ACCOUNT_DEFAULT_HTTP_PROTOCOL", "http"
 )
-
+SOCIALACCOUNT_LOGIN_ON_GET: bool = True
 SOCIALACCOUNT_PROVIDERS: dict[str, Any] = {
     "google": {
         "APP": {
@@ -151,6 +150,7 @@ SECURE_HSTS_PRELOAD: bool = os.environ.get("SECURE_HSTS_PRELOAD", "False") == "T
 SESSION_COOKIE_SECURE: bool = os.environ.get("SESSION_COOKIE_SECURE", "False") == "True"
 SESSION_COOKIE_HTTPONLY: bool = True
 SESSION_COOKIE_AGE: int = int(os.environ.get("SESSION_COOKIE_AGE", 1209600))
+SESSION_COOKIE_SAMESITE: str = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")
 CSRF_COOKIE_SECURE: bool = os.environ.get("CSRF_COOKIE_SECURE", "False") == "True"
 CSRF_TRUSTED_ORIGINS: list[str] = [
     o for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o
