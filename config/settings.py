@@ -151,6 +151,7 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS: bool = (
 SECURE_HSTS_PRELOAD: bool = os.environ.get("SECURE_HSTS_PRELOAD", "False") == "True"
 SESSION_COOKIE_SECURE: bool = os.environ.get("SESSION_COOKIE_SECURE", "False") == "True"
 SESSION_COOKIE_HTTPONLY: bool = True
+SESSION_COOKIE_SAMESITE: str = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")
 SESSION_COOKIE_AGE: int = int(os.environ.get("SESSION_COOKIE_AGE", 1209600))
 
 _SAMESITE_ALLOWED = {"Lax", "Strict", "None"}
@@ -170,6 +171,7 @@ if SESSION_COOKIE_SAMESITE == "None" and not SESSION_COOKIE_SECURE:
         "(HTTPS) or change SESSION_COOKIE_SAMESITE to 'Lax' or 'Strict'."
     )
 CSRF_COOKIE_SECURE: bool = os.environ.get("CSRF_COOKIE_SECURE", "False") == "True"
+CSRF_COOKIE_SAMESITE: str = os.environ.get("CSRF_COOKIE_SAMESITE", "Lax")
 CSRF_TRUSTED_ORIGINS: list[str] = [
     o for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o
 ]
