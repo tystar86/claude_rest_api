@@ -1,7 +1,12 @@
 *** Settings ***
 Documentation    UI tests for PostDetail quick navigation.
 Resource         ../resources/ui.resource
-Suite Setup      Open App Browser
+Resource         ../resources/api.resource
+Suite Setup      Run Keywords
+...              Create API Session    AND
+...              Login As Moderator    AND
+...              Create Published Post Via API    Robot Nav Test Post    This is a robot test post body for navigation testing.    AND
+...              Open App Browser
 Suite Teardown   Close App Browser
 
 *** Test Cases ***

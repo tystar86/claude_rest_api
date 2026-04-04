@@ -103,3 +103,17 @@ Create Post Via API
     Should Be Equal As Integers    ${resp.status_code}    201
     ${data}=    Set Variable    ${resp.json()}
     RETURN    ${data}
+
+Create Published Post Via API
+    [Arguments]    ${title}    ${body}
+    ${token}=    Get CSRF Token
+    ${headers}=    Create Dictionary    X-CSRFToken=${token}
+    ${payload}=    Create Dictionary    title=${title}    body=${body}    status=published
+    ${resp}=    POST On Session
+    ...    api
+    ...    /api/posts/
+    ...    json=${payload}
+    ...    headers=${headers}
+    Should Be Equal As Integers    ${resp.status_code}    201
+    ${data}=    Set Variable    ${resp.json()}
+    RETURN    ${data}
