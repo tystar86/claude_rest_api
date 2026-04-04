@@ -8,11 +8,12 @@ socialaccount's applied state references sites.site before sites is set up),
 we create the table directly via Django's schema editor, seed the required
 default row, and record the two sites migrations as applied.
 
-Handles all three cases automatically:
-  1. Clean  — records present AND table exists  → no-op.
-  2. Stale  — records present BUT table missing → drops stale records, creates
-              table, re-records.
-  3. Fresh  — no records AND no table           → creates table, records.
+Handles all four cases automatically:
+  0. Brand-new DB — django_migrations doesn't exist yet → no-op (let migrate run).
+  1. Clean        — django_site table exists            → no-op.
+  2. Stale        — records present BUT table missing   → drops stale records,
+                    creates table, re-records.
+  3. Ordering bug — no records AND table missing        → creates table, records.
 
 Safe to run on every deployment (idempotent).
 
@@ -37,6 +38,20 @@ def _table_exists():
                 SELECT 1 FROM information_schema.tables
                 WHERE table_schema = 'public'
                   AND table_name   = 'django_site'
+            )
+            """
+        )
+        return cursor.fetchone()[0]
+
+
+def _migrations_table_exists():
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public'
+                  AND table_name   = 'django_migrations'
             )
             """
         )
@@ -81,14 +96,22 @@ class Command(BaseCommand):
     )
 
     def handle(self, *args, **options):
+        if not _migrations_table_exists():
+            # Completely fresh database — django_migrations doesn't exist yet.
+            # `migrate` will build everything from scratch; nothing to fix here.
+            self.stdout.write("Fresh database — nothing to do.")
+            return
+
         recorded = _recorded_migrations()
         table_exists = _table_exists()
 
-        if recorded and table_exists:
+        if table_exists:
+            # django_site table already exists — sites is set up correctly.
             self.stdout.write("sites already fully applied — nothing to do.")
             return
 
-        if recorded and not table_exists:
+        # django_site table is missing.
+        if recorded:
             self.stdout.write(
                 self.style.WARNING(
                     "Stale migration records found without django_site table. "
