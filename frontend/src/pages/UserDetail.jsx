@@ -10,17 +10,26 @@ export default function UserDetail() {
   const { username } = useParams();
   const [data, setData] = useState(null);
   const [notFound, setNotFound] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const page = parseInt(searchParams.get("page") || "1");
 
   useEffect(() => {
-    setData(null);
     fetchUser(username, page)
-      .then(setData)
-      .catch(() => setNotFound(true));
+      .then((result) => {
+        setNotFound(false);
+        setFetchError(false);
+        setData(result);
+      })
+      .catch((err) => {
+        setData(null);
+        if (err?.response?.status === 404) setNotFound(true);
+        else setFetchError(true);
+      });
   }, [username, page]);
 
   if (notFound) return <div className="alert alert-danger">User not found.</div>;
+  if (fetchError) return <div className="alert alert-warning">Failed to load user. Please try again.</div>;
   if (!data) return <div className="text-center py-5"><div className="spinner-border" /></div>;
 
   const { user } = data;

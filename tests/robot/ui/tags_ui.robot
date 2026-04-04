@@ -20,24 +20,21 @@ New Tag Button Not Visible When Logged Out
     Wait For Elements State    text=total    visible    10s
     Get Element Count    text=New Tag    ==    0
 
-New Tag Button Visible When Logged In
-    Register Test User
-    Login Test User
+New Tag Button Visible When Logged In As Moderator
+    Login In Browser As Moderator
     Go To    ${TAGS_URL}
     Wait For Elements State    text=total    visible    10s
     Wait For Elements State    text=New Tag    visible    5s
 
 Create Tag Form Appears On Button Click
-    Register Test User
-    Login Test User
+    Login In Browser As Moderator
     Go To    ${TAGS_URL}
     Wait For Elements State    text=New Tag    visible    10s
     Click    text=New Tag
     Wait For Elements State    css=input[placeholder="Tag name"]    visible    5s
 
 Tag Input Accepts Lowercase Only
-    Register Test User
-    Login Test User
+    Login In Browser As Moderator
     Go To    ${TAGS_URL}
     Wait For Elements State    text=New Tag    visible    10s
     Click    text=New Tag
@@ -47,8 +44,7 @@ Tag Input Accepts Lowercase Only
     Should Be Equal    ${value}    uppercase
 
 Created Tag Appears In Tag List
-    Register Test User
-    Login Test User
+    Login As Moderator
     ${ts}=    Get Time    epoch
     ${tag_name}=    Set Variable    ui-robot-tag-${ts}
     Create Tag Via API    ${tag_name}

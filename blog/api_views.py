@@ -1,5 +1,7 @@
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import User
+from django.db import IntegrityError, transaction
 from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.utils.text import slugify
@@ -8,7 +10,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from django.db.models import Count
+from django.db.models import Count, Q
 
 from accounts.models import Profile
 from .models import Comment, CommentVote, Post, Tag
@@ -23,11 +25,14 @@ from .serializers import (
 )
 
 PAGE_SIZE = 10
+_MAX_PAGE = 10_000
+# Dummy hash used for constant-time password check when user does not exist (prevents timing attacks).
+_DUMMY_PASSWORD_HASH = make_password("_dummy_")
 
 
 def paginate(qs, request, serializer_class):
     try:
-        page = max(1, int(request.GET.get("page", 1)))
+        page = max(1, min(int(request.GET.get("page", 1)), _MAX_PAGE))
     except ValueError:
         page = 1
     total = qs.count()
@@ -70,12 +75,17 @@ def can_manage_tags(user):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def dashboard(request):
-    total_posts = Post.objects.count()
-    total_comments = Comment.objects.count()
-    total_authors = User.objects.filter(posts__isnull=False).distinct().count()
-    active_tags = Tag.objects.filter(posts__isnull=False).distinct().count()
+    published = Post.objects.filter(status=Post.Status.PUBLISHED)
+    total_posts = published.count()
+    total_comments = Comment.objects.filter(post__status=Post.Status.PUBLISHED).count()
+    total_authors = (
+        User.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
+    )
+    active_tags = (
+        Tag.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
+    )
 
-    bodies = Post.objects.values_list("body", flat=True)
+    bodies = published.values_list("body", flat=True)
     word_counts = [len((body or "").split()) for body in bodies]
     average_depth_words = (
         round(sum(word_counts) / len(word_counts)) if word_counts else 0
@@ -91,27 +101,33 @@ def dashboard(request):
                 "average_depth_words": average_depth_words,
             },
             "latest_posts": PostSerializer(
-                Post.objects.select_related("author")
+                published.select_related("author")
                 .prefetch_related("tags")
                 .order_by("-created_at")[:10],
                 many=True,
             ).data,
             "most_commented_posts": PostSerializer(
-                Post.objects.select_related("author")
+                published.select_related("author")
                 .prefetch_related("tags")
                 .annotate(comment_count=Count("comments"))
                 .order_by("-comment_count")[:10],
                 many=True,
             ).data,
             "most_used_tags": TagSerializer(
-                Tag.objects.annotate(post_count=Count("posts")).order_by("-post_count")[
-                    :10
-                ],
+                Tag.objects.annotate(
+                    post_count=Count(
+                        "posts", filter=Q(posts__status=Post.Status.PUBLISHED)
+                    )
+                ).order_by("-post_count")[:10],
                 many=True,
             ).data,
             "top_authors": UserSerializer(
                 User.objects.select_related("profile")
-                .annotate(post_count=Count("posts"))
+                .annotate(
+                    post_count=Count(
+                        "posts", filter=Q(posts__status=Post.Status.PUBLISHED)
+                    )
+                )
                 .filter(post_count__gt=0)
                 .order_by("-post_count")[:10],
                 many=True,
@@ -138,7 +154,8 @@ def comment_list(request):
 def post_list(request):
     if request.method == "GET":
         qs = (
-            Post.objects.select_related("author")
+            Post.objects.filter(status=Post.Status.PUBLISHED)
+            .select_related("author")
             .prefetch_related("tags")
             .order_by("-created_at")
         )
@@ -196,7 +213,17 @@ def post_detail(request, slug):
     except Post.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
+    role = getattr(getattr(request.user, "profile", None), "role", "user")
+
     if request.method == "GET":
+        can_view_unpublished = request.user.is_authenticated and (
+            post.author_id == request.user.id
+            or request.user.is_superuser
+            or request.user.is_staff
+            or role in ("moderator", "admin")
+        )
+        if post.status != Post.Status.PUBLISHED and not can_view_unpublished:
+            return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(PostDetailSerializer(post, context={"request": request}).data)
 
     if not request.user.is_authenticated:
@@ -204,10 +231,11 @@ def post_detail(request, slug):
             {"detail": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED
         )
 
-    role = getattr(getattr(request.user, "profile", None), "role", "user")
-    can_manage_post = post.author_id == request.user.id or role in (
-        "moderator",
-        "admin",
+    can_manage_post = (
+        post.author_id == request.user.id
+        or request.user.is_superuser
+        or request.user.is_staff
+        or role in ("moderator", "admin")
     )
     if not can_manage_post:
         return Response(
@@ -270,9 +298,9 @@ def tag_list(request):
         qs = Tag.objects.order_by("name")
         return Response(paginate(qs, request, TagSerializer))
 
-    if not request.user.is_authenticated:
+    if not can_manage_tags(request.user):
         return Response(
-            {"detail": "Authentication required to create tags."},
+            {"detail": "Only moderators/admins can create tags."},
             status=status.HTTP_403_FORBIDDEN,
         )
 
@@ -286,7 +314,12 @@ def tag_list(request):
             {"detail": "Tag name already exists."}, status=status.HTTP_400_BAD_REQUEST
         )
 
-    tag = Tag.objects.create(name=name, slug=build_unique_slug(Tag, name))
+    try:
+        tag = Tag.objects.create(name=name, slug=build_unique_slug(Tag, name))
+    except IntegrityError:
+        return Response(
+            {"detail": "Tag name already exists."}, status=status.HTTP_400_BAD_REQUEST
+        )
     return Response(TagSerializer(tag).data, status=status.HTTP_201_CREATED)
 
 
@@ -300,7 +333,7 @@ def tag_detail(request, slug):
 
     if request.method == "GET":
         posts_qs = (
-            Post.objects.filter(tags=tag)
+            Post.objects.filter(tags=tag, status=Post.Status.PUBLISHED)
             .select_related("author")
             .prefetch_related("tags")
             .order_by("-created_at")
@@ -356,7 +389,7 @@ def user_detail(request, username):
     except User.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
     posts_qs = (
-        Post.objects.filter(author=user)
+        Post.objects.filter(author=user, status=Post.Status.PUBLISHED)
         .prefetch_related("tags")
         .order_by("-created_at")
     )
@@ -383,8 +416,12 @@ def login_view(request):
     email = request.data.get("email", "")
     password = request.data.get("password", "")
     try:
-        username = User.objects.get(email=email).username
-    except User.DoesNotExist:
+        db_user = User.objects.get(email=email)
+        username = db_user.username
+    except (User.DoesNotExist, User.MultipleObjectsReturned):
+        # Always run a dummy check to make response time indistinguishable from a
+        # wrong-password attempt, preventing email enumeration via timing.
+        check_password(password, _DUMMY_PASSWORD_HASH)
         return Response(
             {"detail": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST
         )
@@ -408,15 +445,24 @@ def register_view(request):
             {"detail": "email, username and password are required."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    if User.objects.filter(email=email).exists():
+    if (
+        User.objects.filter(email=email).exists()
+        or User.objects.filter(username=username).exists()
+    ):
         return Response(
-            {"detail": "Email already in use."}, status=status.HTTP_400_BAD_REQUEST
+            {"detail": "Registration failed."},
+            status=status.HTTP_400_BAD_REQUEST,
         )
-    if User.objects.filter(username=username).exists():
+    try:
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=username, email=email, password=password
+            )
+    except IntegrityError:
         return Response(
-            {"detail": "Username already taken."}, status=status.HTTP_400_BAD_REQUEST
+            {"detail": "Registration failed."},
+            status=status.HTTP_400_BAD_REQUEST,
         )
-    user = User.objects.create_user(username=username, email=email, password=password)
     Profile.objects.get_or_create(user=user)
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     return Response(CurrentUserSerializer(user).data, status=status.HTTP_201_CREATED)

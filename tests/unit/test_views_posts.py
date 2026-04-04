@@ -183,3 +183,30 @@ class TestPostDetail:
         api_client.force_authenticate(user=other)
         resp = api_client.delete(f"/api/posts/{post.slug}/")
         assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_get_draft_post_returns_404_for_anonymous(self, api_client, draft_post):
+        """Anonymous users receive 404 when requesting a draft post."""
+        resp = api_client.get(f"/api/posts/{draft_post.slug}/")
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_get_draft_post_returns_200_for_author(self, auth_client, draft_post):
+        """The post author can retrieve their own draft post."""
+        resp = auth_client.get(f"/api/posts/{draft_post.slug}/")
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["slug"] == draft_post.slug
+
+    def test_get_draft_post_returns_404_for_other_authenticated_user(
+        self, api_client, draft_post, db
+    ):
+        """A different authenticated user receives 404 for another user's draft."""
+        other = User.objects.create_user(
+            username="other3", email="other3@x.com", password="p"
+        )
+        api_client.force_authenticate(user=other)
+        resp = api_client.get(f"/api/posts/{draft_post.slug}/")
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_get_draft_post_returns_200_for_moderator(self, mod_client, draft_post):
+        """Moderators can view draft posts authored by other users."""
+        resp = mod_client.get(f"/api/posts/{draft_post.slug}/")
+        assert resp.status_code == status.HTTP_200_OK

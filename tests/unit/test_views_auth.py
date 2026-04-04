@@ -67,7 +67,7 @@ class TestRegisterView:
             format="json",
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        assert resp.data["detail"] == "Email already in use."
+        assert resp.data["detail"] == "Registration failed."
 
     def test_duplicate_username_returns_400(self, api_client, user):
         """Registering with an already-taken username returns 400."""
@@ -81,7 +81,31 @@ class TestRegisterView:
             format="json",
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        assert resp.data["detail"] == "Username already taken."
+        assert resp.data["detail"] == "Registration failed."
+
+    def test_duplicate_registration_error_is_generic(self, api_client, user):
+        """Duplicate registrations always return the same generic message regardless of which field collides."""
+        resp_email = api_client.post(
+            "/api/auth/register/",
+            {"email": "test@example.com", "username": "other", "password": "pass1234"},
+            format="json",
+        )
+        resp_username = api_client.post(
+            "/api/auth/register/",
+            {
+                "email": "different@example.com",
+                "username": "testuser",
+                "password": "pass1234",
+            },
+            format="json",
+        )
+        assert resp_email.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp_username.status_code == status.HTTP_400_BAD_REQUEST
+        assert (
+            resp_email.data["detail"]
+            == resp_username.data["detail"]
+            == "Registration failed."
+        )
 
 
 # ── Login ──────────────────────────────────────────────────────────────────────
@@ -119,6 +143,22 @@ class TestLoginView:
             format="json",
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_duplicate_email_in_db_returns_400(self, api_client, user):
+        """MultipleObjectsReturned when two DB rows share an email is treated as auth failure."""
+        other = User.objects.create_user(
+            username="other", email="other@example.com", password="otherpass123"
+        )
+        # Force both users to share the same email, bypassing the unique constraint
+        User.objects.filter(pk=other.pk).update(email="test@example.com")
+
+        resp = api_client.post(
+            "/api/auth/login/",
+            {"email": "test@example.com", "password": "testpass123"},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.data["detail"] == "Invalid credentials."
 
 
 # ── Logout ─────────────────────────────────────────────────────────────────────

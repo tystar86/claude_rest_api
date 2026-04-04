@@ -39,10 +39,10 @@ class TestTagList:
         resp = admin_client.post("/api/tags/", {"name": "Flask"}, format="json")
         assert resp.status_code == status.HTTP_201_CREATED
 
-    def test_regular_user_can_create_tag(self, auth_client):
+    def test_regular_user_cannot_create_tag(self, auth_client):
         """A regular user is forbidden from creating tags."""
         resp = auth_client.post("/api/tags/", {"name": "Python"}, format="json")
-        assert resp.status_code == status.HTTP_201_CREATED
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
 
     def test_unauthenticated_cannot_create_tag(self, api_client):
         """An anonymous user is forbidden from creating tags."""

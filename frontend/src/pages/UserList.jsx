@@ -11,8 +11,7 @@ export default function UserList() {
   const page = parseInt(searchParams.get("page") || "1");
 
   useEffect(() => {
-    setData(null);
-    fetchUsers(page).then(setData);
+    fetchUsers(page).then(setData).catch(() => setData({ count: 0, total_pages: 1, page, results: [] }));
   }, [page]);
 
   if (!data) return <div className="text-center py-5"><div className="spinner-border" /></div>;

@@ -13,7 +13,9 @@ SECRET_KEY: str = os.environ["SECRET_KEY"]
 
 DEBUG: bool = os.environ.get("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS: list[str | None] = os.environ.get("ALLOWED_HOSTS", "").split(",")
+ALLOWED_HOSTS: list[str] = [
+    h for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h
+]
 
 INSTALLED_APPS: list[str] = [
     "django.contrib.admin",

@@ -33,9 +33,13 @@ export default function TagList() {
 
   useEffect(() => {
     let cancelled = false;
-    loadAllTags().then((next) => {
-      if (!cancelled) setData(next);
-    });
+    loadAllTags()
+      .then((next) => {
+        if (!cancelled) setData(next);
+      })
+      .catch(() => {
+        if (!cancelled) setData({ count: 0, results: [] });
+      });
     return () => {
       cancelled = true;
     };
@@ -60,7 +64,7 @@ export default function TagList() {
 
   const handleEditTag = async (tag) => {
     const nextName = window.prompt("Edit tag name", tag.name);
-    if (!nextName || nextName.trim().toLowerCase() === tag.name) return;
+    if (!nextName || nextName.trim().toLowerCase() === tag.name.toLowerCase()) return;
     try {
       await updateTag(tag.slug, nextName.trim().toLowerCase());
       setData(await loadAllTags());

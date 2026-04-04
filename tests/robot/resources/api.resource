@@ -28,11 +28,22 @@ Register Test User
     ...    expected_status=any
     IF    ${resp.status_code} == 400
         ${detail}=    Get From Dictionary    ${resp.json()}    detail
-        ${duplicate_messages}=    Create List    Email already in use.    Username already taken.
-        List Should Contain Value    ${duplicate_messages}    ${detail}
+        Should Be Equal As Strings    ${detail}    Registration failed.
     ELSE
         Should Be Equal As Integers    ${resp.status_code}    201
     END
+
+Login As Moderator
+    ${token}=    Get CSRF Token
+    ${headers}=    Create Dictionary    X-CSRFToken=${token}
+    ${payload}=    Create Dictionary    email=${MOD_EMAIL}    password=${MOD_PASSWORD}
+    ${resp}=    POST On Session
+    ...    api
+    ...    /api/auth/login/
+    ...    json=${payload}
+    ...    headers=${headers}
+    ...    expected_status=any
+    Should Be Equal As Integers    ${resp.status_code}    200
 
 Login Test User
     ${token}=    Get CSRF Token
@@ -60,11 +71,44 @@ Create Tag Via API
     ${data}=    Set Variable    ${resp.json()}
     RETURN    ${data}
 
+Delete Tag Via API
+    [Arguments]    ${slug}
+    ${token}=    Get CSRF Token
+    ${headers}=    Create Dictionary    X-CSRFToken=${token}
+    ${resp}=    DELETE On Session
+    ...    api
+    ...    /api/tags/${slug}/
+    ...    headers=${headers}
+    ...    expected_status=any
+    # Accept 204 (deleted) or 404 (already gone) — both are fine for cleanup
+
+Cleanup API Test Tags
+    Login As Moderator
+    @{slugs}=    Create List    robot-tag    robotuppertag    robot-mixed
+    ...    unique-tag-dupe    case-check-tag    listed-tag
+    FOR    ${slug}    IN    @{slugs}
+        Delete Tag Via API    ${slug}
+    END
+
 Create Post Via API
     [Arguments]    ${title}    ${body}
     ${token}=    Get CSRF Token
     ${headers}=    Create Dictionary    X-CSRFToken=${token}
     ${payload}=    Create Dictionary    title=${title}    body=${body}    status=draft
+    ${resp}=    POST On Session
+    ...    api
+    ...    /api/posts/
+    ...    json=${payload}
+    ...    headers=${headers}
+    Should Be Equal As Integers    ${resp.status_code}    201
+    ${data}=    Set Variable    ${resp.json()}
+    RETURN    ${data}
+
+Create Published Post Via API
+    [Arguments]    ${title}    ${body}
+    ${token}=    Get CSRF Token
+    ${headers}=    Create Dictionary    X-CSRFToken=${token}
+    ${payload}=    Create Dictionary    title=${title}    body=${body}    status=published
     ${resp}=    POST On Session
     ...    api
     ...    /api/posts/
