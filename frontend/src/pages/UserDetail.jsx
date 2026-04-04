@@ -15,12 +15,14 @@ export default function UserDetail() {
   const page = parseInt(searchParams.get("page") || "1");
 
   useEffect(() => {
-    setData(null);
-    setNotFound(false);
-    setFetchError(false);
     fetchUser(username, page)
-      .then(setData)
+      .then((result) => {
+        setNotFound(false);
+        setFetchError(false);
+        setData(result);
+      })
       .catch((err) => {
+        setData(null);
         if (err?.response?.status === 404) setNotFound(true);
         else setFetchError(true);
       });

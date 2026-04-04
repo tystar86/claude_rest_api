@@ -16,7 +16,6 @@ export default function CommentList() {
   const page = parseInt(searchParams.get("page") || "1", 10);
 
   useEffect(() => {
-    setData(null);
     fetchComments(page).then(setData).catch(() => setData({ count: 0, total_pages: 1, page, results: [] }));
   }, [page]);
 

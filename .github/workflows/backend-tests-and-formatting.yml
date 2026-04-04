@@ -1,4 +1,4 @@
-name: Run tests & formatting
+name: Run BE tests & formatting
 
 on:
   push:
