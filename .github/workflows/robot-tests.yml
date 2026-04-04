@@ -62,7 +62,9 @@ jobs:
         run: uv sync --all-groups
 
       - name: Apply migrations
-        run: uv run python manage.py migrate --run-syncdb
+        run: |
+          uv run python manage.py ensure_sites_migrations
+          uv run python manage.py migrate --run-syncdb
 
       - name: Seed moderator test user
         run: |
@@ -120,18 +122,26 @@ jobs:
       - name: Wait for backend to be ready
         run: |
           for i in $(seq 1 30); do
-            curl -sf http://localhost:8000/api/dashboard/ && break
+            if curl -sf http://localhost:8000/api/dashboard/ > /dev/null; then
+              exit 0
+            fi
             echo "Waiting for backend... attempt $i"
             sleep 2
           done
+          echo "Backend never became ready" >&2
+          exit 1
 
       - name: Wait for frontend to be ready
         run: |
           for i in $(seq 1 30); do
-            curl -sf http://localhost:5173/ && break
+            if curl -sf http://localhost:5173/ > /dev/null; then
+              exit 0
+            fi
             echo "Waiting for frontend... attempt $i"
             sleep 2
           done
+          echo "Frontend never became ready" >&2
+          exit 1
 
       # ── Run tests ─────────────────────────────────────────────────────────────
 

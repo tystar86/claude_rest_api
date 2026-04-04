@@ -29,6 +29,9 @@ print('ERROR: Database did not become ready after 60 s.')
 sys.exit(1)
 "
 
+echo "Ensuring sites migrations consistency..."
+python manage.py ensure_sites_migrations
+
 echo "Running migrations..."
 python manage.py migrate --noinput
 
