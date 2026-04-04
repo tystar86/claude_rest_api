@@ -14,19 +14,19 @@ Tag List Returns 200 For Anonymous
     Dictionary Should Contain Key    ${json}    count
     Dictionary Should Contain Key    ${json}    total_pages
 
-Authenticated User Can Create Tag
-    Login Test User
+Moderator Can Create Tag
+    Login As Moderator
     ${tag}=    Create Tag Via API    robot-tag
     Dictionary Should Contain Key    ${tag}    slug
     Should Be Equal    ${tag["name"]}    robot-tag
 
 Tag Name Is Stored Lowercase
-    Login Test User
+    Login As Moderator
     ${tag}=    Create Tag Via API    RobotUpperTag
     Should Be Equal    ${tag["name"]}    robotuppertag
 
 Mixed Case Tag Name Is Normalised
-    Login Test User
+    Login As Moderator
     ${tag}=    Create Tag Via API    RoBOt-MiXeD
     Should Be Equal    ${tag["name"]}    robot-mixed
 
@@ -43,8 +43,21 @@ Anonymous User Cannot Create Tag
     ...    expected_status=any
     Should Be Equal As Integers    ${resp.status_code}    403
 
-Duplicate Tag Name Returns 400
+Regular User Cannot Create Tag
     Login Test User
+    ${token}=    Get CSRF Token
+    ${headers}=    Create Dictionary    X-CSRFToken=${token}
+    ${payload}=    Create Dictionary    name=regular-user-tag
+    ${resp}=    POST On Session
+    ...    api
+    ...    /api/tags/
+    ...    json=${payload}
+    ...    headers=${headers}
+    ...    expected_status=any
+    Should Be Equal As Integers    ${resp.status_code}    403
+
+Duplicate Tag Name Returns 400
+    Login As Moderator
     Create Tag Via API    unique-tag-dupe
     ${token}=    Get CSRF Token
     ${headers}=    Create Dictionary    X-CSRFToken=${token}
@@ -60,7 +73,7 @@ Duplicate Tag Name Returns 400
     Should Be Equal    ${json["detail"]}    Tag name already exists.
 
 Duplicate Check Is Case Insensitive
-    Login Test User
+    Login As Moderator
     Create Tag Via API    case-check-tag
     ${token}=    Get CSRF Token
     ${headers}=    Create Dictionary    X-CSRFToken=${token}
@@ -74,7 +87,7 @@ Duplicate Check Is Case Insensitive
     Should Be Equal As Integers    ${resp.status_code}    400
 
 Empty Tag Name Returns 400
-    Login Test User
+    Login As Moderator
     ${token}=    Get CSRF Token
     ${headers}=    Create Dictionary    X-CSRFToken=${token}
     ${payload}=    Create Dictionary    name=${EMPTY}
@@ -87,7 +100,7 @@ Empty Tag Name Returns 400
     Should Be Equal As Integers    ${resp.status_code}    400
 
 Created Tag Appears In Tag List
-    Login Test User
+    Login As Moderator
     ${tag}=    Create Tag Via API    listed-tag
     ${slug}=    Get From Dictionary    ${tag}    slug
     ${resp}=    GET On Session    api    /api/tags/${slug}/

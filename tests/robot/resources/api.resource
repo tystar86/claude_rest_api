@@ -33,6 +33,18 @@ Register Test User
         Should Be Equal As Integers    ${resp.status_code}    201
     END
 
+Login As Moderator
+    ${token}=    Get CSRF Token
+    ${headers}=    Create Dictionary    X-CSRFToken=${token}
+    ${payload}=    Create Dictionary    email=${MOD_EMAIL}    password=${MOD_PASSWORD}
+    ${resp}=    POST On Session
+    ...    api
+    ...    /api/auth/login/
+    ...    json=${payload}
+    ...    headers=${headers}
+    ...    expected_status=any
+    Should Be Equal As Integers    ${resp.status_code}    200
+
 Login Test User
     ${token}=    Get CSRF Token
     ${headers}=    Create Dictionary    X-CSRFToken=${token}

@@ -64,6 +64,20 @@ jobs:
       - name: Apply migrations
         run: uv run python manage.py migrate --run-syncdb
 
+      - name: Seed moderator test user
+        run: |
+          uv run python manage.py shell -c "
+          from django.contrib.auth.models import User
+          from accounts.models import Profile
+          u, _ = User.objects.get_or_create(
+              username='robot_mod',
+              defaults={'email': 'robot.mod@example.com'},
+          )
+          u.set_password('robot_mod_pass_123')
+          u.save()
+          Profile.objects.filter(user=u).update(role='moderator')
+          "
+
       # ── Playwright (rfbrowser) ────────────────────────────────────────────────
 
       - name: Cache Playwright browsers
