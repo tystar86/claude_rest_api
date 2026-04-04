@@ -27,3 +27,4 @@ playwright-log.txt
 .ruff_cache/
 .pytest_cache/
 .coverage
+/.claude

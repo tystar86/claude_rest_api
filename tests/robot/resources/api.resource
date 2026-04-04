@@ -71,6 +71,25 @@ Create Tag Via API
     ${data}=    Set Variable    ${resp.json()}
     RETURN    ${data}
 
+Delete Tag Via API
+    [Arguments]    ${slug}
+    ${token}=    Get CSRF Token
+    ${headers}=    Create Dictionary    X-CSRFToken=${token}
+    ${resp}=    DELETE On Session
+    ...    api
+    ...    /api/tags/${slug}/
+    ...    headers=${headers}
+    ...    expected_status=any
+    # Accept 204 (deleted) or 404 (already gone) — both are fine for cleanup
+
+Cleanup API Test Tags
+    Login As Moderator
+    @{slugs}=    Create List    robot-tag    robotuppertag    robot-mixed
+    ...    unique-tag-dupe    case-check-tag    listed-tag
+    FOR    ${slug}    IN    @{slugs}
+        Delete Tag Via API    ${slug}
+    END
+
 Create Post Via API
     [Arguments]    ${title}    ${body}
     ${token}=    Get CSRF Token

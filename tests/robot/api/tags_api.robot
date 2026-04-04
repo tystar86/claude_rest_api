@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation    API smoke tests for tag endpoints.
 Resource         ../resources/api.resource
-Suite Setup      Create API Session
+Suite Setup      Run Keywords    Create API Session    AND    Cleanup API Test Tags
 Test Setup       Register Test User
 
 *** Test Cases ***

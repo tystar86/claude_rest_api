@@ -16,13 +16,11 @@ Post Detail Quick Nav Buttons Visible
     ...    force scrollability via JS so the assertion is deterministic regardless
     ...    of how long the clicked post's content is.
     Go To    ${UI_BASE_URL}/posts
-    Wait For Elements State    css=ul.list-unstyled li a    visible    10s
-    Click    css=ul.list-unstyled li a
-    Wait For Elements State    text=Comments    visible    10s
+    Wait For Elements State    css=ul.list-unstyled li a >> nth=0    visible    10s
+    Click    css=ul.list-unstyled li a >> nth=0
+    Wait For Elements State    css=#comments-section    visible    10s
     # Guarantee the page is scrollable so React renders the quick-nav buttons
-    Evaluate JavaScript    NONE
-    ...    document.body.style.minHeight = "200vh";
-    ...    window.dispatchEvent(new Event("resize"));
-    Wait For Elements State    role=button[name="Top"]       visible    5s
-    Wait For Elements State    role=button[name="Comments"]  visible    5s
-    Wait For Elements State    role=button[name="Bottom"]    visible    5s
+    Evaluate JavaScript    ${NONE}    document.body.style.minHeight = "200vh"; window.scrollBy(0, 1);
+    Wait For Elements State    css=button[aria-label="Scroll to top"]      visible    5s
+    Wait For Elements State    css=button[aria-label="Scroll to comments"]  visible    5s
+    Wait For Elements State    css=button[aria-label="Scroll to bottom"]    visible    5s
