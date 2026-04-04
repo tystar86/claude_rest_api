@@ -1,0 +1,140 @@
+name: Robot tests
+
+on:
+  push:
+    branches: [master, testing]
+  pull_request:
+
+env:
+  DJANGO_ENV: testing
+  SECRET_KEY: django-insecure-ci-key
+  DEBUG: "False"
+  ALLOWED_HOSTS: "localhost,127.0.0.1"
+  DB_NAME: blog_test
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  DB_HOST: localhost
+  DB_PORT: "5432"
+  DB_CONN_MAX_AGE: "0"
+  SECURE_SSL_REDIRECT: "False"
+  SECURE_HSTS_SECONDS: "0"
+  SESSION_COOKIE_SECURE: "False"
+  CSRF_COOKIE_SECURE: "False"
+  CORS_ALLOWED_ORIGINS: "http://localhost:5173"
+  CSRF_TRUSTED_ORIGINS: "http://localhost:5173"
+  PASSWORD_HASHERS: "django.contrib.auth.hashers.MD5PasswordHasher"
+  API_BASE_URL: "http://localhost:8000"
+  UI_BASE_URL: "http://localhost:5173"
+  BROWSER: "chromium"
+
+jobs:
+  robot:
+    name: Run Robot Framework tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: blog_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── Python / Django ───────────────────────────────────────────────────────
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install Python dependencies
+        run: uv sync --all-groups
+
+      - name: Apply migrations
+        run: uv run python manage.py migrate --run-syncdb
+
+      # ── Playwright (rfbrowser) ────────────────────────────────────────────────
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('uv.lock') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: uv run rfbrowser init
+
+      - name: Register rfbrowser with cached browsers
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: uv run rfbrowser init --skip-browsers
+
+      # ── Node / Frontend ───────────────────────────────────────────────────────
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # ── Start services ────────────────────────────────────────────────────────
+
+      - name: Start Django backend
+        run: uv run python manage.py runserver 0.0.0.0:8000 &
+
+      - name: Start Vite dev server
+        working-directory: frontend
+        run: npm run dev &
+
+      - name: Wait for backend to be ready
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/api/dashboard/ && break
+            echo "Waiting for backend... attempt $i"
+            sleep 2
+          done
+
+      - name: Wait for frontend to be ready
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:5173/ && break
+            echo "Waiting for frontend... attempt $i"
+            sleep 2
+          done
+
+      # ── Run tests ─────────────────────────────────────────────────────────────
+
+      - name: Run API robot tests
+        run: uv run robot --outputdir results/api tests/robot/api/
+
+      - name: Run UI robot tests
+        run: uv run robot --outputdir results/ui tests/robot/ui/
+
+      # ── Artifacts ─────────────────────────────────────────────────────────────
+
+      - name: Upload Robot test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-results
+          path: |
+            results/api/
+            results/ui/
+          retention-days: 14

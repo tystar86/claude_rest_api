@@ -28,8 +28,7 @@ Register Test User
     ...    expected_status=any
     IF    ${resp.status_code} == 400
         ${detail}=    Get From Dictionary    ${resp.json()}    detail
-        ${duplicate_messages}=    Create List    Email already in use.    Username already taken.
-        List Should Contain Value    ${duplicate_messages}    ${detail}
+        Should Be Equal As Strings    ${detail}    Registration failed.
     ELSE
         Should Be Equal As Integers    ${resp.status_code}    201
     END
