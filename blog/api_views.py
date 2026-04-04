@@ -445,6 +445,14 @@ def register_view(request):
             {"detail": "email, username and password are required."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    if (
+        User.objects.filter(email=email).exists()
+        or User.objects.filter(username=username).exists()
+    ):
+        return Response(
+            {"detail": "Registration failed."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     try:
         with transaction.atomic():
             user = User.objects.create_user(

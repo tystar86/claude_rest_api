@@ -34,7 +34,14 @@ class CurrentUserSerializer(UserSerializer):
 
 
 class TagSerializer(serializers.ModelSerializer):
-    post_count = serializers.IntegerField(source="posts.count", read_only=True)
+    post_count = serializers.SerializerMethodField()
+
+    def get_post_count(self, obj):
+        # Use pre-annotated value (e.g. published-only count from dashboard view)
+        # when present; fall back to the full related manager count elsewhere.
+        if hasattr(obj, "post_count"):
+            return obj.post_count
+        return obj.posts.count()
 
     class Meta:
         model = Tag
