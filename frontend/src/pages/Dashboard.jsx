@@ -99,7 +99,13 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    fetchDashboard().then(setData).catch(() => setData({}));
+    fetchDashboard().then(setData).catch(() => setData({
+      stats: {},
+      latest_posts: [],
+      most_commented_posts: [],
+      most_used_tags: [],
+      top_authors: [],
+    }));
   }, []);
 
   if (!data) {

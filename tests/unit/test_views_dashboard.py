@@ -1,7 +1,10 @@
 """Unit tests for the dashboard API endpoint."""
 
 import pytest
+from django.contrib.auth.models import User
 from rest_framework import status
+
+from blog.models import Comment, Post, Tag
 
 
 @pytest.mark.django_db
@@ -64,3 +67,61 @@ class TestDashboardView:
         """average_depth_words is a positive integer when posts exist."""
         resp = api_client.get("/api/dashboard/")
         assert resp.data["stats"]["average_depth_words"] > 0
+
+    def test_draft_post_comments_excluded_from_comment_count(self, api_client, db):
+        """Comments on draft posts are not counted in the stats comment total."""
+        author = User.objects.create_user(
+            username="draftauthor", email="draftauthor@x.com", password="p"
+        )
+        draft = Post.objects.create(
+            title="Draft Only",
+            slug="draft-only",
+            author=author,
+            body="Draft body.",
+            status=Post.Status.DRAFT,
+        )
+        Comment.objects.create(
+            post=draft,
+            author=author,
+            body="Comment on draft.",
+            is_approved=True,
+        )
+        resp = api_client.get("/api/dashboard/")
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["stats"]["comments"] == 0
+
+    def test_most_used_tags_excludes_draft_posts(self, api_client, db):
+        """Tags attached only to draft posts appear with a post_count of 0 or are absent."""
+        author = User.objects.create_user(
+            username="tagdraftauthor", email="tagdraftauthor@x.com", password="p"
+        )
+        tag = Tag.objects.create(name="DraftTag", slug="draft-tag")
+        draft = Post.objects.create(
+            title="Draft Tagged",
+            slug="draft-tagged",
+            author=author,
+            body="Draft body.",
+            status=Post.Status.DRAFT,
+        )
+        draft.tags.add(tag)
+        resp = api_client.get("/api/dashboard/")
+        assert resp.status_code == status.HTTP_200_OK
+        tag_entries = [t for t in resp.data["most_used_tags"] if t["slug"] == tag.slug]
+        assert not tag_entries or tag_entries[0]["post_count"] == 0
+
+    def test_top_authors_excludes_draft_only_authors(self, api_client, db):
+        """Users who only have draft posts do not appear in top_authors."""
+        draft_author = User.objects.create_user(
+            username="draftonlyauthor", email="draftonlyauthor@x.com", password="p"
+        )
+        Post.objects.create(
+            title="Only Draft",
+            slug="only-draft",
+            author=draft_author,
+            body="Draft body.",
+            status=Post.Status.DRAFT,
+        )
+        resp = api_client.get("/api/dashboard/")
+        assert resp.status_code == status.HTTP_200_OK
+        author_usernames = [a["username"] for a in resp.data["top_authors"]]
+        assert draft_author.username not in author_usernames

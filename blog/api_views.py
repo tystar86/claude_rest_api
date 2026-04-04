@@ -1,7 +1,7 @@
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import User
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.utils.text import slugify
@@ -10,7 +10,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from django.db.models import Count
+from django.db.models import Count, Q
 
 from accounts.models import Profile
 from .models import Comment, CommentVote, Post, Tag
@@ -77,7 +77,7 @@ def can_manage_tags(user):
 def dashboard(request):
     published = Post.objects.filter(status=Post.Status.PUBLISHED)
     total_posts = published.count()
-    total_comments = Comment.objects.count()
+    total_comments = Comment.objects.filter(post__status=Post.Status.PUBLISHED).count()
     total_authors = (
         User.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
     )
@@ -114,14 +114,20 @@ def dashboard(request):
                 many=True,
             ).data,
             "most_used_tags": TagSerializer(
-                Tag.objects.annotate(post_count=Count("posts")).order_by("-post_count")[
-                    :10
-                ],
+                Tag.objects.annotate(
+                    post_count=Count(
+                        "posts", filter=Q(posts__status=Post.Status.PUBLISHED)
+                    )
+                ).order_by("-post_count")[:10],
                 many=True,
             ).data,
             "top_authors": UserSerializer(
                 User.objects.select_related("profile")
-                .annotate(post_count=Count("posts"))
+                .annotate(
+                    post_count=Count(
+                        "posts", filter=Q(posts__status=Post.Status.PUBLISHED)
+                    )
+                )
                 .filter(post_count__gt=0)
                 .order_by("-post_count")[:10],
                 many=True,
@@ -207,7 +213,17 @@ def post_detail(request, slug):
     except Post.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
+    role = getattr(getattr(request.user, "profile", None), "role", "user")
+
     if request.method == "GET":
+        can_view_unpublished = request.user.is_authenticated and (
+            post.author_id == request.user.id
+            or request.user.is_superuser
+            or request.user.is_staff
+            or role in ("moderator", "admin")
+        )
+        if post.status != Post.Status.PUBLISHED and not can_view_unpublished:
+            return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(PostDetailSerializer(post, context={"request": request}).data)
 
     if not request.user.is_authenticated:
@@ -215,7 +231,6 @@ def post_detail(request, slug):
             {"detail": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED
         )
 
-    role = getattr(getattr(request.user, "profile", None), "role", "user")
     can_manage_post = (
         post.author_id == request.user.id
         or request.user.is_superuser
@@ -403,7 +418,7 @@ def login_view(request):
     try:
         db_user = User.objects.get(email=email)
         username = db_user.username
-    except User.DoesNotExist:
+    except (User.DoesNotExist, User.MultipleObjectsReturned):
         # Always run a dummy check to make response time indistinguishable from a
         # wrong-password attempt, preventing email enumeration via timing.
         check_password(password, _DUMMY_PASSWORD_HASH)
@@ -430,21 +445,14 @@ def register_view(request):
             {"detail": "email, username and password are required."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    if User.objects.filter(email=email).exists():
-        return Response(
-            {"detail": "Email already in use."}, status=status.HTTP_400_BAD_REQUEST
-        )
-    if User.objects.filter(username=username).exists():
-        return Response(
-            {"detail": "Username already taken."}, status=status.HTTP_400_BAD_REQUEST
-        )
     try:
-        user = User.objects.create_user(
-            username=username, email=email, password=password
-        )
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=username, email=email, password=password
+            )
     except IntegrityError:
         return Response(
-            {"detail": "Email or username already in use."},
+            {"detail": "Registration failed."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     Profile.objects.get_or_create(user=user)
