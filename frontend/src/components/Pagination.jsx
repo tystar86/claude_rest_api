@@ -7,20 +7,42 @@ export default function Pagination({ page, totalPages, onChange }) {
   }
 
   return (
-    <nav className="mt-4">
-      <ul className="pagination justify-content-center gap-1">
-        <li className={`page-item ${page === 1 ? "disabled" : ""}`}>
-          <button className="page-link" onClick={() => onChange(page - 1)}>&laquo; Prev</button>
-        </li>
-        {pages.map((p) => (
-          <li key={p} className={`page-item ${p === page ? "active" : ""}`}>
-            <button className="page-link" onClick={() => onChange(p)}>{p}</button>
-          </li>
-        ))}
-        <li className={`page-item ${page === totalPages ? "disabled" : ""}`}>
-          <button className="page-link" onClick={() => onChange(page + 1)}>Next &raquo;</button>
-        </li>
-      </ul>
-    </nav>
+    <div className="nb-pagination">
+      <button
+        className="nb-page-btn"
+        onClick={() => onChange(page - 1)}
+        disabled={page === 1}
+      >
+        &#8592; Prev
+      </button>
+      {page > 3 && (
+        <>
+          <button className="nb-page-btn" onClick={() => onChange(1)}>1</button>
+          {page > 4 && <button className="nb-page-btn" disabled>···</button>}
+        </>
+      )}
+      {pages.map((p) => (
+        <button
+          key={p}
+          className={`nb-page-btn${p === page ? " active" : ""}`}
+          onClick={() => onChange(p)}
+        >
+          {p}
+        </button>
+      ))}
+      {page < totalPages - 2 && (
+        <>
+          {page < totalPages - 3 && <button className="nb-page-btn" disabled>···</button>}
+          <button className="nb-page-btn" onClick={() => onChange(totalPages)}>{totalPages}</button>
+        </>
+      )}
+      <button
+        className="nb-page-btn"
+        onClick={() => onChange(page + 1)}
+        disabled={page === totalPages}
+      >
+        Next &#8594;
+      </button>
+    </div>
   );
 }

@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { createTag, deleteTag, fetchTags, updateTag } from "../api/client";
-import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
+
+const TAG_COLORS = [
+  { background: "var(--sage)" },
+  { background: "var(--rose)" },
+  { background: "var(--bg)" },
+  { background: "var(--bg-mid)" },
+  { background: "var(--white)" },
+];
 
 export default function TagList() {
   const { user } = useAuth();
@@ -17,16 +24,13 @@ export default function TagList() {
     setData(null);
     const firstPage = await fetchTags(1);
     let allResults = [...firstPage.results];
-
     if (firstPage.total_pages > 1) {
       const pageRequests = Array.from(
         { length: firstPage.total_pages - 1 },
         (_, idx) => fetchTags(idx + 2)
       );
       const restPages = await Promise.all(pageRequests);
-      restPages.forEach((p) => {
-        allResults = allResults.concat(p.results);
-      });
+      restPages.forEach((p) => { allResults = allResults.concat(p.results); });
     }
     return { count: firstPage.count, results: allResults };
   };
@@ -34,15 +38,9 @@ export default function TagList() {
   useEffect(() => {
     let cancelled = false;
     loadAllTags()
-      .then((next) => {
-        if (!cancelled) setData(next);
-      })
-      .catch(() => {
-        if (!cancelled) setData({ count: 0, results: [] });
-      });
-    return () => {
-      cancelled = true;
-    };
+      .then((next) => { if (!cancelled) setData(next); })
+      .catch(() => { if (!cancelled) setData({ count: 0, results: [] }); });
+    return () => { cancelled = true; };
   }, []);
 
   const handleCreateTag = async (e) => {
@@ -83,90 +81,98 @@ export default function TagList() {
     }
   };
 
-  if (!data) return <div className="text-center py-5"><div className="spinner-border" /></div>;
+  if (!data) return (
+    <div className="nb-layout-full nb-spinner"><div className="spinner-border" /></div>
+  );
 
   return (
-    <div className="insove-shell w-100 insove-content-inset py-3">
-      <div className="mb-4">
-        <Navbar fluid />
+    <div className="nb-layout-full">
+
+      {/* Hero bar */}
+      <div className="nb-hero-bar">
+        <div className="nb-hero-count">{data.count}</div>
+        <div>
+          <div className="nb-hero-label">Tags Available</div>
+          <div className="nb-hero-desc">Browse all tags to discover posts by topic.</div>
+        </div>
       </div>
-      <div className="position-relative text-center mb-4">
-        <span className="insove-subtle-chip">total {data.count} tags</span>
+
+      {/* Section bar */}
+      <div className="nb-section-bar" style={{ justifyContent: "space-between" }}>
+        <span className="nb-section-title">All Tags</span>
         {user && (
           <button
-            className="btn nav-auth-btn nav-auth-btn-secondary btn-sm"
+            className="nb-btn nb-btn-sm"
             type="button"
             onClick={() => setShowCreate((v) => !v)}
-            style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)" }}
+            style={{ background: showCreate ? "var(--white)" : "var(--black)", color: showCreate ? "var(--black)" : "var(--sage)" }}
           >
-            {showCreate ? "Hide" : "New Tag"}
+            {showCreate ? "Cancel" : "+ New Tag"}
           </button>
         )}
       </div>
+
+      {/* Create tag form */}
       {user && showCreate && (
-        <div className="insove-panel mb-3 mx-auto" style={{ maxWidth: "760px" }}>
-          <div className="p-3 p-md-4">
-            <form onSubmit={handleCreateTag}>
-              <div className="d-flex align-items-center gap-2">
-                <input
-                  className="form-control insove-form-control"
-                  placeholder="Tag name"
-                  value={newTagName}
-                  onChange={(e) => setNewTagName(e.target.value.toLowerCase())}
-                  disabled={saving}
-                />
-                <button className="btn btn-primary" type="submit" disabled={saving}>
-                  {saving ? "Creating..." : "Create"}
-                </button>
-              </div>
-              {error && <div className="text-danger small mt-2">{error}</div>}
-            </form>
-          </div>
+        <div style={{ borderBottom: "var(--border)", padding: "20px 32px", background: "var(--white)" }}>
+          <form onSubmit={handleCreateTag}>
+            <div style={{ display: "flex", gap: "0", maxWidth: "480px" }}>
+              <input
+                className="nb-input"
+                style={{ flex: 1 }}
+                placeholder="Tag name (lowercase)"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value.toLowerCase())}
+                disabled={saving}
+              />
+              <button className="nb-btn" type="submit" disabled={saving} style={{ borderLeft: "none" }}>
+                {saving ? "Creating..." : "Create"}
+              </button>
+            </div>
+            {error && <div className="alert alert-danger mt-3">{error}</div>}
+          </form>
         </div>
       )}
-      <ul className="list-unstyled m-0 d-flex flex-row flex-wrap gap-2 gap-md-3 align-items-center">
+
+      {/* Tag grid */}
+      <div style={{ padding: "32px", background: "var(--bg)" }}>
         {data.results.length === 0 && (
-          <li className="text-muted py-2">No tags yet.</li>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>No tags yet.</div>
         )}
-        {data.results.map((tag) => (
-          <li key={tag.id} className="dashboard-item">
-            <Link to={`/tags/${tag.slug}`} className="text-decoration-none">
-              <span
-                className="rounded-pill fw-semibold"
-                style={{
-                  color: "#13795b",
-                  background: "rgba(23, 158, 139, 0.18)",
-                  border: "1px solid rgba(19, 138, 121, 0.45)",
-                  padding: "0.3rem 0.72rem",
-                }}
+        <div className="nb-tag-grid" style={{ gap: "10px" }}>
+          {data.results.map((tag, i) => (
+            <div key={tag.id} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <Link
+                to={`/tags/${tag.slug}`}
+                className="nb-tag-btn"
+                style={TAG_COLORS[i % TAG_COLORS.length]}
               >
-                <span style={{ color: "#0b4d36" }}>{tag.name}</span>
-                <span style={{ color: "#13795b" }}> ({tag.post_count} posts)</span>
-              </span>
-            </Link>
-            {canManageTags && (
-              <span className="ms-2 d-inline-flex align-items-center gap-1">
-                <button
-                  className="btn btn-sm py-0 px-2"
-                  type="button"
-                  onClick={() => handleEditTag(tag)}
-                  style={{ border: "1px solid #d8e2ff", color: "#2f63f5", background: "rgba(255,255,255,0.82)" }}
-                >
-                  Edit
-                </button>
-                <button
-                  className="btn btn-sm py-0 px-2"
-                  type="button"
-                  onClick={() => handleDeleteTag(tag)}
-                  style={{ border: "1px solid #f4c8d0", color: "#c72855", background: "rgba(255,255,255,0.82)" }}
-                >
-                  Delete
-                </button>
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
+                {tag.name}
+                <span style={{ marginLeft: "6px", opacity: 0.6 }}>({tag.post_count})</span>
+              </Link>
+              {canManageTags && (
+                <>
+                  <button
+                    className="nb-btn nb-btn-sm nb-btn-secondary"
+                    type="button"
+                    onClick={() => handleEditTag(tag)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="nb-btn nb-btn-sm nb-btn-danger"
+                    type="button"
+                    onClick={() => handleDeleteTag(tag)}
+                  >
+                    Del
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 }

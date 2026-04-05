@@ -3,7 +3,6 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { fetchTag } from "../api/client";
 import Pagination from "../components/Pagination";
 import StatusBadge from "../components/StatusBadge";
-import Navbar from "../components/Navbar";
 
 export default function TagDetail() {
   const { slug } = useParams();
@@ -15,11 +14,7 @@ export default function TagDetail() {
 
   useEffect(() => {
     fetchTag(slug, page)
-      .then((result) => {
-        setNotFound(false);
-        setFetchError(false);
-        setData(result);
-      })
+      .then((result) => { setNotFound(false); setFetchError(false); setData(result); })
       .catch((err) => {
         setData(null);
         if (err?.response?.status === 404) setNotFound(true);
@@ -27,52 +22,75 @@ export default function TagDetail() {
       });
   }, [slug, page]);
 
-  if (notFound) return <div className="alert alert-danger">Tag not found.</div>;
-  if (fetchError) return <div className="alert alert-warning">Failed to load tag. Please try again.</div>;
-  if (!data) return <div className="text-center py-5"><div className="spinner-border" /></div>;
+  if (notFound) return (
+    <div className="nb-layout-full"><div className="nb-error">Tag not found.</div></div>
+  );
+  if (fetchError) return (
+    <div className="nb-layout-full"><div className="nb-error">Failed to load tag. Please try again.</div></div>
+  );
+  if (!data) return (
+    <div className="nb-layout-full nb-spinner"><div className="spinner-border" /></div>
+  );
 
   return (
-    <div className="insove-shell w-100 insove-content-inset py-3">
-      <div className="mb-4">
-        <Navbar fluid />
-      </div>
-      <div className="d-flex justify-content-center align-items-center gap-2 flex-wrap mb-4">
-        <span
-          className="insove-subtle-chip"
-          style={{ color: "#13795b", background: "#dff7f2", border: "1px solid #b7ece2" }}
-        >
-          {data.tag.name}
-        </span>
-        <span className="insove-subtle-chip">total {data.count} posts</span>
+    <div className="nb-layout-full">
+
+      {/* Hero bar */}
+      <div className="nb-hero-bar">
+        <div className="nb-hero-count">{data.count}</div>
+        <div>
+          <div className="nb-hero-label">Posts tagged</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+            <span className="nb-chip nb-chip-active" style={{ fontSize: "18px", padding: "6px 16px" }}>
+              {data.tag.name}
+            </span>
+          </div>
+          <div className="nb-hero-desc">Browse all posts tagged with this topic.</div>
+        </div>
       </div>
 
-      <ul className="list-unstyled m-0 d-flex flex-column gap-2">
-        {data.results.length === 0 && (
-          <li className="text-muted py-2 text-center">No posts with this tag yet.</li>
-        )}
-        {data.results.map((post) => (
-          <li key={post.id} className="dashboard-item">
-            <Link to={`/posts/${post.slug}`} className="text-decoration-none d-block">
-              <div className="insove-item px-3 py-2 w-100">
-                <div className="d-flex justify-content-between align-items-center gap-2">
-                  <div className="text-truncate" style={{ color: "#6e7da2" }}>
-                    <span className="fw-semibold" style={{ color: "#173f88" }}>
-                      {post.title}
-                    </span>
-                    {" · "}
-                    <span style={{ color: "#2a5fc7", fontWeight: 600 }}>
-                      {post.author}
-                    </span>
-                    {" · "}{new Date(post.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                  </div>
-                  <StatusBadge status={post.status} />
-                </div>
+      {/* Section bar */}
+      <div className="nb-section-bar">
+        <span className="nb-section-title">Posts tagged: {data.tag.name}</span>
+        <span className="nb-section-count">Page {page} of {data.total_pages}</span>
+      </div>
+
+      {/* Post rows */}
+      {data.results.length === 0 && (
+        <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
+          No posts with this tag yet.
+        </div>
+      )}
+
+      {data.results.map((post, index) => {
+        const num = String((page - 1) * 10 + index + 1).padStart(2, "0");
+        return (
+          <Link key={post.id} to={`/posts/${post.slug}`} className="nb-post-item">
+            <div className="nb-post-num">{num}</div>
+            <div className="nb-post-body">
+              <div className="nb-post-title">{post.title}</div>
+              <div className="nb-post-meta">
+                <span className="nb-post-meta-author">{post.author}</span>
+                <span className="nb-post-meta-sep">·</span>
+                <span>{new Date(post.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
               </div>
-            </Link>
-          </li>
-        ))}
-      </ul>
+              {post.tags?.length > 0 && (
+                <div className="nb-post-tags">
+                  {post.tags.map((tag) => (
+                    <span key={tag.id} className="nb-tag-box">{tag.name}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="nb-post-right">
+              <StatusBadge status={post.status} />
+            </div>
+          </Link>
+        );
+      })}
+
       <Pagination page={page} totalPages={data.total_pages} onChange={(p) => setSearchParams({ page: p })} />
+
     </div>
   );
 }

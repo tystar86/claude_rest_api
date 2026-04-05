@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { fetchComments } from "../api/client";
 import Pagination from "../components/Pagination";
-import Navbar from "../components/Navbar";
 
 function fmt(dateStr) {
   return new Date(dateStr).toLocaleDateString("en-US", {
@@ -19,44 +18,66 @@ export default function CommentList() {
     fetchComments(page).then(setData).catch(() => setData({ count: 0, total_pages: 1, page, results: [] }));
   }, [page]);
 
-  if (!data) return <div className="text-center py-5"><div className="spinner-border" /></div>;
+  if (!data) return (
+    <div className="nb-layout-full nb-spinner"><div className="spinner-border" /></div>
+  );
 
   return (
-    <div className="insove-shell w-100 insove-content-inset py-3">
-      <div className="mb-4">
-        <Navbar fluid />
-      </div>
-      <div className="text-center mb-4">
-        <span className="insove-subtle-chip">total {data.count} comments</span>
+    <div className="nb-layout-full">
+
+      {/* Hero bar */}
+      <div className="nb-hero-bar">
+        <div className="nb-hero-count">{data.count}</div>
+        <div>
+          <div className="nb-hero-label">Comments total</div>
+          <div className="nb-hero-desc">All comments across every post on the platform.</div>
+        </div>
       </div>
 
-      <ul className="list-unstyled m-0 d-flex flex-column gap-2">
-        {data.results.length === 0 && (
-          <li className="text-muted py-2 text-center">No comments yet.</li>
-        )}
-        {data.results.map((comment) => (
-          <li key={comment.id} className="dashboard-item">
-            <Link to={`/posts/${comment.post_slug}`} className="text-decoration-none d-block">
-              <div className="insove-item px-3 py-2">
-                <div className="text-truncate mb-1" style={{ color: "#6e7da2" }}>
-                  <span style={{ color: "#1b2b54" }}>{comment.body}</span>
-                  {" · by "}
-                  <span style={{ color: "#2f63f5", fontWeight: 700 }}>{comment.author}</span>
-                  {" · "}{fmt(comment.created_at)}
-                </div>
-                <div className="d-flex align-items-center gap-2 flex-wrap">
-                  <span className="insove-subtle-chip">On post: {comment.post_title}</span>
-                  <span className="insove-pill text-nowrap" style={{ color: "#2f8fd8", background: "#e8f6ff" }}>
-                    {comment.likes} like{comment.likes !== 1 ? "s" : ""} · {comment.dislikes} dislike{comment.dislikes !== 1 ? "s" : ""}
-                  </span>
-                </div>
+      {/* Section bar */}
+      <div className="nb-section-bar">
+        <span className="nb-section-title">All Comments — Latest First</span>
+        <span className="nb-section-count">Page {page} of {data.total_pages}</span>
+      </div>
+
+      {/* Comment rows */}
+      {data.results.length === 0 && (
+        <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
+          No comments yet.
+        </div>
+      )}
+
+      {data.results.map((comment, index) => {
+        const num = String((page - 1) * 10 + index + 1).padStart(2, "0");
+        return (
+          <Link key={comment.id} to={`/posts/${comment.post_slug}`} className="nb-post-item">
+            <div className="nb-post-num">{num}</div>
+            <div className="nb-post-body">
+              <div className="nb-post-title" style={{ fontSize: "14px" }}>
+                {comment.body.length > 120 ? comment.body.slice(0, 120) + "…" : comment.body}
               </div>
-            </Link>
-          </li>
-        ))}
-      </ul>
+              <div className="nb-post-meta">
+                <span className="nb-post-meta-author">{comment.author}</span>
+                <span className="nb-post-meta-sep">·</span>
+                <span>{fmt(comment.created_at)}</span>
+                <span className="nb-post-meta-sep">·</span>
+                <span>on: {comment.post_title}</span>
+              </div>
+            </div>
+            <div className="nb-post-right">
+              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", fontWeight: 700, opacity: 0.6 }}>
+                ▲{comment.likes}
+              </span>
+              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", fontWeight: 700, opacity: 0.6 }}>
+                ▽{comment.dislikes}
+              </span>
+            </div>
+          </Link>
+        );
+      })}
 
       <Pagination page={page} totalPages={data.total_pages} onChange={(p) => setSearchParams({ page: p })} />
+
     </div>
   );
 }

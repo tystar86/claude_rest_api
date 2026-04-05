@@ -1,61 +1,125 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { fetchDashboard } from "../api/client";
+import { useEffect, useState } from "react";
 
-export default function Navbar({ fluid = false }) {
+export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [tickerStats, setTickerStats] = useState(null);
+
+  useEffect(() => {
+    fetchDashboard()
+      .then((data) => setTickerStats(data.stats))
+      .catch(() => setTickerStats(null));
+  }, []);
 
   const handleLogout = async () => {
     await logout();
     navigate("/dashboard");
   };
 
+  const isActive = (path) => {
+    if (path === "/posts") return location.pathname.startsWith("/posts");
+    if (path === "/tags") return location.pathname.startsWith("/tags");
+    if (path === "/users") return location.pathname.startsWith("/users");
+    if (path === "/comments") return location.pathname.startsWith("/comments");
+    if (path === "/dashboard") return location.pathname === "/dashboard";
+    return false;
+  };
+
+  const tickerItems = tickerStats
+    ? [
+        `${tickerStats.total_posts ?? 0} posts published`,
+        `${tickerStats.authors ?? 0} authors active`,
+        `${tickerStats.active_tags ?? 0} tags available`,
+        `${tickerStats.comments ?? 0} comments total`,
+        `${tickerStats.average_depth_words ?? 0} avg word depth`,
+        `${tickerStats.total_posts ?? 0} posts published`,
+        `${tickerStats.authors ?? 0} authors active`,
+        `${tickerStats.active_tags ?? 0} tags available`,
+        `${tickerStats.comments ?? 0} comments total`,
+        `${tickerStats.average_depth_words ?? 0} avg word depth`,
+      ]
+    : [
+        "Loading platform stats...",
+        "Loading platform stats...",
+      ];
+
   return (
-    <nav className="navbar navbar-expand-lg site-navbar">
-      <div className={fluid ? "container-fluid px-0" : "container"}>
-        <Link className="navbar-brand fw-bold" to="/dashboard">TheBlog</Link>
-        <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
-          <span className="navbar-toggler-icon" />
-        </button>
-        <div className="collapse navbar-collapse" id="navMenu">
-          <div className="me-auto" />
-          <ul className="navbar-nav ms-auto align-items-center gap-2">
+    <>
+      <header className="nb-header">
+        <div className="nb-header-inner">
+          <Link className="nb-brand" to="/dashboard">TheBlog</Link>
+
+          <ul className="nb-nav">
+            <li>
+              <Link to="/posts" className={isActive("/posts") ? "active" : ""}>
+                Posts
+              </Link>
+            </li>
+            <li>
+              <Link to="/tags" className={isActive("/tags") ? "active" : ""}>
+                Tags
+              </Link>
+            </li>
+            <li>
+              <Link to="/users" className={isActive("/users") ? "active" : ""}>
+                Users
+              </Link>
+            </li>
+            <li>
+              <Link to="/dashboard" className={isActive("/dashboard") ? "active" : ""}>
+                Dashboard
+              </Link>
+            </li>
+            <li>
+              <Link to="/comments" className={isActive("/comments") ? "active" : ""}>
+                Comments
+              </Link>
+            </li>
+          </ul>
+
+          <div className="nb-header-right">
             {user ? (
               <>
-                <li className="nav-item">
-                  <Link to="/profile" className="navbar-text nav-user-chip text-decoration-none">
-                    <i className="bi bi-person-circle me-1" />
-                    {user.username}
-                    {user.profile?.role !== "user" && (
-                      <span className="badge bg-warning text-dark ms-1">
-                        {user.profile?.role}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-                <li className="nav-item">
-                  <button className="btn nav-auth-btn nav-auth-btn-secondary btn-sm" onClick={handleLogout}>
-                    <i className="bi bi-box-arrow-right me-1" />Logout
-                  </button>
-                </li>
+                <Link to="/profile" className="nb-user-tag">
+                  @{user.username}
+                  {user.profile?.role !== "user" && (
+                    <span style={{ marginLeft: "6px", opacity: 0.7 }}>
+                      [{user.profile?.role}]
+                    </span>
+                  )}
+                </Link>
+                <button className="nb-btn-head" onClick={handleLogout} type="button">
+                  Logout
+                </button>
+                <Link to="/posts" className="nb-btn-head cta">
+                  + New Post
+                </Link>
               </>
             ) : (
               <>
-                <li className="nav-item">
-                  <Link to="/login" className="btn nav-auth-btn nav-auth-btn-secondary btn-sm">
-                    <i className="bi bi-box-arrow-in-right me-1" />Login
-                  </Link>
-                </li>
-                <li className="nav-item">
-                  <Link to="/register" className="btn nav-auth-btn nav-auth-btn-primary btn-sm">
-                    <i className="bi bi-person-plus me-1" />Register
-                  </Link>
-                </li>
+                <Link to="/login" className="nb-btn-head">
+                  Login
+                </Link>
+                <Link to="/register" className="nb-btn-head cta">
+                  Register
+                </Link>
               </>
             )}
-          </ul>
+          </div>
+        </div>
+      </header>
+
+      <div className="nb-ticker">
+        <div className="nb-ticker-inner">
+          {tickerItems.map((item, i) => (
+            <span key={i} className="nb-ticker-item">{item}</span>
+          ))}
         </div>
       </div>
-    </nav>
+    </>
   );
 }

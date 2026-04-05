@@ -28,40 +28,58 @@ export default function Login() {
   };
 
   return (
-    <div className="insove-page row justify-content-center">
-      <div className="col-md-5 align-self-center">
-        <div className="insove-panel">
-          <div className="card-body p-4">
-            <h3 className="card-title fw-bold mb-4 text-center">Login</h3>
-            {error && <div className="alert alert-danger">{error}</div>}
+    <>
+      <div className="nb-auth-page">
+        <div className="nb-auth-box">
+          <div className="nb-auth-header">Login</div>
+          <div className="nb-auth-body">
+            {error && <div className="alert alert-danger mb-4">{error}</div>}
             <form onSubmit={submit}>
-              <div className="mb-3">
-                <label className="form-label fw-medium">Email</label>
-                <input type="email" name="email" className="form-control insove-form-control" value={form.email} onChange={handle} required />
+              <div className="nb-field">
+                <label>Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  className="nb-input"
+                  value={form.email}
+                  onChange={handle}
+                  required
+                />
               </div>
-              <div className="mb-3">
-                <label className="form-label fw-medium">Password</label>
-                <input type="password" name="password" className="form-control insove-form-control" value={form.password} onChange={handle} required />
+              <div className="nb-field">
+                <label>Password</label>
+                <input
+                  type="password"
+                  name="password"
+                  className="nb-input"
+                  value={form.password}
+                  onChange={handle}
+                  required
+                />
               </div>
-              <div className="d-grid mt-4">
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="bi bi-box-arrow-in-right me-1" />}
-                  Login
-                </button>
-              </div>
+              <button type="submit" className="nb-btn nb-btn-full" disabled={loading}>
+                {loading ? (
+                  <span className="spinner-border spinner-border-sm me-2" />
+                ) : null}
+                Login
+              </button>
             </form>
-            <hr className="my-4" />
-            <div className="d-grid">
-              <a href={GOOGLE_LOGIN_URL} className="btn btn-outline-danger">
-                <i className="bi bi-google me-1" />Continue with Google
-              </a>
-            </div>
-            <p className="text-center mt-3 mb-0">
-              Don&apos;t have an account? <Link to="/register">Register</Link>
+
+            <hr className="nb-divider" />
+
+            <a href={GOOGLE_LOGIN_URL} className="nb-btn nb-btn-full nb-btn-secondary" style={{ display: "block", textAlign: "center" }}>
+              Continue with Google
+            </a>
+
+            <p style={{ textAlign: "center", marginTop: "20px", marginBottom: 0, fontFamily: "'Space Mono', monospace", fontSize: "12px" }}>
+              No account?{" "}
+              <Link to="/register" style={{ color: "var(--black)", fontWeight: 700 }}>
+                Register
+              </Link>
             </p>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

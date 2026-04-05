@@ -3,8 +3,9 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { createPost, deletePost, fetchPosts, fetchTags } from "../api/client";
 import Pagination from "../components/Pagination";
 import StatusBadge from "../components/StatusBadge";
-import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
+
+const TAG_VARIANT_CLASSES = ["", "t1", "t2", "t3", "t4"];
 
 function MarkdownEditor({ value, onChange, disabled = false }) {
   const textareaRef = useRef(null);
@@ -17,7 +18,6 @@ function MarkdownEditor({ value, onChange, disabled = false }) {
     const selected = value.slice(start, end);
     const next = `${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`;
     onChange(next);
-
     requestAnimationFrame(() => {
       el.focus();
       const cursor = start + before.length + selected.length;
@@ -27,33 +27,29 @@ function MarkdownEditor({ value, onChange, disabled = false }) {
 
   return (
     <div>
-      <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
-        <button className="btn btn-sm btn-outline-secondary" type="button" disabled={disabled} onClick={() => insertText("`", "`")}>
+      <div className="nb-editor-toolbar">
+        <button className="nb-btn nb-btn-sm" type="button" disabled={disabled} onClick={() => insertText("`", "`")}>
           Inline code
         </button>
-        <button
-          className="btn btn-sm btn-outline-secondary"
-          type="button"
-          disabled={disabled}
-          onClick={() => insertText("```js\n", "\n```")}
-        >
+        <button className="nb-btn nb-btn-sm" type="button" disabled={disabled} onClick={() => insertText("```js\n", "\n```")}>
           Code block
         </button>
-        <button className="btn btn-sm btn-outline-secondary" type="button" disabled={disabled} onClick={() => insertText("## ")}>
+        <button className="nb-btn nb-btn-sm" type="button" disabled={disabled} onClick={() => insertText("## ")}>
           Heading
         </button>
-        <button className="btn btn-sm btn-outline-secondary" type="button" disabled={disabled} onClick={() => insertText("- ")}>
+        <button className="nb-btn nb-btn-sm" type="button" disabled={disabled} onClick={() => insertText("- ")}>
           Bullet
         </button>
       </div>
       <textarea
         ref={textareaRef}
-        className="form-control insove-form-control"
+        className="form-control"
         rows={5}
         placeholder="Write your post with markdown..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
+        style={{ borderTop: "none" }}
       />
     </div>
   );
@@ -63,16 +59,11 @@ export default function PostList() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
-  const [tags, setTags] = useState([]);
+  const [allTags, setAllTags] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
   const [createError, setCreateError] = useState("");
-  const [form, setForm] = useState({
-    title: "",
-    body: "",
-    status: "draft",
-    tag_ids: [],
-  });
+  const [form, setForm] = useState({ title: "", body: "", status: "draft", tag_ids: [] });
   const [searchParams, setSearchParams] = useSearchParams();
   const page = parseInt(searchParams.get("page") || "1");
   const role = user?.profile?.role;
@@ -88,16 +79,11 @@ export default function PostList() {
     const firstPage = await fetchTags(1);
     let allResults = [...firstPage.results];
     if (firstPage.total_pages > 1) {
-      const pageRequests = Array.from(
-        { length: firstPage.total_pages - 1 },
-        (_, idx) => fetchTags(idx + 2)
-      );
+      const pageRequests = Array.from({ length: firstPage.total_pages - 1 }, (_, idx) => fetchTags(idx + 2));
       const restPages = await Promise.all(pageRequests);
-      restPages.forEach((p) => {
-        allResults = allResults.concat(p.results);
-      });
+      restPages.forEach((p) => { allResults = allResults.concat(p.results); });
     }
-    setTags(allResults);
+    setAllTags(allResults);
   };
 
   useEffect(() => {
@@ -115,12 +101,7 @@ export default function PostList() {
     setCreateBusy(true);
     setCreateError("");
     try {
-      const created = await createPost({
-        title: form.title,
-        body: form.body,
-        status: form.status,
-        tag_ids: form.tag_ids,
-      });
+      const created = await createPost({ title: form.title, body: form.body, status: form.status, tag_ids: form.tag_ids });
       navigate(`/posts/${created.slug}`);
     } catch (err) {
       setCreateError(err?.response?.data?.detail || "Failed to create post.");
@@ -141,47 +122,80 @@ export default function PostList() {
     }
   };
 
-  if (!data) return <div className="text-center py-5"><div className="spinner-border" /></div>;
+  if (!data) return (
+    <div className="nb-layout">
+      <div className="nb-main nb-spinner">
+        <div className="spinner-border" />
+      </div>
+    </div>
+  );
+
+  const sidebarTags = allTags.slice(0, 12);
 
   return (
-    <div className="insove-shell w-100 insove-content-inset py-3">
-      <div className="mb-4">
-        <Navbar fluid />
-      </div>
-      <div className="position-relative text-center mb-4">
-        <span className="insove-subtle-chip">total {data.count} posts</span>
+    <div className="nb-layout">
+
+      {/* Main column */}
+      <main className="nb-main">
+
+        {/* Hero bar */}
+        <div className="nb-hero-bar">
+          <div className="nb-hero-count">{data.count > 999 ? `${Math.floor(data.count / 1000)}K` : data.count}</div>
+          <div>
+            <div className="nb-hero-label">Posts published</div>
+            <div className="nb-hero-desc">Technical writing from engineers worldwide. No algorithm. No ads. Just posts.</div>
+          </div>
+        </div>
+
+        {/* Section bar */}
+        <div className="nb-section-bar">
+          <span className="nb-section-title">All Posts — Latest First</span>
+          <span className="nb-section-count">Page {page} of {data.total_pages}</span>
+        </div>
+
+        {/* New Post toggle */}
         {user && (
-          <button
-            className="btn nav-auth-btn nav-auth-btn-secondary btn-sm"
-            type="button"
-            onClick={() => setShowCreate((v) => !v)}
-            style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)" }}
-          >
-            {showCreate ? "Hide" : "New Post"}
-          </button>
+          <div style={{ borderBottom: "2px solid var(--black)", padding: "10px 32px", background: "var(--bg)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              {showCreate ? "New Post Form" : "Share your knowledge"}
+            </span>
+            <button
+              className="nb-btn nb-btn-sm"
+              type="button"
+              onClick={() => setShowCreate((v) => !v)}
+            >
+              {showCreate ? "Cancel" : "+ New Post"}
+            </button>
+          </div>
         )}
-      </div>
-      {user && showCreate && (
-        <div className="insove-panel mb-3 mx-auto" style={{ maxWidth: "760px" }}>
-          <div className="p-3 p-md-4">
+
+        {/* Create post form */}
+        {user && showCreate && (
+          <div style={{ borderBottom: "var(--border)", background: "var(--white)", padding: "24px 32px" }}>
             <form onSubmit={handleCreatePost}>
-              <input
-                className="form-control insove-form-control mb-2"
-                placeholder="Post title"
-                value={form.title}
-                onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                disabled={createBusy}
-              />
-              <MarkdownEditor
-                value={form.body}
-                onChange={(nextBody) => setForm((prev) => ({ ...prev, body: nextBody }))}
-                disabled={createBusy}
-              />
-              {tags.length > 0 && (
-                <div className="mt-2 mb-2">
-                  <label className="form-label small mb-1" style={{ color: "#173f88" }}>Tags</label>
+              <div className="nb-field">
+                <label>Post Title</label>
+                <input
+                  className="nb-input"
+                  placeholder="Enter a compelling title..."
+                  value={form.title}
+                  onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+                  disabled={createBusy}
+                />
+              </div>
+              <div className="nb-field">
+                <label>Body</label>
+                <MarkdownEditor
+                  value={form.body}
+                  onChange={(nextBody) => setForm((prev) => ({ ...prev, body: nextBody }))}
+                  disabled={createBusy}
+                />
+              </div>
+              {allTags.length > 0 && (
+                <div className="nb-field">
+                  <label>Tags</label>
                   <select
-                    className="form-select insove-form-control"
+                    className="form-select"
                     multiple
                     value={form.tag_ids.map(String)}
                     onChange={(e) => {
@@ -191,72 +205,145 @@ export default function PostList() {
                     disabled={createBusy}
                     style={{ minHeight: "7rem" }}
                   >
-                    {tags.map((tag) => (
-                      <option key={tag.id} value={tag.id}>
-                        {tag.name}
-                      </option>
+                    {allTags.map((tag) => (
+                      <option key={tag.id} value={tag.id}>{tag.name}</option>
                     ))}
                   </select>
-                  <small className="text-muted">Hold Cmd/Ctrl to select multiple tags.</small>
+                  <small style={{ fontFamily: "'Space Mono', monospace", fontSize: "10px", opacity: 0.6 }}>
+                    Hold Cmd/Ctrl to select multiple tags.
+                  </small>
                 </div>
               )}
-              <select
-                className="form-select insove-form-control mb-2 mt-3"
-                value={form.status}
-                onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
-                disabled={createBusy}
-              >
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-              </select>
-              {createError && <div className="text-danger small mb-2">{createError}</div>}
-              <button className="btn btn-primary" type="submit" disabled={createBusy}>
-                {createBusy ? "Creating..." : "Create post"}
+              <div className="nb-field">
+                <label>Status</label>
+                <select
+                  className="form-select"
+                  value={form.status}
+                  onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
+                  disabled={createBusy}
+                >
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                </select>
+              </div>
+              {createError && (
+                <div className="alert alert-danger mb-3">{createError}</div>
+              )}
+              <button className="nb-btn" type="submit" disabled={createBusy}>
+                {createBusy ? "Creating..." : "Create Post"}
               </button>
             </form>
           </div>
-        </div>
-      )}
-      <ul className="list-unstyled m-0 d-flex flex-column gap-2">
-        {data.results.length === 0 && (
-          <li className="text-muted py-2 text-center">No posts yet.</li>
         )}
-        {data.results.map((post) => (
-          <li key={post.id} className="dashboard-item">
-            <Link to={`/posts/${post.slug}`} className="text-decoration-none d-block">
-              <div className="insove-item px-3 py-2 w-100">
-                <div className="d-flex justify-content-between align-items-center gap-2">
-                  <div className="text-truncate" style={{ color: "#6e7da2" }}>
-                    <span className="fw-semibold" style={{ color: "#173f88" }}>
-                      {post.title}
-                    </span>
-                    {" · "}
-                    <span style={{ color: "#2a5fc7", fontWeight: 600 }}>
-                      {post.author}
-                    </span>
-                    {" · "}
-                    {new Date(post.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                  </div>
-                  <div className="d-flex align-items-center gap-2">
-                    <StatusBadge status={post.status} />
-                    {canManagePost(post) && (
-                      <button
-                        className="btn btn-sm"
-                        type="button"
-                        onClick={(e) => handleDeletePost(e, post)}
-                        style={{ border: "1px solid #f4c8d0", color: "#c72855", background: "rgba(255,255,255,0.82)" }}
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
+
+        {/* Post rows */}
+        {data.results.length === 0 && (
+          <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
+            No posts yet.
+          </div>
+        )}
+
+        {data.results.map((post, index) => {
+          const num = String((page - 1) * 10 + index + 1).padStart(2, "0");
+          return (
+            <Link
+              key={post.id}
+              to={`/posts/${post.slug}`}
+              className="nb-post-item"
+            >
+              <div className="nb-post-num">{num}</div>
+              <div className="nb-post-body">
+                <div className="nb-post-title">{post.title}</div>
+                <div className="nb-post-meta">
+                  <span className="nb-post-meta-author">{post.author}</span>
+                  <span className="nb-post-meta-sep">·</span>
+                  <span>{new Date(post.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
                 </div>
+                {post.tags?.length > 0 && (
+                  <div className="nb-post-tags">
+                    {post.tags.map((tag) => (
+                      <span key={tag.id} className="nb-tag-box">{tag.name}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="nb-post-right">
+                <StatusBadge status={post.status} />
+                <span className="nb-comment-count">{post.comment_count ?? 0} cmts</span>
+                {canManagePost(post) && (
+                  <button
+                    className="nb-btn nb-btn-sm nb-btn-danger"
+                    type="button"
+                    onClick={(e) => handleDeletePost(e, post)}
+                  >
+                    Del
+                  </button>
+                )}
               </div>
             </Link>
-          </li>
-        ))}
-      </ul>
-      <Pagination page={page} totalPages={data.total_pages} onChange={(p) => setSearchParams({ page: p })} />
+          );
+        })}
+
+        {/* Pagination */}
+        <Pagination page={page} totalPages={data.total_pages} onChange={(p) => setSearchParams({ page: p })} />
+
+      </main>
+
+      {/* Sidebar */}
+      <aside className="nb-sidebar">
+
+        <div className="nb-sidebar-block">
+          <div className="nb-sidebar-head">Platform Stats</div>
+          <div className="nb-stat-row">
+            <span>Total Posts</span>
+            <span>{data.count}</span>
+          </div>
+          <div className="nb-stat-row">
+            <span>This Page</span>
+            <span>{data.results.length}</span>
+          </div>
+          <div className="nb-stat-row">
+            <span>Page</span>
+            <span>{page} / {data.total_pages}</span>
+          </div>
+        </div>
+
+        {sidebarTags.length > 0 && (
+          <div className="nb-sidebar-block">
+            <div className="nb-sidebar-head">Browse by Tag</div>
+            <div className="nb-tag-grid">
+              {sidebarTags.map((tag, i) => (
+                <Link
+                  key={tag.id}
+                  to={`/tags/${tag.slug}`}
+                  className={`nb-tag-btn${TAG_VARIANT_CLASSES[i % TAG_VARIANT_CLASSES.length] ? " " + TAG_VARIANT_CLASSES[i % TAG_VARIANT_CLASSES.length] : ""}`}
+                  style={i % 5 === 1 ? { background: "var(--rose)" } : i % 5 === 3 ? { background: "var(--bg-mid)" } : {}}
+                >
+                  {tag.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {user ? (
+          <div className="nb-sidebar-cta">
+            <div className="nb-cta-title">Ready to write?</div>
+            <div className="nb-cta-sub">Share your knowledge with the community.</div>
+            <button className="nb-cta-btn" type="button" onClick={() => setShowCreate((v) => !v)}>
+              {showCreate ? "Hide Form ↑" : "Write a Post →"}
+            </button>
+          </div>
+        ) : (
+          <div className="nb-sidebar-cta">
+            <div className="nb-cta-title">Got something to share?</div>
+            <div className="nb-cta-sub">Join engineers already writing on the platform.</div>
+            <Link className="nb-cta-btn" to="/register">Create Account →</Link>
+          </div>
+        )}
+
+      </aside>
+
     </div>
   );
 }
