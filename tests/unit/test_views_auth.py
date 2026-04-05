@@ -4,6 +4,7 @@ import io
 
 import pytest
 from django.contrib.auth.models import User
+from django.db import connection
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -368,7 +369,7 @@ class TestGoogleOAuth:
     # ── ensure_sites_migrations command ────────────────────────────────────
 
     @pytest.mark.skipif(
-        __import__("django").db.connection.vendor != "postgresql",
+        connection.vendor != "postgresql",
         reason="ensure_sites_migrations uses PostgreSQL information_schema",
     )
     def test_ensure_sites_migrations_is_idempotent(self, db):

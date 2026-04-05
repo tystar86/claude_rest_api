@@ -11,7 +11,7 @@ export default function Navbar() {
 
   useEffect(() => {
     fetchDashboard()
-      .then((data) => setTickerStats(data.stats))
+      .then((data) => setTickerStats(data?.stats ?? { failed: true }))
       .catch(() => setTickerStats({ failed: true }));
   }, []);
 
@@ -50,42 +50,44 @@ export default function Navbar() {
         <div className="nb-header-inner">
           <Link className="nb-brand" to="/dashboard">TheBlog</Link>
 
-          <ul className="nb-nav">
-            <li>
-              <Link to="/posts" className={isActive("/posts") ? "active" : ""}>
-                Posts
-              </Link>
-            </li>
-            <li>
-              <Link to="/tags" className={isActive("/tags") ? "active" : ""}>
-                Tags
-              </Link>
-            </li>
-            <li>
-              <Link to="/users" className={isActive("/users") ? "active" : ""}>
-                Users
-              </Link>
-            </li>
-            <li>
-              <Link to="/dashboard" className={isActive("/dashboard") ? "active" : ""}>
-                Dashboard
-              </Link>
-            </li>
-            <li>
-              <Link to="/comments" className={isActive("/comments") ? "active" : ""}>
-                Comments
-              </Link>
-            </li>
-          </ul>
+          <nav aria-label="Primary">
+            <ul className="nb-nav">
+              <li>
+                <Link to="/posts" className={isActive("/posts") ? "active" : ""}>
+                  Posts
+                </Link>
+              </li>
+              <li>
+                <Link to="/tags" className={isActive("/tags") ? "active" : ""}>
+                  Tags
+                </Link>
+              </li>
+              <li>
+                <Link to="/users" className={isActive("/users") ? "active" : ""}>
+                  Users
+                </Link>
+              </li>
+              <li>
+                <Link to="/dashboard" className={isActive("/dashboard") ? "active" : ""}>
+                  Dashboard
+                </Link>
+              </li>
+              <li>
+                <Link to="/comments" className={isActive("/comments") ? "active" : ""}>
+                  Comments
+                </Link>
+              </li>
+            </ul>
+          </nav>
 
           <div className="nb-header-right">
             {user ? (
               <>
                 <Link to="/profile" className="nb-user-tag">
                   @{user.username}
-                  {user.profile?.role !== "user" && (
+                  {user.profile?.role && user.profile.role !== "user" && (
                     <span style={{ marginLeft: "6px", opacity: 0.7 }}>
-                      [{user.profile?.role}]
+                      [{user.profile.role}]
                     </span>
                   )}
                 </Link>
