@@ -31,6 +31,9 @@ class Post(models.Model):
         indexes = [
             models.Index(fields=["status", "published_at"]),
             models.Index(fields=["author"]),
+            models.Index(
+                fields=["status", "-created_at"], name="blog_post_status_created_idx"
+            ),
         ]
 
     def __str__(self):
@@ -50,6 +53,9 @@ class Comment(models.Model):
 
     class Meta:
         ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["-created_at"], name="blog_comment_created_idx"),
+        ]
 
     def __str__(self):
         return f"Comment by {self.author} on '{self.post}'"
@@ -68,6 +74,11 @@ class CommentVote(models.Model):
 
     class Meta:
         unique_together = [("comment", "user")]
+        indexes = [
+            models.Index(
+                fields=["comment", "vote"], name="blog_cvote_comment_vote_idx"
+            ),
+        ]
 
     def __str__(self):
         return f"{self.user} {self.vote}d comment #{self.comment_id}"

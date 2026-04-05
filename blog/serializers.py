@@ -13,7 +13,12 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer(read_only=True)
-    post_count = serializers.IntegerField(source="posts.count", read_only=True)
+    post_count = serializers.SerializerMethodField()
+
+    def get_post_count(self, obj):
+        if hasattr(obj, "post_count"):
+            return obj.post_count
+        return obj.posts.count()
 
     class Meta:
         model = User
@@ -31,6 +36,14 @@ class CurrentUserSerializer(UserSerializer):
 
     class Meta(UserSerializer.Meta):
         fields = UserSerializer.Meta.fields + ("can_manage_tags",)
+
+
+class PostTagSerializer(serializers.ModelSerializer):
+    """Lightweight tag serializer for use inside PostSerializer (no post_count)."""
+
+    class Meta:
+        model = Tag
+        fields = ["id", "name", "slug"]
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -69,17 +82,20 @@ class CommentSerializer(serializers.ModelSerializer):
         ]
 
     def get_likes(self, obj):
-        return obj.votes.filter(vote=CommentVote.VoteType.LIKE).count()
+        return sum(1 for v in obj.votes.all() if v.vote == CommentVote.VoteType.LIKE)
 
     def get_dislikes(self, obj):
-        return obj.votes.filter(vote=CommentVote.VoteType.DISLIKE).count()
+        return sum(1 for v in obj.votes.all() if v.vote == CommentVote.VoteType.DISLIKE)
 
     def get_user_vote(self, obj):
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return None
-        vote = obj.votes.filter(user=request.user).first()
-        return vote.vote if vote else None
+        user_id = request.user.id
+        for vote in obj.votes.all():
+            if vote.user_id == user_id:
+                return vote.vote
+        return None
 
     def get_replies(self, obj):
         return CommentSerializer(
@@ -108,15 +124,15 @@ class CommentListSerializer(serializers.ModelSerializer):
         ]
 
     def get_likes(self, obj):
-        return obj.votes.filter(vote=CommentVote.VoteType.LIKE).count()
+        return sum(1 for v in obj.votes.all() if v.vote == CommentVote.VoteType.LIKE)
 
     def get_dislikes(self, obj):
-        return obj.votes.filter(vote=CommentVote.VoteType.DISLIKE).count()
+        return sum(1 for v in obj.votes.all() if v.vote == CommentVote.VoteType.DISLIKE)
 
 
 class PostSerializer(serializers.ModelSerializer):
     author = serializers.StringRelatedField()
-    tags = TagSerializer(many=True, read_only=True)
+    tags = PostTagSerializer(many=True, read_only=True)
     comment_count = serializers.IntegerField(read_only=True, default=None)
 
     class Meta:
@@ -142,9 +158,5 @@ class PostDetailSerializer(PostSerializer):
         fields = PostSerializer.Meta.fields + ["body", "comments"]
 
     def get_comments(self, obj):
-        top_level = (
-            obj.comments.filter(parent=None)
-            .select_related("author")
-            .prefetch_related("replies__author")
-        )
+        top_level = [c for c in obj.comments.all() if c.parent_id is None]
         return CommentSerializer(top_level, many=True, context=self.context).data
