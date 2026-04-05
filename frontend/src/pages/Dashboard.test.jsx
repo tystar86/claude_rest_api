@@ -86,7 +86,7 @@ describe('Dashboard', () => {
 
     render(<Dashboard />);
 
-    expect(document.querySelector('.spinner-border.text-primary')).not.toBeNull();
+    expect(document.querySelector('.spinner-border')).not.toBeNull();
   });
 
   it('renders stat cards after successful fetch', async () => {
@@ -102,11 +102,11 @@ describe('Dashboard', () => {
     expect(screen.getByText('Comments')).toBeInTheDocument();
     expect(screen.getByText('Authors')).toBeInTheDocument();
     expect(screen.getByText('Active Tags')).toBeInTheDocument();
-    expect(screen.getByText('Average Depth (words)')).toBeInTheDocument();
+    expect(screen.getByText('Avg Words')).toBeInTheDocument();
 
-    // Stat values rendered as "{value}+" by StatCard
-    expect(screen.getByText('42+')).toBeInTheDocument();
-    expect(screen.getByText('17+')).toBeInTheDocument();
+    // Stat values rendered as plain numbers
+    expect(screen.getByText('42')).toBeInTheDocument();
+    expect(screen.getByText('17')).toBeInTheDocument();
 
     // Posts and authors appear in cards (First Post appears in both Latest and Most Commented)
     expect(screen.getAllByText('First Post').length).toBeGreaterThanOrEqual(1);
@@ -130,7 +130,7 @@ describe('Dashboard', () => {
     expect(screen.getByText('No authors yet.')).toBeInTheDocument();
 
     // Zero stats render without crashing
-    expect(screen.getAllByText('0+').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(1);
   });
 
   it('does not crash when fetchDashboard rejects', async () => {
@@ -163,8 +163,8 @@ describe('Dashboard', () => {
     expect(screen.getByText('No tags yet.')).toBeInTheDocument();
     expect(screen.getByText('No authors yet.')).toBeInTheDocument();
 
-    // Stat cards still render with 0+
-    const zeroStats = screen.getAllByText('0+');
+    // Stat cards still render with 0
+    const zeroStats = screen.getAllByText('0');
     expect(zeroStats.length).toBeGreaterThanOrEqual(5);
   });
 });

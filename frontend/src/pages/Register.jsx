@@ -36,8 +36,9 @@ export default function Register() {
             {error && <div className="alert alert-danger mb-4">{error}</div>}
             <form onSubmit={submit}>
               <div className="nb-field">
-                <label>Email</label>
+                <label htmlFor="reg-email">Email</label>
                 <input
+                  id="reg-email"
                   type="email"
                   name="email"
                   className="nb-input"
@@ -47,8 +48,9 @@ export default function Register() {
                 />
               </div>
               <div className="nb-field">
-                <label>Username</label>
+                <label htmlFor="reg-username">Username</label>
                 <input
+                  id="reg-username"
                   type="text"
                   name="username"
                   className="nb-input"
@@ -58,8 +60,9 @@ export default function Register() {
                 />
               </div>
               <div className="nb-field">
-                <label>Password</label>
+                <label htmlFor="reg-password">Password</label>
                 <input
+                  id="reg-password"
                   type="password"
                   name="password"
                   className="nb-input"
