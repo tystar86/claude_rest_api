@@ -1,4 +1,3 @@
-# Generated manually for performance optimization
 from django.db import migrations, models
 
 

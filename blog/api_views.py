@@ -11,7 +11,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from django.db.models import Avg, Count, Q
-from django.db.models.expressions import RawSQL
+from django.db.models.functions import Length
 
 from accounts.models import Profile
 from .models import Comment, CommentVote, Post, Tag
@@ -86,17 +86,8 @@ def dashboard(request):
         Tag.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
     )
 
-    average_depth_words = round(
-        published.aggregate(
-            avg=Avg(
-                RawSQL(
-                    "GREATEST(array_length(regexp_split_to_array(trim(body), '\\s+'), 1), 0)",
-                    [],
-                )
-            )
-        )["avg"]
-        or 0
-    )
+    avg_chars = published.aggregate(avg=Avg(Length("body")))["avg"] or 0
+    average_depth_words = round(avg_chars / 5)
 
     return Response(
         {

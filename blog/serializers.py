@@ -124,10 +124,10 @@ class CommentListSerializer(serializers.ModelSerializer):
         ]
 
     def get_likes(self, obj):
-        return obj.votes.filter(vote=CommentVote.VoteType.LIKE).count()
+        return sum(1 for v in obj.votes.all() if v.vote == CommentVote.VoteType.LIKE)
 
     def get_dislikes(self, obj):
-        return obj.votes.filter(vote=CommentVote.VoteType.DISLIKE).count()
+        return sum(1 for v in obj.votes.all() if v.vote == CommentVote.VoteType.DISLIKE)
 
 
 class PostSerializer(serializers.ModelSerializer):
@@ -158,9 +158,5 @@ class PostDetailSerializer(PostSerializer):
         fields = PostSerializer.Meta.fields + ["body", "comments"]
 
     def get_comments(self, obj):
-        top_level = (
-            obj.comments.filter(parent=None)
-            .select_related("author")
-            .prefetch_related("replies__author")
-        )
+        top_level = [c for c in obj.comments.all() if c.parent_id is None]
         return CommentSerializer(top_level, many=True, context=self.context).data
