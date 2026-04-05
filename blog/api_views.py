@@ -10,7 +10,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from django.db.models import Count, Q
+from django.db.models import Avg, Count, Q
+from django.db.models.functions import Length
 
 from accounts.models import Profile
 from .models import Comment, CommentVote, Post, Tag
@@ -85,11 +86,8 @@ def dashboard(request):
         Tag.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
     )
 
-    bodies = published.values_list("body", flat=True)
-    word_counts = [len((body or "").split()) for body in bodies]
-    average_depth_words = (
-        round(sum(word_counts) / len(word_counts)) if word_counts else 0
-    )
+    avg_chars = published.aggregate(avg=Avg(Length("body")))["avg"] or 0
+    average_depth_words = round(avg_chars / 5)  # ~5 chars per word
 
     return Response(
         {
