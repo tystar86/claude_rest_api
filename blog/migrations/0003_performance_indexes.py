@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
             model_name="commentvote",
             index=models.Index(
                 fields=["comment", "vote"],
-                name="blog_commentvote_comment_vote_idx",
+                name="blog_cvote_comment_vote_idx",
             ),
         ),
     ]

@@ -76,7 +76,7 @@ class CommentVote(models.Model):
         unique_together = [("comment", "user")]
         indexes = [
             models.Index(
-                fields=["comment", "vote"], name="blog_commentvote_comment_vote_idx"
+                fields=["comment", "vote"], name="blog_cvote_comment_vote_idx"
             ),
         ]
 
