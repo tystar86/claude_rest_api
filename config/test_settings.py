@@ -15,3 +15,11 @@ DATABASES = {
         "NAME": ":memory:",
     }
 }
+
+# Disable caching in tests so every test hits the DB directly and cached
+# results from one test cannot bleed into another running in the same worker.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+    }
+}
