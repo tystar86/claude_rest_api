@@ -81,21 +81,35 @@ class CommentSerializer(serializers.ModelSerializer):
             "replies",
         ]
 
+    def _get_vote_data(self, obj):
+        """Single pass over votes queryset; results cached per comment pk."""
+        if not hasattr(self, "_vote_cache"):
+            self._vote_cache = {}
+        if obj.pk not in self._vote_cache:
+            likes = dislikes = 0
+            user_vote = None
+            request = self.context.get("request")
+            user_id = (
+                request.user.id if (request and request.user.is_authenticated) else None
+            )
+            for v in obj.votes.all():
+                if v.vote == CommentVote.VoteType.LIKE:
+                    likes += 1
+                else:
+                    dislikes += 1
+                if user_id and v.user_id == user_id:
+                    user_vote = v.vote
+            self._vote_cache[obj.pk] = (likes, dislikes, user_vote)
+        return self._vote_cache[obj.pk]
+
     def get_likes(self, obj):
-        return sum(1 for v in obj.votes.all() if v.vote == CommentVote.VoteType.LIKE)
+        return self._get_vote_data(obj)[0]
 
     def get_dislikes(self, obj):
-        return sum(1 for v in obj.votes.all() if v.vote == CommentVote.VoteType.DISLIKE)
+        return self._get_vote_data(obj)[1]
 
     def get_user_vote(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return None
-        user_id = request.user.id
-        for vote in obj.votes.all():
-            if vote.user_id == user_id:
-                return vote.vote
-        return None
+        return self._get_vote_data(obj)[2]
 
     def get_replies(self, obj):
         return CommentSerializer(
@@ -123,11 +137,25 @@ class CommentListSerializer(serializers.ModelSerializer):
             "dislikes",
         ]
 
+    def _get_vote_data(self, obj):
+        """Single pass over votes queryset; results cached per comment pk."""
+        if not hasattr(self, "_vote_cache"):
+            self._vote_cache = {}
+        if obj.pk not in self._vote_cache:
+            likes = dislikes = 0
+            for v in obj.votes.all():
+                if v.vote == CommentVote.VoteType.LIKE:
+                    likes += 1
+                else:
+                    dislikes += 1
+            self._vote_cache[obj.pk] = (likes, dislikes)
+        return self._vote_cache[obj.pk]
+
     def get_likes(self, obj):
-        return sum(1 for v in obj.votes.all() if v.vote == CommentVote.VoteType.LIKE)
+        return self._get_vote_data(obj)[0]
 
     def get_dislikes(self, obj):
-        return sum(1 for v in obj.votes.all() if v.vote == CommentVote.VoteType.DISLIKE)
+        return self._get_vote_data(obj)[1]
 
 
 class PostSerializer(serializers.ModelSerializer):

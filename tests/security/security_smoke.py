@@ -113,6 +113,95 @@ def check_xss_payload_not_reflected(base_url: str) -> CheckResult:
     )
 
 
+def check_oversized_payload_rejected(base_url: str) -> CheckResult:
+    """POST a 1 MB JSON body to the login endpoint — must not crash (500)."""
+    big_value = "A" * (1024 * 1024)  # 1 MB string
+    try:
+        r = requests.post(
+            f"{base_url}/api/auth/login/",
+            json={"email": big_value, "password": "x"},
+            timeout=15,
+        )
+        ok = r.status_code in (400, 413, 429)
+    except requests.RequestException:
+        ok = False
+        r = None
+    return CheckResult(
+        "oversized_payload_rejected",
+        ok,
+        f"status={r.status_code if r else 'timeout/error'}",
+    )
+
+
+def check_pagination_bounds(base_url: str) -> CheckResult:
+    """Verify extreme pagination values return safe responses (not 500)."""
+    probes = [
+        ("page=-1", "/api/posts/"),
+        ("page=999999999", "/api/posts/"),
+        ("page=abc", "/api/posts/"),
+        ("page=0", "/api/users/"),
+    ]
+    statuses = []
+    for param, path in probes:
+        try:
+            r = requests.get(f"{base_url}{path}?{param}", timeout=10)
+            statuses.append(r.status_code)
+        except requests.RequestException:
+            statuses.append(-1)
+    ok = all(s not in (500, 502, 503) for s in statuses)
+    return CheckResult(
+        "pagination_bounds",
+        ok,
+        f"statuses={statuses}",
+    )
+
+
+def check_auth_endpoints_reject_unauthenticated(base_url: str) -> CheckResult:
+    """Unauthenticated requests to protected endpoints must return 401/403."""
+    protected = [
+        ("POST", "/api/auth/logout/"),
+        ("PATCH", "/api/auth/profile/"),
+    ]
+    statuses = []
+    for method, path in protected:
+        try:
+            fn = requests.post if method == "POST" else requests.patch
+            r = fn(f"{base_url}{path}", json={}, timeout=10)
+            statuses.append(r.status_code)
+        except requests.RequestException:
+            statuses.append(-1)
+    ok = all(s in (401, 403) for s in statuses)
+    return CheckResult(
+        "auth_endpoints_reject_unauthenticated",
+        ok,
+        f"statuses={statuses}",
+    )
+
+
+def check_content_type_enforcement(base_url: str) -> CheckResult:
+    """API responses must use application/json content type."""
+    endpoints = [
+        "/api/posts/",
+        "/api/dashboard/",
+        "/api/tags/",
+    ]
+    non_json = []
+    for path in endpoints:
+        try:
+            r = requests.get(f"{base_url}{path}", timeout=10)
+            ct = r.headers.get("Content-Type", "")
+            if "application/json" not in ct:
+                non_json.append(f"{path}→{ct}")
+        except requests.RequestException:
+            non_json.append(f"{path}→error")
+    ok = len(non_json) == 0
+    return CheckResult(
+        "content_type_enforcement",
+        ok,
+        f"non_json={non_json if non_json else 'none'}",
+    )
+
+
 def run(base_url: str) -> int:
     checks = [
         check_security_headers(base_url),
@@ -121,6 +210,10 @@ def run(base_url: str) -> int:
         check_sql_injection_probe(base_url),
         check_nosql_style_payload_probe(base_url),
         check_xss_payload_not_reflected(base_url),
+        check_oversized_payload_rejected(base_url),
+        check_pagination_bounds(base_url),
+        check_auth_endpoints_reject_unauthenticated(base_url),
+        check_content_type_enforcement(base_url),
     ]
 
     print(json.dumps([c.__dict__ for c in checks], indent=2))

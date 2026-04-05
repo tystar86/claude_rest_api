@@ -113,9 +113,15 @@ DATABASES: dict[str, Any] = {
             os.environ.get("DB_PORT", "5432"),
             os.environ["DB_NAME"],
         ),
-        conn_max_age=int(os.environ.get("DB_CONN_MAX_AGE", 0)),
+        conn_max_age=int(os.environ.get("DB_CONN_MAX_AGE", 60)),
     )
 }
+# Validate persistent connections before reuse to avoid "connection already
+# closed" errors with long-lived workers (Django 4.1+).
+# Only has effect when DB_CONN_MAX_AGE > 0.
+DATABASES["default"].setdefault(
+    "CONN_HEALTH_CHECKS", os.environ.get("CONN_HEALTH_CHECKS", "True") == "True"
+)
 
 AUTH_PASSWORD_VALIDATORS: list[dict[str, Any]] = [
     {

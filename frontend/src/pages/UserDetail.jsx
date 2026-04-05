@@ -1,27 +1,50 @@
 import { useEffect, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { fetchUser } from "../api/client";
-import Pagination from "../components/Pagination";
 import RoleBadge from "../components/RoleBadge";
 import StatusBadge from "../components/StatusBadge";
 
 export default function UserDetail() {
   const { username } = useParams();
-  const [data, setData] = useState(null);
+  const [items, setItems] = useState(null);
+  const [total, setTotal] = useState(0);
+  const [userInfo, setUserInfo] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [fetchError, setFetchError] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const page = parseInt(searchParams.get("page") || "1");
 
   useEffect(() => {
-    fetchUser(username, page)
-      .then((result) => { setNotFound(false); setFetchError(false); setData(result); })
+    fetchUser(username, 1)
+      .then((res) => {
+        setNotFound(false);
+        setFetchError(false);
+        setItems(res.results);
+        setTotal(res.count);
+        setUserInfo(res.user);
+        setHasMore(res.page < res.total_pages);
+        setPage(1);
+      })
       .catch((err) => {
-        setData(null);
+        setItems([]);
         if (err?.response?.status === 404) setNotFound(true);
         else setFetchError(true);
       });
-  }, [username, page]);
+  }, [username]);
+
+  const loadMore = () => {
+    const next = page + 1;
+    setLoadingMore(true);
+    fetchUser(username, next)
+      .then((res) => {
+        setItems((prev) => [...prev, ...res.results]);
+        setHasMore(res.page < res.total_pages);
+        setPage(next);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMore(false));
+  };
 
   if (notFound) return (
     <div className="nb-layout-full"><div className="nb-error">User not found.</div></div>
@@ -29,11 +52,9 @@ export default function UserDetail() {
   if (fetchError) return (
     <div className="nb-layout-full"><div className="nb-error">Failed to load user. Please try again.</div></div>
   );
-  if (!data) return (
+  if (items === null || userInfo === null) return (
     <div className="nb-layout-full nb-spinner"><div className="spinner-border" /></div>
   );
-
-  const { user } = data;
 
   return (
     <div className="nb-layout" style={{ gridTemplateColumns: "280px 1fr" }}>
@@ -44,21 +65,21 @@ export default function UserDetail() {
           <div style={{ fontSize: "60px", lineHeight: 1, marginBottom: "12px" }}>
             <i className="bi bi-person-square" style={{ color: "var(--black)" }} />
           </div>
-          <div className="nb-username">{user.username}</div>
-          {user.email && (
+          <div className="nb-username">{userInfo.username}</div>
+          {userInfo.email && (
             <div style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", opacity: 0.55, marginBottom: "10px" }}>
-              {user.email}
+              {userInfo.email}
             </div>
           )}
           <div style={{ marginBottom: "10px" }}>
-            <RoleBadge role={user.profile?.role} />
-            {(!user.profile?.role || user.profile?.role === "user") && (
+            <RoleBadge role={userInfo.profile?.role} />
+            {(!userInfo.profile?.role || userInfo.profile?.role === "user") && (
               <span className="nb-status-draft">User</span>
             )}
           </div>
-          {user.profile?.bio && (
+          {userInfo.profile?.bio && (
             <div style={{ fontSize: "13px", opacity: 0.7, marginTop: "12px", lineHeight: 1.5 }}>
-              {user.profile.bio}
+              {userInfo.profile.bio}
             </div>
           )}
         </div>
@@ -67,16 +88,16 @@ export default function UserDetail() {
           <div className="nb-sidebar-head">Info</div>
           <div className="nb-stat-row">
             <span>Posts</span>
-            <span>{data.count}</span>
+            <span>{total}</span>
           </div>
           <div className="nb-stat-row">
             <span>Role</span>
-            <span>{user.profile?.role ?? "user"}</span>
+            <span>{userInfo.profile?.role ?? "user"}</span>
           </div>
           <div className="nb-stat-row">
             <span>Joined</span>
             <span style={{ fontSize: "12px" }}>
-              {new Date(user.date_joined).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+              {new Date(userInfo.date_joined).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
             </span>
           </div>
         </div>
@@ -91,18 +112,18 @@ export default function UserDetail() {
       {/* Posts column */}
       <main className="nb-main">
         <div className="nb-section-bar">
-          <span className="nb-section-title">Posts by {user.username}</span>
-          <span className="nb-section-count">{data.count} total</span>
+          <span className="nb-section-title">Posts by {userInfo.username}</span>
+          <span className="nb-section-count">{total} total</span>
         </div>
 
-        {data.results.length === 0 && (
+        {items.length === 0 && (
           <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
             No posts yet.
           </div>
         )}
 
-        {data.results.map((post, index) => {
-          const num = String((page - 1) * 10 + index + 1).padStart(2, "0");
+        {items.map((post, index) => {
+          const num = String(index + 1).padStart(2, "0");
           return (
             <Link key={post.id} to={`/posts/${post.slug}`} className="nb-post-item">
               <div className="nb-post-num">{num}</div>
@@ -126,7 +147,17 @@ export default function UserDetail() {
           );
         })}
 
-        <Pagination page={page} totalPages={data.total_pages} onChange={(p) => setSearchParams({ page: p })} />
+        {/* Load More */}
+        {hasMore && (
+          <button
+            className="nb-btn nb-btn-full"
+            onClick={loadMore}
+            disabled={loadingMore}
+            style={{ marginTop: "16px" }}
+          >
+            {loadingMore ? "Loading…" : "Load More"}
+          </button>
+        )}
       </main>
 
     </div>

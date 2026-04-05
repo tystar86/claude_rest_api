@@ -23,3 +23,46 @@ Post List Returns Paginated Payload
     ${json}=    Set Variable    ${resp.json()}
     Dictionary Should Contain Key    ${json}    results
     Dictionary Should Contain Key    ${json}    total_pages
+
+Post List Pagination Returns Correct Structure
+    ${resp}=    GET On Session    api    /api/posts/
+    Should Be Equal As Integers    ${resp.status_code}    200
+    ${json}=    Set Variable    ${resp.json()}
+    Dictionary Should Contain Key    ${json}    count
+    Dictionary Should Contain Key    ${json}    total_pages
+    Dictionary Should Contain Key    ${json}    page
+    Dictionary Should Contain Key    ${json}    results
+    ${count}=    Get From Dictionary    ${json}    count
+    Should Be True    ${count} >= 0
+
+Post List Page Two Is Accessible
+    ${resp}=    GET On Session    api    /api/posts/    params=page=2
+    Should Be Equal As Integers    ${resp.status_code}    200
+    ${json}=    Set Variable    ${resp.json()}
+    ${page}=    Get From Dictionary    ${json}    page
+    Should Be Equal As Integers    ${page}    2
+
+Post List Invalid Page Returns Safe Response
+    ${resp}=    GET On Session    api    /api/posts/    params=page=abc
+    Should Not Be Equal As Integers    ${resp.status_code}    500
+    ${resp2}=    GET On Session    api    /api/posts/    params=page=-1
+    Should Not Be Equal As Integers    ${resp2.status_code}    500
+
+Post List Large Page Number Returns Safe Response
+    ${resp}=    GET On Session    api    /api/posts/    params=page=999999
+    Should Not Be Equal As Integers    ${resp.status_code}    500
+    ${json}=    Set Variable    ${resp.json()}
+    Dictionary Should Contain Key    ${json}    results
+
+Post Detail Returns Correct Fields
+    ${resp}=    GET On Session    api    /api/posts/
+    ${json}=    Set Variable    ${resp.json()}
+    ${results}=    Get From Dictionary    ${json}    results
+    ${length}=    Get Length    ${results}
+    IF    ${length} > 0
+        ${first}=    Get From List    ${results}    0
+        Dictionary Should Contain Key    ${first}    slug
+        Dictionary Should Contain Key    ${first}    title
+        Dictionary Should Contain Key    ${first}    author
+        Dictionary Should Contain Key    ${first}    comment_count
+    END

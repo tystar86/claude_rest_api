@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import Pagination from "../components/Pagination";
 import RoleBadge from "../components/RoleBadge";
 import StatusBadge from "../components/StatusBadge";
 import { updateProfile, fetchUser, fetchUserComments } from "../api/client";
@@ -12,7 +11,6 @@ export default function UserProfile() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const tab = searchParams.get("tab") || "settings";
-  const page = parseInt(searchParams.get("page") || "1");
 
   const [usernameVal, setUsernameVal] = useState("");
   const [usernameError, setUsernameError] = useState("");
@@ -26,9 +24,19 @@ export default function UserProfile() {
   const [pwSuccess, setPwSuccess] = useState("");
   const [savingPw, setSavingPw] = useState(false);
 
-  const [postsData, setPostsData] = useState(null);
-  const [commentsData, setCommentsData] = useState(null);
-  const [loadingContent, setLoadingContent] = useState(false);
+  // Posts tab state — null means "not yet loaded / loading"
+  const [postItems, setPostItems] = useState(null);
+  const [postsTotal, setPostsTotal] = useState(0);
+  const [postsPage, setPostsPage] = useState(1);
+  const [postsHasMore, setPostsHasMore] = useState(false);
+  const [postsLoadingMore, setPostsLoadingMore] = useState(false);
+
+  // Comments tab state — null means "not yet loaded / loading"
+  const [commentItems, setCommentItems] = useState(null);
+  const [commentsTotal, setCommentsTotal] = useState(0);
+  const [commentsPage, setCommentsPage] = useState(1);
+  const [commentsHasMore, setCommentsHasMore] = useState(false);
+  const [commentsLoadingMore, setCommentsLoadingMore] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate("/login");
@@ -37,19 +45,61 @@ export default function UserProfile() {
   useEffect(() => {
     if (!user) return;
     if (tab === "posts") {
-      setLoadingContent(true);
-      fetchUser(user.username, page)
-        .then(setPostsData)
-        .catch(() => setPostsData(null))
-        .finally(() => setLoadingContent(false));
+      setPostItems(null);
+      fetchUser(user.username, 1)
+        .then((res) => {
+          setPostItems(res.results);
+          setPostsTotal(res.count);
+          setPostsHasMore(res.page < res.total_pages);
+          setPostsPage(1);
+        })
+        .catch(() => {
+          setPostItems([]);
+          setPostsTotal(0);
+          setPostsHasMore(false);
+        });
     } else if (tab === "comments") {
-      setLoadingContent(true);
-      fetchUserComments(user.username, page)
-        .then(setCommentsData)
-        .catch(() => setCommentsData(null))
-        .finally(() => setLoadingContent(false));
+      setCommentItems(null);
+      fetchUserComments(user.username, 1)
+        .then((res) => {
+          setCommentItems(res.results);
+          setCommentsTotal(res.count);
+          setCommentsHasMore(res.page < res.total_pages);
+          setCommentsPage(1);
+        })
+        .catch(() => {
+          setCommentItems([]);
+          setCommentsTotal(0);
+          setCommentsHasMore(false);
+        });
     }
-  }, [user, tab, page]);
+  }, [user, tab]);
+
+  const loadMorePosts = () => {
+    const next = postsPage + 1;
+    setPostsLoadingMore(true);
+    fetchUser(user.username, next)
+      .then((res) => {
+        setPostItems((prev) => [...prev, ...res.results]);
+        setPostsHasMore(res.page < res.total_pages);
+        setPostsPage(next);
+      })
+      .catch(() => {})
+      .finally(() => setPostsLoadingMore(false));
+  };
+
+  const loadMoreComments = () => {
+    const next = commentsPage + 1;
+    setCommentsLoadingMore(true);
+    fetchUserComments(user.username, next)
+      .then((res) => {
+        setCommentItems((prev) => [...prev, ...res.results]);
+        setCommentsHasMore(res.page < res.total_pages);
+        setCommentsPage(next);
+      })
+      .catch(() => {})
+      .finally(() => setCommentsLoadingMore(false));
+  };
 
   if (loading) return (
     <div className="nb-layout-full nb-spinner"><div className="spinner-border" /></div>
@@ -135,7 +185,7 @@ export default function UserProfile() {
             <button
               key={t.key}
               type="button"
-              onClick={() => setSearchParams({ tab: t.key, page: "1" })}
+              onClick={() => setSearchParams({ tab: t.key })}
               style={{
                 display: "block",
                 width: "100%",
@@ -240,23 +290,23 @@ export default function UserProfile() {
           <>
             <div className="nb-section-bar">
               <span className="nb-section-title">My Posts</span>
-              {postsData && <span className="nb-section-count">{postsData.count} total</span>}
+              {postsTotal > 0 && <span className="nb-section-count">{postsTotal} total</span>}
             </div>
 
-            {loadingContent && (
+            {postItems === null && (
               <div className="nb-spinner"><div className="spinner-border" /></div>
             )}
 
-            {!loadingContent && postsData && (
+            {postItems !== null && (
               <>
-                {postsData.results.length === 0 && (
+                {postItems.length === 0 && (
                   <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
                     You haven&apos;t written any posts yet.
                   </div>
                 )}
 
-                {postsData.results.map((post, index) => {
-                  const num = String((page - 1) * 10 + index + 1).padStart(2, "0");
+                {postItems.map((post, index) => {
+                  const num = String(index + 1).padStart(2, "0");
                   return (
                     <Link key={post.id} to={`/posts/${post.slug}`} className="nb-post-item">
                       <div className="nb-post-num">{num}</div>
@@ -280,11 +330,16 @@ export default function UserProfile() {
                   );
                 })}
 
-                <Pagination
-                  page={page}
-                  totalPages={postsData.total_pages}
-                  onChange={(p) => setSearchParams({ tab: "posts", page: p })}
-                />
+                {postsHasMore && (
+                  <button
+                    className="nb-btn nb-btn-full"
+                    onClick={loadMorePosts}
+                    disabled={postsLoadingMore}
+                    style={{ marginTop: "16px" }}
+                  >
+                    {postsLoadingMore ? "Loading…" : "Load More"}
+                  </button>
+                )}
               </>
             )}
           </>
@@ -295,23 +350,23 @@ export default function UserProfile() {
           <>
             <div className="nb-section-bar">
               <span className="nb-section-title">My Comments</span>
-              {commentsData && <span className="nb-section-count">{commentsData.count} total</span>}
+              {commentsTotal > 0 && <span className="nb-section-count">{commentsTotal} total</span>}
             </div>
 
-            {loadingContent && (
+            {commentItems === null && (
               <div className="nb-spinner"><div className="spinner-border" /></div>
             )}
 
-            {!loadingContent && commentsData && (
+            {commentItems !== null && (
               <>
-                {commentsData.results.length === 0 && (
+                {commentItems.length === 0 && (
                   <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
                     You haven&apos;t commented on any posts yet.
                   </div>
                 )}
 
-                {commentsData.results.map((comment, index) => {
-                  const num = String((page - 1) * 10 + index + 1).padStart(2, "0");
+                {commentItems.map((comment, index) => {
+                  const num = String(index + 1).padStart(2, "0");
                   return (
                     <Link key={comment.id} to={`/posts/${comment.post_slug}`} className="nb-post-item">
                       <div className="nb-post-num">{num}</div>
@@ -343,11 +398,16 @@ export default function UserProfile() {
                   );
                 })}
 
-                <Pagination
-                  page={page}
-                  totalPages={commentsData.total_pages}
-                  onChange={(p) => setSearchParams({ tab: "comments", page: p })}
-                />
+                {commentsHasMore && (
+                  <button
+                    className="nb-btn nb-btn-full"
+                    onClick={loadMoreComments}
+                    disabled={commentsLoadingMore}
+                    style={{ marginTop: "16px" }}
+                  >
+                    {commentsLoadingMore ? "Loading…" : "Load More"}
+                  </button>
+                )}
               </>
             )}
           </>

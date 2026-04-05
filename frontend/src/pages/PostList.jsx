@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { createPost, deletePost, fetchPosts, fetchTags } from "../api/client";
-import Pagination from "../components/Pagination";
 import StatusBadge from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 
@@ -58,22 +57,20 @@ function MarkdownEditor({ value, onChange, disabled = false }) {
 export default function PostList() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [data, setData] = useState(null);
+  const [items, setItems] = useState(null);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
   const [allTags, setAllTags] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
   const [createError, setCreateError] = useState("");
   const [form, setForm] = useState({ title: "", body: "", status: "draft", tag_ids: [] });
-  const [searchParams, setSearchParams] = useSearchParams();
-  const page = parseInt(searchParams.get("page") || "1");
   const role = user?.profile?.role;
   const canManageAnyPost = role === "moderator" || role === "admin";
   const canManagePost = (post) => user && (post.author === user.username || canManageAnyPost);
-
-  const loadPosts = () => {
-    setData(null);
-    fetchPosts(page).then(setData).catch(() => setData({ count: 0, total_pages: 1, page, results: [] }));
-  };
 
   const loadAllTags = async () => {
     const firstPage = await fetchTags(1);
@@ -87,10 +84,50 @@ export default function PostList() {
   };
 
   useEffect(() => {
-    loadPosts();
+    fetchPosts(1)
+      .then((res) => {
+        setItems(res.results);
+        setTotal(res.count);
+        setHasMore(res.page < res.total_pages);
+        setPage(1);
+      })
+      .catch(() => {
+        setItems([]);
+        setTotal(0);
+        setHasMore(false);
+        setFetchError(true);
+      });
     loadAllTags();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, []);
+
+  const loadMore = () => {
+    const next = page + 1;
+    setLoadingMore(true);
+    fetchPosts(next)
+      .then((res) => {
+        setItems((prev) => [...prev, ...res.results]);
+        setHasMore(res.page < res.total_pages);
+        setPage(next);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMore(false));
+  };
+
+  const reloadPosts = () => {
+    setItems(null);
+    fetchPosts(1)
+      .then((res) => {
+        setItems(res.results);
+        setTotal(res.count);
+        setHasMore(res.page < res.total_pages);
+        setPage(1);
+      })
+      .catch(() => {
+        setItems([]);
+        setTotal(0);
+        setHasMore(false);
+      });
+  };
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
@@ -116,17 +153,27 @@ export default function PostList() {
     if (!window.confirm(`Delete "${post.title}"?`)) return;
     try {
       await deletePost(post.slug);
-      loadPosts();
+      reloadPosts();
     } catch (err) {
       window.alert(err?.response?.data?.detail || "Failed to delete post.");
     }
   };
 
-  if (!data) return (
+  if (items === null) return (
     <div className="nb-layout">
       <div className="nb-main nb-spinner">
         <div className="spinner-border" />
       </div>
+    </div>
+  );
+
+  if (fetchError) return (
+    <div className="nb-layout">
+      <main className="nb-main">
+        <div className="nb-error" style={{ padding: "40px 32px" }}>
+          Failed to load posts. Please refresh the page.
+        </div>
+      </main>
     </div>
   );
 
@@ -140,7 +187,7 @@ export default function PostList() {
 
         {/* Hero bar */}
         <div className="nb-hero-bar">
-          <div className="nb-hero-count">{data.count > 999 ? `${Math.floor(data.count / 1000)}K` : data.count}</div>
+          <div className="nb-hero-count">{total > 999 ? `${Math.floor(total / 1000)}K` : total}</div>
           <div>
             <div className="nb-hero-label">Posts published</div>
             <div className="nb-hero-desc">Technical writing from engineers worldwide. No algorithm. No ads. Just posts.</div>
@@ -150,7 +197,7 @@ export default function PostList() {
         {/* Section bar */}
         <div className="nb-section-bar">
           <span className="nb-section-title">All Posts — Latest First</span>
-          <span className="nb-section-count">Page {page} of {data.total_pages}</span>
+          <span className="nb-section-count">{items.length} loaded</span>
         </div>
 
         {/* New Post toggle */}
@@ -237,14 +284,14 @@ export default function PostList() {
         )}
 
         {/* Post rows */}
-        {data.results.length === 0 && (
+        {items.length === 0 && (
           <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
             No posts yet.
           </div>
         )}
 
-        {data.results.map((post, index) => {
-          const num = String((page - 1) * 10 + index + 1).padStart(2, "0");
+        {items.map((post, index) => {
+          const num = String(index + 1).padStart(2, "0");
           return (
             <Link
               key={post.id}
@@ -284,8 +331,17 @@ export default function PostList() {
           );
         })}
 
-        {/* Pagination */}
-        <Pagination page={page} totalPages={data.total_pages} onChange={(p) => setSearchParams({ page: p })} />
+        {/* Load More */}
+        {hasMore && (
+          <button
+            className="nb-btn nb-btn-full"
+            onClick={loadMore}
+            disabled={loadingMore}
+            style={{ marginTop: "16px" }}
+          >
+            {loadingMore ? "Loading…" : "Load More"}
+          </button>
+        )}
 
       </main>
 
@@ -296,15 +352,11 @@ export default function PostList() {
           <div className="nb-sidebar-head">Platform Stats</div>
           <div className="nb-stat-row">
             <span>Total Posts</span>
-            <span>{data.count}</span>
+            <span>{total > 999 ? `${Math.floor(total / 1000)}K+` : total}</span>
           </div>
           <div className="nb-stat-row">
-            <span>This Page</span>
-            <span>{data.results.length}</span>
-          </div>
-          <div className="nb-stat-row">
-            <span>Page</span>
-            <span>{page} / {data.total_pages}</span>
+            <span>Loaded</span>
+            <span>{items.length}</span>
           </div>
         </div>
 
