@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.db import IntegrityError, transaction
 from django.middleware.csrf import get_token
 from django.utils import timezone
@@ -73,9 +74,17 @@ def can_manage_tags(user):
 # ── Dashboard ──────────────────────────────────────────────────────────────────
 
 
+_DASHBOARD_CACHE_KEY = "dashboard_data"
+_DASHBOARD_CACHE_TTL = 60  # seconds
+
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def dashboard(request):
+    data = cache.get(_DASHBOARD_CACHE_KEY)
+    if data is not None:
+        return Response(data)
+
     published = Post.objects.filter(status=Post.Status.PUBLISHED)
     total_posts = published.count()
     total_comments = Comment.objects.filter(post__status=Post.Status.PUBLISHED).count()
@@ -89,49 +98,47 @@ def dashboard(request):
     avg_chars = published.aggregate(avg=Avg(Length("body")))["avg"] or 0
     average_depth_words = round(avg_chars / 5)
 
-    return Response(
-        {
-            "stats": {
-                "total_posts": total_posts,
-                "comments": total_comments,
-                "authors": total_authors,
-                "active_tags": active_tags,
-                "average_depth_words": average_depth_words,
-            },
-            "latest_posts": PostSerializer(
-                published.select_related("author")
-                .prefetch_related("tags")
-                .order_by("-created_at")[:10],
-                many=True,
-            ).data,
-            "most_commented_posts": PostSerializer(
-                published.select_related("author")
-                .prefetch_related("tags")
-                .annotate(comment_count=Count("comments"))
-                .order_by("-comment_count")[:10],
-                many=True,
-            ).data,
-            "most_used_tags": TagSerializer(
-                Tag.objects.annotate(
-                    post_count=Count(
-                        "posts", filter=Q(posts__status=Post.Status.PUBLISHED)
-                    )
-                ).order_by("-post_count")[:10],
-                many=True,
-            ).data,
-            "top_authors": UserSerializer(
-                User.objects.select_related("profile")
-                .annotate(
-                    post_count=Count(
-                        "posts", filter=Q(posts__status=Post.Status.PUBLISHED)
-                    )
-                )
-                .filter(post_count__gt=0)
-                .order_by("-post_count")[:10],
-                many=True,
-            ).data,
-        }
-    )
+    data = {
+        "stats": {
+            "total_posts": total_posts,
+            "comments": total_comments,
+            "authors": total_authors,
+            "active_tags": active_tags,
+            "average_depth_words": average_depth_words,
+        },
+        "latest_posts": PostSerializer(
+            published.select_related("author")
+            .prefetch_related("tags")
+            .annotate(comment_count=Count("comments"))
+            .order_by("-created_at")[:10],
+            many=True,
+        ).data,
+        "most_commented_posts": PostSerializer(
+            published.select_related("author")
+            .prefetch_related("tags")
+            .annotate(comment_count=Count("comments"))
+            .order_by("-comment_count")[:10],
+            many=True,
+        ).data,
+        "most_used_tags": TagSerializer(
+            Tag.objects.annotate(
+                post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+            ).order_by("-post_count")[:10],
+            many=True,
+        ).data,
+        "top_authors": UserSerializer(
+            User.objects.select_related("profile")
+            .annotate(
+                post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+            )
+            .filter(post_count__gt=0)
+            .order_by("-post_count")[:10],
+            many=True,
+        ).data,
+    }
+
+    cache.set(_DASHBOARD_CACHE_KEY, data, _DASHBOARD_CACHE_TTL)
+    return Response(data)
 
 
 # ── Posts ──────────────────────────────────────────────────────────────────────
@@ -159,6 +166,7 @@ def post_list(request):
             Post.objects.filter(status=Post.Status.PUBLISHED)
             .select_related("author")
             .prefetch_related("tags")
+            .annotate(comment_count=Count("comments"))
             .order_by("-created_at")
         )
         return Response(paginate(qs, request, PostSerializer))

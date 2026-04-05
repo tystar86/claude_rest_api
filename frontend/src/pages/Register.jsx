@@ -28,44 +28,72 @@ export default function Register() {
   };
 
   return (
-    <div className="insove-page row justify-content-center">
-      <div className="col-md-5 align-self-center">
-        <div className="insove-panel">
-          <div className="card-body p-4">
-            <h3 className="card-title fw-bold mb-4 text-center">Create Account</h3>
-            {error && <div className="alert alert-danger">{error}</div>}
+    <>
+      <div className="nb-auth-page">
+        <div className="nb-auth-box">
+          <div className="nb-auth-header">Create Account</div>
+          <div className="nb-auth-body">
+            {error && <div className="alert alert-danger mb-4">{error}</div>}
             <form onSubmit={submit}>
-              <div className="mb-3">
-                <label className="form-label fw-medium">Email</label>
-                <input type="email" name="email" className="form-control insove-form-control" value={form.email} onChange={handle} required />
+              <div className="nb-field">
+                <label htmlFor="reg-email">Email</label>
+                <input
+                  id="reg-email"
+                  type="email"
+                  name="email"
+                  className="nb-input"
+                  value={form.email}
+                  onChange={handle}
+                  required
+                />
               </div>
-              <div className="mb-3">
-                <label className="form-label fw-medium">Username</label>
-                <input type="text" name="username" className="form-control insove-form-control" value={form.username} onChange={handle} required />
+              <div className="nb-field">
+                <label htmlFor="reg-username">Username</label>
+                <input
+                  id="reg-username"
+                  type="text"
+                  name="username"
+                  className="nb-input"
+                  value={form.username}
+                  onChange={handle}
+                  required
+                />
               </div>
-              <div className="mb-3">
-                <label className="form-label fw-medium">Password</label>
-                <input type="password" name="password" className="form-control insove-form-control" value={form.password} onChange={handle} required />
+              <div className="nb-field">
+                <label htmlFor="reg-password">Password</label>
+                <input
+                  id="reg-password"
+                  type="password"
+                  name="password"
+                  className="nb-input"
+                  value={form.password}
+                  onChange={handle}
+                  required
+                />
               </div>
-              <div className="d-grid mt-4">
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="bi bi-person-plus me-1" />}
-                  Register
-                </button>
-              </div>
+              <button type="submit" className="nb-btn nb-btn-full" disabled={loading}>
+                {loading ? (
+                  <span className="spinner-border spinner-border-sm me-2" />
+                ) : null}
+                Register
+              </button>
             </form>
-            <hr className="my-4" />
-            <div className="d-grid">
-              <a href={GOOGLE_LOGIN_URL} className="btn btn-outline-danger">
-                <i className="bi bi-google me-1" />Continue with Google
-              </a>
-            </div>
-            <p className="text-center mt-3 mb-0">
-              Already have an account? <Link to="/login">Login</Link>
+
+            <hr className="nb-divider" />
+
+            <a href={GOOGLE_LOGIN_URL} className="nb-btn nb-btn-full nb-btn-secondary" style={{ display: "block", textAlign: "center" }}>
+              Continue with Google
+            </a>
+
+            <p style={{ textAlign: "center", marginTop: "20px", marginBottom: 0, fontFamily: "'Space Mono', monospace", fontSize: "12px" }}>
+              Already have an account?{" "}
+              <Link to="/login" style={{ color: "var(--black)", fontWeight: 700 }}>
+                Login
+              </Link>
             </p>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

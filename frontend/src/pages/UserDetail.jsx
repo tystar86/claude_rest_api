@@ -4,7 +4,6 @@ import { fetchUser } from "../api/client";
 import Pagination from "../components/Pagination";
 import RoleBadge from "../components/RoleBadge";
 import StatusBadge from "../components/StatusBadge";
-import Navbar from "../components/Navbar";
 
 export default function UserDetail() {
   const { username } = useParams();
@@ -16,11 +15,7 @@ export default function UserDetail() {
 
   useEffect(() => {
     fetchUser(username, page)
-      .then((result) => {
-        setNotFound(false);
-        setFetchError(false);
-        setData(result);
-      })
+      .then((result) => { setNotFound(false); setFetchError(false); setData(result); })
       .catch((err) => {
         setData(null);
         if (err?.response?.status === 404) setNotFound(true);
@@ -28,81 +23,112 @@ export default function UserDetail() {
       });
   }, [username, page]);
 
-  if (notFound) return <div className="alert alert-danger">User not found.</div>;
-  if (fetchError) return <div className="alert alert-warning">Failed to load user. Please try again.</div>;
-  if (!data) return <div className="text-center py-5"><div className="spinner-border" /></div>;
+  if (notFound) return (
+    <div className="nb-layout-full"><div className="nb-error">User not found.</div></div>
+  );
+  if (fetchError) return (
+    <div className="nb-layout-full"><div className="nb-error">Failed to load user. Please try again.</div></div>
+  );
+  if (!data) return (
+    <div className="nb-layout-full nb-spinner"><div className="spinner-border" /></div>
+  );
 
   const { user } = data;
 
   return (
-    <div className="insove-shell w-100 insove-content-inset py-3">
-      <div className="mb-4">
-        <Navbar fluid />
-      </div>
-      <nav aria-label="breadcrumb" className="mb-3">
-        <ol className="breadcrumb">
-          <li className="breadcrumb-item"><Link to="/users">Users</Link></li>
-          <li className="breadcrumb-item active">{user.username}</li>
-        </ol>
-      </nav>
+    <div className="nb-layout" style={{ gridTemplateColumns: "280px 1fr" }}>
 
-      <div className="row g-4">
-        <div className="col-md-3">
-          <div className="insove-panel text-center p-4">
-            <i className="bi bi-person-circle text-secondary" style={{ fontSize: "4rem" }} />
-            <h5 className="fw-bold mt-2 mb-0">{user.username}</h5>
-            <small className="text-muted">{user.email}</small>
-            <div className="mt-2">
-              <RoleBadge role={user.profile?.role} />
-              {user.profile?.role === "user" && <span className="badge bg-secondary">User</span>}
+      {/* Sidebar / user card */}
+      <aside className="nb-sidebar" style={{ borderRight: "var(--border)" }}>
+        <div className="nb-sidebar-block" style={{ textAlign: "center" }}>
+          <div style={{ fontSize: "60px", lineHeight: 1, marginBottom: "12px" }}>
+            <i className="bi bi-person-square" style={{ color: "var(--black)" }} />
+          </div>
+          <div className="nb-username">{user.username}</div>
+          {user.email && (
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", opacity: 0.55, marginBottom: "10px" }}>
+              {user.email}
             </div>
-            {user.profile?.bio && <p className="text-muted small mt-3 mb-0">{user.profile.bio}</p>}
-            <hr />
-            <small className="text-muted">
-              Joined {new Date(user.date_joined).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-            </small>
+          )}
+          <div style={{ marginBottom: "10px" }}>
+            <RoleBadge role={user.profile?.role} />
+            {(!user.profile?.role || user.profile?.role === "user") && (
+              <span className="nb-status-draft">User</span>
+            )}
+          </div>
+          {user.profile?.bio && (
+            <div style={{ fontSize: "13px", opacity: 0.7, marginTop: "12px", lineHeight: 1.5 }}>
+              {user.profile.bio}
+            </div>
+          )}
+        </div>
+
+        <div className="nb-sidebar-block">
+          <div className="nb-sidebar-head">Info</div>
+          <div className="nb-stat-row">
+            <span>Posts</span>
+            <span>{data.count}</span>
+          </div>
+          <div className="nb-stat-row">
+            <span>Role</span>
+            <span>{user.profile?.role ?? "user"}</span>
+          </div>
+          <div className="nb-stat-row">
+            <span>Joined</span>
+            <span style={{ fontSize: "12px" }}>
+              {new Date(user.date_joined).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+            </span>
           </div>
         </div>
 
-        <div className="col-md-9">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="insove-title mb-0">Posts</h5>
-            <span className="insove-subtle-chip">{data.count} total</span>
-          </div>
-          <div className="insove-panel">
-            <ul className="list-group list-group-flush">
-              {data.results.length === 0 && (
-                <li className="list-group-item text-muted py-4 text-center">No posts yet.</li>
-              )}
-              {data.results.map((post) => (
-                <li key={post.id} className="list-group-item py-3">
-                  <div className="d-flex justify-content-between align-items-start">
-                    <div>
-                      <h6 className="mb-1 fw-semibold">
-                        <Link to={`/posts/${post.slug}`} className="text-decoration-none" style={{ color: "#173f88" }}>{post.title}</Link>
-                      </h6>
-                      <small className="text-muted">
-                        {new Date(post.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </small>
-                      {post.tags.length > 0 && (
-                        <div className="mt-1">
-                          {post.tags.map((tag) => (
-                            <Link key={tag.id} to={`/tags/${tag.slug}`} className="text-decoration-none me-1">
-                              <span className="badge" style={{ color: "#13795b", background: "#dff7f2", border: "1px solid #b7ece2" }}>{tag.name}</span>
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <StatusBadge status={post.status} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <Pagination page={page} totalPages={data.total_pages} onChange={(p) => setSearchParams({ page: p })} />
+        <div style={{ padding: "16px 24px" }}>
+          <Link to="/users" style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--black)", textDecoration: "underline" }}>
+            ← All Users
+          </Link>
         </div>
-      </div>
+      </aside>
+
+      {/* Posts column */}
+      <main className="nb-main">
+        <div className="nb-section-bar">
+          <span className="nb-section-title">Posts by {user.username}</span>
+          <span className="nb-section-count">{data.count} total</span>
+        </div>
+
+        {data.results.length === 0 && (
+          <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
+            No posts yet.
+          </div>
+        )}
+
+        {data.results.map((post, index) => {
+          const num = String((page - 1) * 10 + index + 1).padStart(2, "0");
+          return (
+            <Link key={post.id} to={`/posts/${post.slug}`} className="nb-post-item">
+              <div className="nb-post-num">{num}</div>
+              <div className="nb-post-body">
+                <div className="nb-post-title">{post.title}</div>
+                <div className="nb-post-meta">
+                  <span>{new Date(post.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                </div>
+                {post.tags?.length > 0 && (
+                  <div className="nb-post-tags">
+                    {post.tags.map((tag) => (
+                      <span key={tag.id} className="nb-tag-box">{tag.name}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="nb-post-right">
+                <StatusBadge status={post.status} />
+              </div>
+            </Link>
+          );
+        })}
+
+        <Pagination page={page} totalPages={data.total_pages} onChange={(p) => setSearchParams({ page: p })} />
+      </main>
+
     </div>
   );
 }

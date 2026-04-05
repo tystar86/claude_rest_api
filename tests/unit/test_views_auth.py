@@ -1,8 +1,12 @@
 """Unit tests for authentication API endpoints."""
 
+import io
+
 import pytest
 from django.contrib.auth.models import User
+from django.db import connection
 from rest_framework import status
+from rest_framework.test import APIClient
 
 
 # ── CSRF ───────────────────────────────────────────────────────────────────────
@@ -256,3 +260,120 @@ class TestUpdateProfileView:
         """Submitting an empty string for username is rejected."""
         resp = auth_client.patch("/api/auth/profile/", {"username": ""}, format="json")
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+
+# ── Google OAuth ────────────────────────────────────────────────────────────────
+
+
+def _make_social_request():
+    """Build a minimal request with session for use with complete_social_login."""
+    from importlib import import_module
+
+    from django.contrib.auth.models import AnonymousUser
+    from django.conf import settings
+    from django.test import RequestFactory
+
+    factory = RequestFactory()
+    request = factory.get("/accounts/google/login/callback/")
+    SessionStore = import_module(settings.SESSION_ENGINE).SessionStore
+    request.session = SessionStore()
+    request.session.save()
+    request.user = AnonymousUser()
+    return request
+
+
+@pytest.mark.django_db
+class TestGoogleOAuth:
+    """Tests for Google OAuth login flow and social account integration."""
+
+    # ── Redirect ────────────────────────────────────────────────────────────
+
+    def test_google_login_endpoint_redirects(self, client):
+        """GET /accounts/google/login/ triggers the OAuth redirect flow (302)."""
+        resp = client.get("/accounts/google/login/")
+        assert resp.status_code == status.HTTP_302_FOUND
+
+    def test_google_login_redirect_targets_google(self, client):
+        """The redirect URL points to accounts.google.com."""
+        resp = client.get("/accounts/google/login/")
+        location = resp.headers.get("Location", "")
+        assert "accounts.google.com" in location
+
+    # ── User & Profile creation ─────────────────────────────────────────────
+
+    def test_social_user_gets_profile_via_signal(self, db):
+        """A user created in any way (including via social login) auto-receives a Profile from signals."""
+        from accounts.models import Profile
+
+        # Simulate what allauth does after completing the OAuth flow: save the user.
+        u = User.objects.create_user(username="g_newuser", email="g_new@example.com")
+        assert Profile.objects.filter(user=u).exists()
+
+    def test_social_account_is_linked_to_user(self, db):
+        """A SocialAccount ties a Google uid to a specific User."""
+        from allauth.socialaccount.models import SocialAccount
+
+        u = User.objects.create_user(username="g_linked", email="g_linked@example.com")
+        sa = SocialAccount.objects.create(
+            user=u,
+            provider="google",
+            uid="google-uid-002",
+            extra_data={"sub": "google-uid-002", "email": "g_linked@example.com"},
+        )
+        assert SocialAccount.objects.filter(
+            user=u, provider="google", uid="google-uid-002"
+        ).exists()
+        assert sa.user == u
+
+    def test_social_account_uid_is_unique_per_provider(self, db):
+        """The same Google uid cannot be assigned to two different users."""
+        from django.db import IntegrityError
+
+        from allauth.socialaccount.models import SocialAccount
+
+        u1 = User.objects.create_user(username="g_user1", email="g1@example.com")
+        u2 = User.objects.create_user(username="g_user2", email="g2@example.com")
+        SocialAccount.objects.create(
+            user=u1, provider="google", uid="google-uid-003", extra_data={}
+        )
+        with pytest.raises(IntegrityError):
+            SocialAccount.objects.create(
+                user=u2, provider="google", uid="google-uid-003", extra_data={}
+            )
+
+    # ── API access for social users ─────────────────────────────────────────
+
+    def test_social_user_can_access_current_user_endpoint(self, db):
+        """A user created via social login can access /api/auth/user/ when authenticated."""
+        from accounts.models import Profile
+
+        social_user = User.objects.create_user(
+            username="g_apiuser",
+            email="g_api@example.com",
+            password=None,
+        )
+        Profile.objects.get_or_create(user=social_user)
+
+        client = APIClient()
+        client.force_authenticate(user=social_user)
+        resp = client.get("/api/auth/user/")
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["email"] == "g_api@example.com"
+
+    def test_social_user_without_auth_cannot_access_user_endpoint(self, db):
+        """An unauthenticated request is still rejected even for OAuth-created accounts."""
+        client = APIClient()
+        resp = client.get("/api/auth/user/")
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # ── ensure_sites_migrations command ────────────────────────────────────
+
+    @pytest.mark.skipif(
+        connection.vendor != "postgresql",
+        reason="ensure_sites_migrations uses PostgreSQL information_schema",
+    )
+    def test_ensure_sites_migrations_is_idempotent(self, db):
+        """Running ensure_sites_migrations on a healthy PostgreSQL DB produces no error."""
+        from django.core.management import call_command
+
+        call_command("ensure_sites_migrations", stdout=io.StringIO())
