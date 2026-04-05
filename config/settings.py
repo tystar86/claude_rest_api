@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+import dj_database_url
+
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
@@ -103,15 +105,16 @@ SOCIALACCOUNT_PROVIDERS: dict[str, Any] = {
 WSGI_APPLICATION: str = "config.wsgi.application"
 
 DATABASES: dict[str, Any] = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ["DB_NAME"],
-        "USER": os.environ["DB_USER"],
-        "PASSWORD": os.environ["DB_PASSWORD"],
-        "HOST": os.environ.get("DB_HOST", "localhost"),
-        "PORT": os.environ.get("DB_PORT", "5432"),
-        "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", 0)),
-    }
+    "default": dj_database_url.config(
+        default="postgresql://{}:{}@{}:{}/{}".format(
+            os.environ["DB_USER"],
+            os.environ["DB_PASSWORD"],
+            os.environ.get("DB_HOST", "localhost"),
+            os.environ.get("DB_PORT", "5432"),
+            os.environ["DB_NAME"],
+        ),
+        conn_max_age=int(os.environ.get("DB_CONN_MAX_AGE", 0)),
+    )
 }
 
 AUTH_PASSWORD_VALIDATORS: list[dict[str, Any]] = [
