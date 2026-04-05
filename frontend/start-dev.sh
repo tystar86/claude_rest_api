@@ -1,3 +1,3 @@
 #!/bin/sh
-export PATH=/opt/homebrew/bin:$PATH
-exec node node_modules/.bin/vite --port 5174
+export PATH="$PWD/node_modules/.bin:$PATH"
+exec "$PWD/node_modules/.bin/vite" --port 5174

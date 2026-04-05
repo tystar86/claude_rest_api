@@ -1,5 +1,7 @@
 """Unit tests for authentication API endpoints."""
 
+import io
+
 import pytest
 from django.contrib.auth.models import User
 from rest_framework import status
@@ -373,4 +375,4 @@ class TestGoogleOAuth:
         """Running ensure_sites_migrations on a healthy PostgreSQL DB produces no error."""
         from django.core.management import call_command
 
-        call_command("ensure_sites_migrations", stdout=open("/dev/null", "w"))
+        call_command("ensure_sites_migrations", stdout=io.StringIO())

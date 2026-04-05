@@ -12,7 +12,7 @@ export default function Navbar() {
   useEffect(() => {
     fetchDashboard()
       .then((data) => setTickerStats(data.stats))
-      .catch(() => setTickerStats(null));
+      .catch(() => setTickerStats({ failed: true }));
   }, []);
 
   const handleLogout = async () => {
@@ -29,7 +29,7 @@ export default function Navbar() {
     return false;
   };
 
-  const tickerItems = tickerStats
+  const tickerItems = tickerStats && !tickerStats.failed
     ? [
         `${tickerStats.total_posts ?? 0} posts published`,
         `${tickerStats.authors ?? 0} authors active`,
@@ -42,10 +42,7 @@ export default function Navbar() {
         `${tickerStats.comments ?? 0} comments total`,
         `${tickerStats.average_depth_words ?? 0} avg word depth`,
       ]
-    : [
-        "Loading platform stats...",
-        "Loading platform stats...",
-      ];
+    : null;
 
   return (
     <>
@@ -113,13 +110,15 @@ export default function Navbar() {
         </div>
       </header>
 
-      <div className="nb-ticker">
-        <div className="nb-ticker-inner">
-          {tickerItems.map((item, i) => (
-            <span key={i} className="nb-ticker-item">{item}</span>
-          ))}
+      {tickerItems && (
+        <div className="nb-ticker">
+          <div className="nb-ticker-inner">
+            {tickerItems.map((item, i) => (
+              <span key={i} className="nb-ticker-item">{item}</span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

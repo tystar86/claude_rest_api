@@ -27,6 +27,14 @@ from django.db import connection
 from django.utils.timezone import now
 
 SITES_MIGRATIONS = ["0001_initial", "0002_alter_domain_unique"]
+SOCIALACCOUNT_MIGRATIONS = [
+    "0001_initial",
+    "0002_token_max_lengths",
+    "0003_extra_data_default_dict",
+    "0004_app_provider_id_settings",
+    "0005_socialtoken_nullable_app",
+    "0006_alter_socialaccount_extra_data",
+]
 
 
 def _migrations_table_exists():
@@ -101,7 +109,7 @@ def _fix_sites(stdout, style):
 
 
 def _fix_socialapp_sites(stdout, style):
-    """Ensure socialaccount_socialapp_sites M2M table exists."""
+    """Ensure socialaccount_socialapp_sites M2M table exists and migrations are recorded."""
     if _table_exists("socialaccount_socialapp_sites"):
         stdout.write("  socialaccount_socialapp_sites — OK")
         return
@@ -115,13 +123,25 @@ def _fix_socialapp_sites(stdout, style):
         )
         return
 
+    recorded = _recorded_migrations("socialaccount")
+    if recorded:
+        stdout.write(
+            style.WARNING(
+                "  socialaccount_socialapp_sites — stale records found, removing…"
+            )
+        )
+        _remove_stale_records("socialaccount")
+
     stdout.write(
         style.WARNING("  socialaccount_socialapp_sites — missing, creating M2M table…")
     )
     through = SocialApp.sites.through
     with connection.schema_editor() as editor:
         editor.create_model(through)
-    stdout.write(style.SUCCESS("  socialaccount_socialapp_sites — created."))
+    _record_migrations("socialaccount", SOCIALACCOUNT_MIGRATIONS)
+    stdout.write(
+        style.SUCCESS("  socialaccount_socialapp_sites — created and recorded.")
+    )
 
 
 class Command(BaseCommand):

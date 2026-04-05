@@ -159,6 +159,7 @@ def post_list(request):
             Post.objects.filter(status=Post.Status.PUBLISHED)
             .select_related("author")
             .prefetch_related("tags")
+            .annotate(comment_count=Count("comments"))
             .order_by("-created_at")
         )
         return Response(paginate(qs, request, PostSerializer))
