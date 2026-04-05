@@ -25,7 +25,6 @@ export default function Navbar() {
     if (path === "/tags") return location.pathname.startsWith("/tags");
     if (path === "/users") return location.pathname.startsWith("/users");
     if (path === "/comments") return location.pathname.startsWith("/comments");
-    if (path === "/dashboard") return location.pathname === "/dashboard";
     return false;
   };
 
@@ -65,11 +64,6 @@ export default function Navbar() {
               <li>
                 <Link to="/users" className={isActive("/users") ? "active" : ""}>
                   Users
-                </Link>
-              </li>
-              <li>
-                <Link to="/dashboard" className={isActive("/dashboard") ? "active" : ""}>
-                  Dashboard
                 </Link>
               </li>
               <li>

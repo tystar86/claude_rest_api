@@ -55,6 +55,9 @@ class Comment(models.Model):
         ordering = ["created_at"]
         indexes = [
             models.Index(fields=["-created_at"], name="blog_comment_created_idx"),
+            models.Index(
+                fields=["post", "created_at"], name="blog_comment_post_created_idx"
+            ),
         ]
 
     def __str__(self):

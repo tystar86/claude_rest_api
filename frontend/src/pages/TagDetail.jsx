@@ -1,26 +1,49 @@
 import { useEffect, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { fetchTag } from "../api/client";
-import Pagination from "../components/Pagination";
 import StatusBadge from "../components/StatusBadge";
 
 export default function TagDetail() {
   const { slug } = useParams();
-  const [data, setData] = useState(null);
+  const [items, setItems] = useState(null);
+  const [total, setTotal] = useState(0);
+  const [tagInfo, setTagInfo] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [fetchError, setFetchError] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const page = parseInt(searchParams.get("page") || "1");
 
   useEffect(() => {
-    fetchTag(slug, page)
-      .then((result) => { setNotFound(false); setFetchError(false); setData(result); })
+    fetchTag(slug, 1)
+      .then((res) => {
+        setNotFound(false);
+        setFetchError(false);
+        setItems(res.results);
+        setTotal(res.count);
+        setTagInfo(res.tag);
+        setHasMore(res.page < res.total_pages);
+        setPage(1);
+      })
       .catch((err) => {
-        setData(null);
+        setItems([]);
         if (err?.response?.status === 404) setNotFound(true);
         else setFetchError(true);
       });
-  }, [slug, page]);
+  }, [slug]);
+
+  const loadMore = () => {
+    const next = page + 1;
+    setLoadingMore(true);
+    fetchTag(slug, next)
+      .then((res) => {
+        setItems((prev) => [...prev, ...res.results]);
+        setHasMore(res.page < res.total_pages);
+        setPage(next);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMore(false));
+  };
 
   if (notFound) return (
     <div className="nb-layout-full"><div className="nb-error">Tag not found.</div></div>
@@ -28,7 +51,7 @@ export default function TagDetail() {
   if (fetchError) return (
     <div className="nb-layout-full"><div className="nb-error">Failed to load tag. Please try again.</div></div>
   );
-  if (!data) return (
+  if (items === null) return (
     <div className="nb-layout-full nb-spinner"><div className="spinner-border" /></div>
   );
 
@@ -37,12 +60,12 @@ export default function TagDetail() {
 
       {/* Hero bar */}
       <div className="nb-hero-bar">
-        <div className="nb-hero-count">{data.count}</div>
+        <div className="nb-hero-count">{total}</div>
         <div>
           <div className="nb-hero-label">Posts tagged</div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
             <span className="nb-chip nb-chip-active" style={{ fontSize: "18px", padding: "6px 16px" }}>
-              {data.tag.name}
+              {tagInfo?.name}
             </span>
           </div>
           <div className="nb-hero-desc">Browse all posts tagged with this topic.</div>
@@ -51,19 +74,19 @@ export default function TagDetail() {
 
       {/* Section bar */}
       <div className="nb-section-bar">
-        <span className="nb-section-title">Posts tagged: {data.tag.name}</span>
-        <span className="nb-section-count">Page {page} of {data.total_pages}</span>
+        <span className="nb-section-title">Posts tagged: {tagInfo?.name}</span>
+        <span className="nb-section-count">{items.length} loaded</span>
       </div>
 
       {/* Post rows */}
-      {data.results.length === 0 && (
+      {items.length === 0 && (
         <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
           No posts with this tag yet.
         </div>
       )}
 
-      {data.results.map((post, index) => {
-        const num = String((page - 1) * 10 + index + 1).padStart(2, "0");
+      {items.map((post, index) => {
+        const num = String(index + 1).padStart(2, "0");
         return (
           <Link key={post.id} to={`/posts/${post.slug}`} className="nb-post-item">
             <div className="nb-post-num">{num}</div>
@@ -89,7 +112,17 @@ export default function TagDetail() {
         );
       })}
 
-      <Pagination page={page} totalPages={data.total_pages} onChange={(p) => setSearchParams({ page: p })} />
+      {/* Load More */}
+      {hasMore && (
+        <button
+          className="nb-btn nb-btn-full"
+          onClick={loadMore}
+          disabled={loadingMore}
+          style={{ marginTop: "16px" }}
+        >
+          {loadingMore ? "Loading…" : "Load More"}
+        </button>
+      )}
 
     </div>
   );

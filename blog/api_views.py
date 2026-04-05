@@ -204,7 +204,17 @@ def post_list(request):
     if tag_ids:
         tags = Tag.objects.filter(id__in=tag_ids)
         post.tags.set(tags)
-    post.refresh_from_db()
+    post = (
+        Post.objects.select_related("author")
+        .prefetch_related(
+            "tags",
+            "comments__author",
+            "comments__votes",
+            "comments__replies__author",
+            "comments__replies__votes",
+        )
+        .get(pk=post.pk)
+    )
     return Response(
         PostDetailSerializer(post, context={"request": request}).data,
         status=status.HTTP_201_CREATED,
@@ -300,7 +310,17 @@ def post_detail(request, slug):
     if tag_ids is not None:
         tags = Tag.objects.filter(id__in=tag_ids)
         post.tags.set(tags)
-    post.refresh_from_db()
+    post = (
+        Post.objects.select_related("author")
+        .prefetch_related(
+            "tags",
+            "comments__author",
+            "comments__votes",
+            "comments__replies__author",
+            "comments__replies__votes",
+        )
+        .get(pk=post.pk)
+    )
     return Response(PostDetailSerializer(post, context={"request": request}).data)
 
 
@@ -311,7 +331,9 @@ def post_detail(request, slug):
 @permission_classes([AllowAny])
 def tag_list(request):
     if request.method == "GET":
-        qs = Tag.objects.order_by("name")
+        qs = Tag.objects.annotate(
+            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+        ).order_by("name")
         return Response(paginate(qs, request, TagSerializer))
 
     if not can_manage_tags(request.user):
@@ -393,7 +415,13 @@ def tag_detail(request, slug):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def user_list(request):
-    qs = User.objects.select_related("profile").order_by("-date_joined")
+    qs = (
+        User.objects.select_related("profile")
+        .annotate(
+            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+        )
+        .order_by("-date_joined")
+    )
     return Response(paginate(qs, request, UserSerializer))
 
 
@@ -401,7 +429,13 @@ def user_list(request):
 @permission_classes([AllowAny])
 def user_detail(request, username):
     try:
-        user = User.objects.select_related("profile").get(username=username)
+        user = (
+            User.objects.select_related("profile")
+            .annotate(
+                post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+            )
+            .get(username=username)
+        )
     except User.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
     posts_qs = (
@@ -555,7 +589,8 @@ def user_comments(request, username):
 
     qs = (
         Comment.objects.filter(author=user)
-        .select_related("post")
+        .select_related("author", "post")
+        .prefetch_related("votes")
         .order_by("-created_at")
     )
     return Response(paginate(qs, request, CommentListSerializer))
