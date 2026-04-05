@@ -57,6 +57,7 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.14"
+          enable-cache: false
 
       - name: Install Python dependencies
         run: uv sync --all-groups
