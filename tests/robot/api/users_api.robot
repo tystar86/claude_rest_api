@@ -32,7 +32,7 @@ User List Results Have Required Fields
     END
 
 User List Pagination Works
-    ${resp}=    GET On Session    api    /api/users/?page=2
+    ${resp}=    GET On Session    api    /api/users/    params=page=2
     Should Not Be Equal As Integers    ${resp.status_code}    500
 
 Dashboard Stats Are Present And Numeric

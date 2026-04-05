@@ -36,20 +36,20 @@ Post List Pagination Returns Correct Structure
     Should Be True    ${count} >= 0
 
 Post List Page Two Is Accessible
-    ${resp}=    GET On Session    api    /api/posts/?page=2
+    ${resp}=    GET On Session    api    /api/posts/    params=page=2
     Should Be Equal As Integers    ${resp.status_code}    200
     ${json}=    Set Variable    ${resp.json()}
     ${page}=    Get From Dictionary    ${json}    page
     Should Be Equal As Integers    ${page}    2
 
 Post List Invalid Page Returns Safe Response
-    ${resp}=    GET On Session    api    /api/posts/?page=abc
+    ${resp}=    GET On Session    api    /api/posts/    params=page=abc
     Should Not Be Equal As Integers    ${resp.status_code}    500
-    ${resp2}=    GET On Session    api    /api/posts/?page=-1
+    ${resp2}=    GET On Session    api    /api/posts/    params=page=-1
     Should Not Be Equal As Integers    ${resp2.status_code}    500
 
 Post List Large Page Number Returns Safe Response
-    ${resp}=    GET On Session    api    /api/posts/?page=999999
+    ${resp}=    GET On Session    api    /api/posts/    params=page=999999
     Should Not Be Equal As Integers    ${resp.status_code}    500
     ${json}=    Set Variable    ${resp.json()}
     Dictionary Should Contain Key    ${json}    results
