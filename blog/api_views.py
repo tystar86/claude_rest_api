@@ -10,7 +10,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from django.db.models import Count, Q
+from django.db.models import Avg, Count, Q
+from django.db.models.expressions import RawSQL
 
 from accounts.models import Profile
 from .models import Comment, CommentVote, Post, Tag
@@ -85,10 +86,16 @@ def dashboard(request):
         Tag.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
     )
 
-    bodies = published.values_list("body", flat=True)
-    word_counts = [len((body or "").split()) for body in bodies]
-    average_depth_words = (
-        round(sum(word_counts) / len(word_counts)) if word_counts else 0
+    average_depth_words = round(
+        published.aggregate(
+            avg=Avg(
+                RawSQL(
+                    "GREATEST(array_length(regexp_split_to_array(trim(body), '\\s+'), 1), 0)",
+                    [],
+                )
+            )
+        )["avg"]
+        or 0
     )
 
     return Response(
@@ -142,7 +149,11 @@ def dashboard(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def comment_list(request):
-    qs = Comment.objects.select_related("author", "post").order_by("-created_at")
+    qs = (
+        Comment.objects.select_related("author", "post")
+        .prefetch_related("votes")
+        .order_by("-created_at")
+    )
     return Response(paginate(qs, request, CommentListSerializer))
 
 
@@ -207,7 +218,13 @@ def post_detail(request, slug):
     try:
         post = (
             Post.objects.select_related("author")
-            .prefetch_related("tags", "comments__author", "comments__replies__author")
+            .prefetch_related(
+                "tags",
+                "comments__author",
+                "comments__votes",
+                "comments__replies__author",
+                "comments__replies__votes",
+            )
             .get(slug=slug)
         )
     except Post.DoesNotExist:
