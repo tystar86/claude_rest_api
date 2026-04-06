@@ -8,6 +8,7 @@ export default function Register() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", username: "", password: "" });
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -15,11 +16,20 @@ export default function Register() {
   const submit = async (e) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
     setLoading(true);
     try {
-      const user = await registerUser(form.email, form.username, form.password);
-      setUser(user);
-      navigate("/dashboard");
+      const result = await registerUser(form.email, form.username, form.password);
+      if (result?.username) {
+        setUser(result);
+        navigate("/dashboard");
+      } else {
+        setSuccess(
+          result?.detail ??
+            "Registration successful. Please check your email to verify your account."
+        );
+        setForm({ email: "", username: "", password: "" });
+      }
     } catch (err) {
       setError(err.response?.data?.detail ?? "Registration failed.");
     } finally {
@@ -34,6 +44,7 @@ export default function Register() {
           <div className="nb-auth-header">Create Account</div>
           <div className="nb-auth-body">
             {error && <div className="alert alert-danger mb-4">{error}</div>}
+            {success && <div className="alert alert-success mb-4">{success}</div>}
             <form onSubmit={submit}>
               <div className="nb-field">
                 <label htmlFor="reg-email">Email</label>

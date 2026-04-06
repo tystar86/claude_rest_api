@@ -63,6 +63,15 @@ class TestPostList:
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_create_post_rejects_non_string_fields(self, auth_client):
+        """Structured payloads for title/body do not crash the endpoint."""
+        resp = auth_client.post(
+            "/api/posts/",
+            {"title": {"$ne": ""}, "body": "body"},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
     def test_create_post_with_tags(self, auth_client, tag):
         """Tags are attached when tag_ids are provided."""
         resp = auth_client.post(
@@ -161,6 +170,13 @@ class TestPostDetail:
         """Setting body to an empty string is rejected."""
         resp = auth_client.patch(
             f"/api/posts/{post.slug}/", {"body": ""}, format="json"
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_update_rejects_non_string_title(self, auth_client, post):
+        """Structured payloads do not crash post updates."""
+        resp = auth_client.patch(
+            f"/api/posts/{post.slug}/", {"title": {"$ne": ""}}, format="json"
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 

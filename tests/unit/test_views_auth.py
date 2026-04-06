@@ -3,8 +3,10 @@
 import io
 
 import pytest
+from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
 from django.db import connection
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -212,6 +214,80 @@ class TestLoginView:
         )
         assert resp.status_code == status.HTTP_200_OK
         assert resp.data["username"] == "testuser"
+
+    @override_settings(
+        ACCOUNT_EMAIL_VERIFICATION="mandatory",
+        FEATURE_EMAIL_VERIFICATION_ROLLOUT=True,
+    )
+    def test_unverified_login_returns_403_when_verification_is_mandatory(
+        self, api_client, user
+    ):
+        """Unverified users are blocked when the rollout is active."""
+        resp = api_client.post(
+            "/api/auth/login/",
+            {"email": "test@example.com", "password": "testpass123"},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+    @override_settings(
+        ACCOUNT_EMAIL_VERIFICATION="mandatory",
+        FEATURE_EMAIL_VERIFICATION_ROLLOUT=False,
+    )
+    def test_unverified_login_allowed_when_rollout_is_disabled(self, api_client, user):
+        """Existing users can still log in while rollout is disabled."""
+        resp = api_client.post(
+            "/api/auth/login/",
+            {"email": "test@example.com", "password": "testpass123"},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["username"] == "testuser"
+
+
+@pytest.mark.django_db
+class TestEmailVerificationFlow:
+    """Tests for mandatory verification-specific auth behavior."""
+
+    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
+    def test_registration_returns_verification_message_when_mandatory(self, api_client):
+        """Mandatory verification registration should not return authenticated user data."""
+        resp = api_client.post(
+            "/api/auth/register/",
+            {
+                "email": "verify@example.com",
+                "username": "verifyuser",
+                "password": "newpass123",
+            },
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_201_CREATED
+        assert "detail" in resp.data
+        assert "username" not in resp.data
+
+    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
+    def test_resend_verification_requires_authentication(self, api_client):
+        """Anonymous resend requests are rejected."""
+        resp = api_client.post("/api/auth/resend-verification/")
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+
+    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
+    def test_resend_verification_returns_400_for_verified_user(self, auth_client, user):
+        """Already-verified users do not get another verification email."""
+        EmailAddress.objects.create(
+            user=user,
+            email=user.email,
+            verified=True,
+            primary=True,
+        )
+        resp = auth_client.post("/api/auth/resend-verification/")
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
+    def test_resend_verification_succeeds_for_unverified_user(self, auth_client):
+        """Authenticated unverified users can request another verification email."""
+        resp = auth_client.post("/api/auth/resend-verification/")
+        assert resp.status_code == status.HTTP_200_OK
 
 
 # ── Logout ─────────────────────────────────────────────────────────────────────

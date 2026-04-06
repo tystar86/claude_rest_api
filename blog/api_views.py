@@ -89,6 +89,28 @@ def can_manage_tags(user):
     return role in ("moderator", "admin")
 
 
+def can_view_unpublished_post(user, post):
+    if not user.is_authenticated:
+        return False
+    role = getattr(getattr(user, "profile", None), "role", "user")
+    return (
+        post.author_id == user.id
+        or user.is_superuser
+        or user.is_staff
+        or role in ("moderator", "admin")
+    )
+
+
+def can_access_comment(user, comment):
+    if comment.post.status == Post.Status.PUBLISHED and comment.is_approved:
+        return True
+    if not user.is_authenticated:
+        return False
+    if comment.author_id == user.id:
+        return True
+    return can_view_unpublished_post(user, comment.post)
+
+
 # ── Dashboard ──────────────────────────────────────────────────────────────────
 
 
@@ -166,7 +188,8 @@ def dashboard(request):
 @permission_classes([AllowAny])
 def comment_list(request):
     qs = (
-        Comment.objects.select_related("author", "post")
+        Comment.objects.filter(post__status=Post.Status.PUBLISHED, is_approved=True)
+        .select_related("author", "post")
         .prefetch_related("votes")
         .order_by("-created_at")
     )
@@ -194,11 +217,28 @@ def post_list(request):
             {"detail": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED
         )
 
-    title = (request.data.get("title") or "").strip()
-    body = (request.data.get("body") or "").strip()
-    excerpt = (request.data.get("excerpt") or "").strip()
+    title = request.data.get("title")
+    body = request.data.get("body")
+    excerpt = request.data.get("excerpt")
     status_value = request.data.get("status", Post.Status.DRAFT)
     tag_ids = request.data.get("tag_ids") or []
+
+    if title is not None and not isinstance(title, str):
+        return Response(
+            {"detail": "title must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if body is not None and not isinstance(body, str):
+        return Response(
+            {"detail": "body must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if excerpt is not None and not isinstance(excerpt, str):
+        return Response(
+            {"detail": "excerpt must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    title = (title or "").strip()
+    body = (body or "").strip()
+    excerpt = (excerpt or "").strip()
 
     if not title or not body:
         return Response(
@@ -257,15 +297,8 @@ def post_detail(request, slug):
     except Post.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
-    role = getattr(getattr(request.user, "profile", None), "role", "user")
-
     if request.method == "GET":
-        can_view_unpublished = request.user.is_authenticated and (
-            post.author_id == request.user.id
-            or request.user.is_superuser
-            or request.user.is_staff
-            or role in ("moderator", "admin")
-        )
+        can_view_unpublished = can_view_unpublished_post(request.user, post)
         if post.status != Post.Status.PUBLISHED and not can_view_unpublished:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(PostDetailSerializer(post, context={"request": request}).data)
@@ -275,12 +308,7 @@ def post_detail(request, slug):
             {"detail": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED
         )
 
-    can_manage_post = (
-        post.author_id == request.user.id
-        or request.user.is_superuser
-        or request.user.is_staff
-        or role in ("moderator", "admin")
-    )
+    can_manage_post = can_view_unpublished_post(request.user, post)
     if not can_manage_post:
         return Response(
             {"detail": "You can edit/delete only your own posts."},
@@ -296,6 +324,19 @@ def post_detail(request, slug):
     excerpt = request.data.get("excerpt")
     status_value = request.data.get("status")
     tag_ids = request.data.get("tag_ids")
+
+    if title is not None and not isinstance(title, str):
+        return Response(
+            {"detail": "title must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if body is not None and not isinstance(body, str):
+        return Response(
+            {"detail": "body must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if excerpt is not None and not isinstance(excerpt, str):
+        return Response(
+            {"detail": "excerpt must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
 
     if title is not None:
         title = title.strip()
@@ -360,7 +401,12 @@ def tag_list(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    name = (request.data.get("name") or "").strip().lower()
+    name = request.data.get("name")
+    if name is not None and not isinstance(name, str):
+        return Response(
+            {"detail": "name must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    name = (name or "").strip().lower()
     if not name:
         return Response(
             {"detail": "name is required."}, status=status.HTTP_400_BAD_REQUEST
@@ -383,7 +429,9 @@ def tag_list(request):
 @permission_classes([AllowAny])
 def tag_detail(request, slug):
     try:
-        tag = Tag.objects.get(slug=slug)
+        tag = Tag.objects.annotate(
+            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+        ).get(slug=slug)
     except Tag.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
@@ -411,7 +459,12 @@ def tag_detail(request, slug):
         tag.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    name = (request.data.get("name") or "").strip().lower()
+    name = request.data.get("name")
+    if name is not None and not isinstance(name, str):
+        return Response(
+            {"detail": "name must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    name = (name or "").strip().lower()
     if not name:
         return Response(
             {"detail": "name is required."}, status=status.HTTP_400_BAD_REQUEST
@@ -681,7 +734,9 @@ def user_comments(request, username):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     qs = (
-        Comment.objects.filter(author=user)
+        Comment.objects.filter(
+            author=user, post__status=Post.Status.PUBLISHED, is_approved=True
+        )
         .select_related("author", "post")
         .prefetch_related("votes")
         .order_by("-created_at")
@@ -702,8 +757,10 @@ def comment_vote(request, comment_id):
             status=status.HTTP_400_BAD_REQUEST,
         )
     try:
-        comment = Comment.objects.get(id=comment_id)
+        comment = Comment.objects.select_related("post", "author").get(id=comment_id)
     except Comment.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    if not can_access_comment(request.user, comment):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     existing = CommentVote.objects.filter(comment=comment, user=request.user).first()
@@ -723,7 +780,13 @@ def comment_vote(request, comment_id):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def comment_create(request, slug):
-    body = (request.data.get("body") or "").strip()
+    body = request.data.get("body")
+    if body is not None and not isinstance(body, str):
+        return Response(
+            {"detail": "Comment body must be a string."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    body = (body or "").strip()
     if not body:
         return Response(
             {"detail": "Comment body is required."},
@@ -733,6 +796,10 @@ def comment_create(request, slug):
     try:
         post = Post.objects.get(slug=slug)
     except Post.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    if post.status != Post.Status.PUBLISHED and not can_view_unpublished_post(
+        request.user, post
+    ):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     parent_id = request.data.get("parent_id")
@@ -773,7 +840,13 @@ def comment_update(request, comment_id):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    body = (request.data.get("body") or "").strip()
+    body = request.data.get("body")
+    if body is not None and not isinstance(body, str):
+        return Response(
+            {"detail": "Comment body must be a string."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    body = (body or "").strip()
     if not body:
         return Response(
             {"detail": "Comment body is required."},

@@ -4,7 +4,7 @@ import pytest
 from django.contrib.auth.models import User
 from rest_framework import status
 
-from blog.models import Comment, CommentVote
+from blog.models import Comment, CommentVote, Post
 
 
 # ── Comment List ───────────────────────────────────────────────────────────────
@@ -26,6 +26,26 @@ class TestCommentList:
         assert "count" in resp.data
         assert "total_pages" in resp.data
         assert "results" in resp.data
+
+    def test_list_excludes_comments_on_draft_posts(self, api_client, user):
+        """Anonymous users do not see comments attached to draft posts."""
+        draft = Post.objects.create(
+            title="Hidden Draft",
+            slug="hidden-draft",
+            author=user,
+            body="secret",
+            status=Post.Status.DRAFT,
+        )
+        Comment.objects.create(
+            post=draft,
+            author=user,
+            body="draft comment",
+            is_approved=True,
+        )
+
+        resp = api_client.get("/api/comments/")
+        assert resp.status_code == status.HTTP_200_OK
+        assert all(item["post_slug"] != "hidden-draft" for item in resp.data["results"])
 
 
 # ── Comment Create ─────────────────────────────────────────────────────────────
@@ -86,6 +106,32 @@ class TestCommentCreate:
         resp = auth_client.post(
             f"/api/posts/{post.slug}/comments/",
             {"body": "body", "parent_id": 99999},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_regular_user_cannot_comment_on_another_users_draft(
+        self, api_client, draft_post
+    ):
+        """A non-owner cannot comment on a draft post they cannot view."""
+        other = User.objects.create_user(
+            username="other-draft-user",
+            email="other-draft@example.com",
+            password="strongpass123",
+        )
+        api_client.force_authenticate(user=other)
+        resp = api_client.post(
+            f"/api/posts/{draft_post.slug}/comments/",
+            {"body": "Sneaky"},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_non_string_body_returns_400(self, auth_client, post):
+        """Structured JSON payloads are rejected cleanly."""
+        resp = auth_client.post(
+            f"/api/posts/{post.slug}/comments/",
+            {"body": {"$ne": ""}},
             format="json",
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
@@ -226,5 +272,25 @@ class TestCommentVote:
         """Voting on a non-existent comment returns 404."""
         resp = auth_client.post(
             "/api/comments/99999/vote/", {"vote": "like"}, format="json"
+        )
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_vote_on_comment_for_hidden_draft_returns_404(self, api_client, draft_post):
+        """Users cannot interact with comments tied to hidden draft posts."""
+        owner = draft_post.author
+        comment = Comment.objects.create(
+            post=draft_post,
+            author=owner,
+            body="hidden comment",
+            is_approved=True,
+        )
+        other = User.objects.create_user(
+            username="vote-user",
+            email="vote-user@example.com",
+            password="strongpass123",
+        )
+        api_client.force_authenticate(user=other)
+        resp = api_client.post(
+            f"/api/comments/{comment.id}/vote/", {"vote": "like"}, format="json"
         )
         assert resp.status_code == status.HTTP_404_NOT_FOUND

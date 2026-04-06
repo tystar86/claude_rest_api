@@ -68,7 +68,7 @@ A full-stack blog platform with a Django REST Framework API backend and a React 
 git clone https://github.com/tystar86/claude_rest_api.git
 cd claude_rest_api
 
-cp .env.local.example .env.local   # fill in your values
+cp .env.local.example .env.local   # fill in your own non-secret local values
 docker-compose up
 ```
 
@@ -79,7 +79,7 @@ Backend → `http://localhost:8000` | Frontend → `http://localhost:5173`
 **Backend**
 ```bash
 uv sync
-cp .env.local.example .env.local   # fill in DB credentials
+cp .env.local.example .env.local   # fill in your own DB credentials and local secrets
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
@@ -107,6 +107,8 @@ npm run dev
 | `GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET` | Google OAuth credentials (optional) |
 
 Files: `.env.local` (dev) · `.env.testing` (tests) · `.env.production` (prod template)
+
+Never commit real secrets. Keep only placeholder/template values in tracked env files and load live credentials from your local shell, CI secrets, or deployment platform secret store.
 
 ---
 
