@@ -490,6 +490,7 @@ def login_view(request):
         return Response(
             {"detail": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST
         )
+    email = email.strip().lower()
     try:
         db_user = User.objects.get(email=email)
         username = db_user.username
@@ -534,6 +535,8 @@ def register_view(request):
     email = request.data.get("email", "")
     username = request.data.get("username", "")
     password = request.data.get("password", "")
+    if isinstance(email, str):
+        email = email.strip().lower()
     if not email or not username or not password:
         return Response(
             {"detail": "email, username and password are required."},
@@ -549,9 +552,12 @@ def register_view(request):
         )
     try:
         with transaction.atomic():
+            validate_password(password, user=None)
             user = User.objects.create_user(
                 username=username, email=email, password=password
             )
+    except ValidationError as exc:
+        return Response({"password": exc.messages}, status=status.HTTP_400_BAD_REQUEST)
     except IntegrityError:
         return Response(
             {"detail": "Registration failed."},

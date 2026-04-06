@@ -54,6 +54,20 @@ class TestRegisterView:
         )
         assert User.objects.filter(username="dbuser").exists()
 
+    def test_registration_normalizes_email_before_saving(self, api_client):
+        """Registration persists email in canonical lowercase/trimmed form."""
+        api_client.post(
+            "/api/auth/register/",
+            {
+                "email": "  MixedCase@Example.COM  ",
+                "username": "mixedcaseuser",
+                "password": "newpass123",
+            },
+            format="json",
+        )
+        created_user = User.objects.get(username="mixedcaseuser")
+        assert created_user.email == "mixedcase@example.com"
+
     def test_missing_fields_returns_400(self, api_client):
         """Omitting required fields returns 400."""
         resp = api_client.post(
@@ -110,6 +124,21 @@ class TestRegisterView:
             == resp_username.data["detail"]
             == "Registration failed."
         )
+
+    def test_weak_password_returns_400(self, api_client):
+        """Registration rejects passwords that fail Django validators."""
+        resp = api_client.post(
+            "/api/auth/register/",
+            {
+                "email": "weak@example.com",
+                "username": "weakuser",
+                "password": "123",
+            },
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "password" in resp.data
+        assert resp.data["password"]
 
 
 # ── Login ──────────────────────────────────────────────────────────────────────
@@ -173,6 +202,16 @@ class TestLoginView:
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
         assert resp.data["detail"] == "Invalid credentials."
+
+    def test_login_normalizes_email_before_lookup(self, api_client, user):
+        """Login accepts equivalent emails with surrounding whitespace/case differences."""
+        resp = api_client.post(
+            "/api/auth/login/",
+            {"email": "  TEST@EXAMPLE.COM  ", "password": "testpass123"},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["username"] == "testuser"
 
 
 # ── Logout ─────────────────────────────────────────────────────────────────────
