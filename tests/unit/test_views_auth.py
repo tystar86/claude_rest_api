@@ -3,8 +3,10 @@
 import io
 
 import pytest
+from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
 from django.db import connection
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -53,6 +55,20 @@ class TestRegisterView:
             format="json",
         )
         assert User.objects.filter(username="dbuser").exists()
+
+    def test_registration_normalizes_email_before_saving(self, api_client):
+        """Registration persists email in canonical lowercase/trimmed form."""
+        api_client.post(
+            "/api/auth/register/",
+            {
+                "email": "  MixedCase@Example.COM  ",
+                "username": "mixedcaseuser",
+                "password": "newpass123",
+            },
+            format="json",
+        )
+        created_user = User.objects.get(username="mixedcaseuser")
+        assert created_user.email == "mixedcase@example.com"
 
     def test_missing_fields_returns_400(self, api_client):
         """Omitting required fields returns 400."""
@@ -111,6 +127,21 @@ class TestRegisterView:
             == "Registration failed."
         )
 
+    def test_weak_password_returns_400(self, api_client):
+        """Registration rejects passwords that fail Django validators."""
+        resp = api_client.post(
+            "/api/auth/register/",
+            {
+                "email": "weak@example.com",
+                "username": "weakuser",
+                "password": "123",
+            },
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "password" in resp.data
+        assert resp.data["password"]
+
 
 # ── Login ──────────────────────────────────────────────────────────────────────
 
@@ -148,14 +179,23 @@ class TestLoginView:
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_duplicate_email_in_db_returns_400(self, api_client, user):
-        """MultipleObjectsReturned when two DB rows share an email is treated as auth failure."""
-        other = User.objects.create_user(
-            username="other", email="other@example.com", password="otherpass123"
+    def test_non_string_credentials_return_400(self, api_client):
+        """NoSQL-style dict payloads must be rejected with 400, not cause a 500."""
+        resp = api_client.post(
+            "/api/auth/login/",
+            {"email": {"$ne": ""}, "password": {"$ne": ""}},
+            format="json",
         )
-        # Force both users to share the same email, bypassing the unique constraint
-        User.objects.filter(pk=other.pk).update(email="test@example.com")
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.data["detail"] == "Invalid credentials."
 
+    def test_duplicate_email_lookup_returns_400(self, api_client, monkeypatch):
+        """MultipleObjectsReturned during email lookup is treated as auth failure."""
+
+        def raise_multiple(*args, **kwargs):
+            raise User.MultipleObjectsReturned
+
+        monkeypatch.setattr(User.objects, "get", raise_multiple)
         resp = api_client.post(
             "/api/auth/login/",
             {"email": "test@example.com", "password": "testpass123"},
@@ -163,6 +203,90 @@ class TestLoginView:
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
         assert resp.data["detail"] == "Invalid credentials."
+
+    def test_login_normalizes_email_before_lookup(self, api_client, user):
+        """Login accepts equivalent emails with surrounding whitespace/case differences."""
+        resp = api_client.post(
+            "/api/auth/login/",
+            {"email": "  TEST@EXAMPLE.COM  ", "password": "testpass123"},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["username"] == "testuser"
+
+    @override_settings(
+        ACCOUNT_EMAIL_VERIFICATION="mandatory",
+        FEATURE_EMAIL_VERIFICATION_ROLLOUT=True,
+    )
+    def test_unverified_login_returns_403_when_verification_is_mandatory(
+        self, api_client, user
+    ):
+        """Unverified users are blocked when the rollout is active."""
+        resp = api_client.post(
+            "/api/auth/login/",
+            {"email": "test@example.com", "password": "testpass123"},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+    @override_settings(
+        ACCOUNT_EMAIL_VERIFICATION="mandatory",
+        FEATURE_EMAIL_VERIFICATION_ROLLOUT=False,
+    )
+    def test_unverified_login_allowed_when_rollout_is_disabled(self, api_client, user):
+        """Existing users can still log in while rollout is disabled."""
+        resp = api_client.post(
+            "/api/auth/login/",
+            {"email": "test@example.com", "password": "testpass123"},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["username"] == "testuser"
+
+
+@pytest.mark.django_db
+class TestEmailVerificationFlow:
+    """Tests for mandatory verification-specific auth behavior."""
+
+    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
+    def test_registration_returns_verification_message_when_mandatory(self, api_client):
+        """Mandatory verification registration should not return authenticated user data."""
+        resp = api_client.post(
+            "/api/auth/register/",
+            {
+                "email": "verify@example.com",
+                "username": "verifyuser",
+                "password": "newpass123",
+            },
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_201_CREATED
+        assert "detail" in resp.data
+        assert "username" not in resp.data
+
+    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
+    def test_resend_verification_requires_authentication(self, api_client):
+        """Anonymous resend requests are rejected."""
+        resp = api_client.post("/api/auth/resend-verification/")
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+
+    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
+    def test_resend_verification_returns_400_for_verified_user(self, auth_client, user):
+        """Already-verified users do not get another verification email."""
+        EmailAddress.objects.create(
+            user=user,
+            email=user.email,
+            verified=True,
+            primary=True,
+        )
+        resp = auth_client.post("/api/auth/resend-verification/")
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
+    def test_resend_verification_succeeds_for_unverified_user(self, auth_client):
+        """Authenticated unverified users can request another verification email."""
+        resp = auth_client.post("/api/auth/resend-verification/")
+        assert resp.status_code == status.HTTP_200_OK
 
 
 # ── Logout ─────────────────────────────────────────────────────────────────────
@@ -197,10 +321,10 @@ class TestCurrentUserView:
         assert resp.status_code == status.HTTP_200_OK
         assert resp.data["username"] == "testuser"
 
-    def test_unauthenticated_returns_401(self, api_client):
-        """Unauthenticated requests are rejected with 401."""
+    def test_unauthenticated_returns_403(self, api_client):
+        """Unauthenticated requests are rejected; DRF SessionAuthentication returns 403."""
         resp = api_client.get("/api/auth/user/")
-        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
 
 
 # ── Update Profile ─────────────────────────────────────────────────────────────
@@ -289,13 +413,16 @@ class TestGoogleOAuth:
     # ── Redirect ────────────────────────────────────────────────────────────
 
     def test_google_login_endpoint_redirects(self, client):
-        """GET /accounts/google/login/ triggers the OAuth redirect flow (302)."""
-        resp = client.get("/accounts/google/login/")
+        """POST /accounts/google/login/ triggers the OAuth redirect flow (302).
+        SOCIALACCOUNT_LOGIN_ON_GET=False means GET returns a confirmation form (200);
+        a POST is required to initiate the redirect.
+        """
+        resp = client.post("/accounts/google/login/")
         assert resp.status_code == status.HTTP_302_FOUND
 
     def test_google_login_redirect_targets_google(self, client):
-        """The redirect URL points to accounts.google.com."""
-        resp = client.get("/accounts/google/login/")
+        """The POST redirect URL points to accounts.google.com."""
+        resp = client.post("/accounts/google/login/")
         location = resp.headers.get("Location", "")
         assert "accounts.google.com" in location
 
@@ -364,7 +491,7 @@ class TestGoogleOAuth:
         """An unauthenticated request is still rejected even for OAuth-created accounts."""
         client = APIClient()
         resp = client.get("/api/auth/user/")
-        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
 
     # ── ensure_sites_migrations command ────────────────────────────────────
 

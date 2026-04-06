@@ -8,6 +8,7 @@ from rest_framework.test import APIRequestFactory
 from blog.models import Tag
 from blog.serializers import (
     CommentSerializer,
+    CurrentUserSerializer,
     PostDetailSerializer,
     PostSerializer,
     ProfileSerializer,
@@ -50,7 +51,7 @@ class TestUserSerializer:
 
     def test_exposes_expected_fields(self, user):
         """Serialized user contains all expected top-level fields."""
-        data = UserSerializer(user).data
+        data = CurrentUserSerializer(user).data
         assert {
             "id",
             "username",

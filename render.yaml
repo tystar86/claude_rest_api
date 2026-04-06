@@ -62,5 +62,7 @@ services:
         sync: false
       - key: SESSION_COOKIE_SAMESITE
         value: None
+      - key: CSRF_COOKIE_SAMESITE
+        value: None
       - key: SESSION_COOKIE_SECURE
         value: "True"

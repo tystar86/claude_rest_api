@@ -22,7 +22,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("id", "username", "email", "date_joined", "profile", "post_count")
+        fields = ("id", "username", "date_joined", "profile", "post_count")
 
 
 class CurrentUserSerializer(UserSerializer):
@@ -35,7 +35,8 @@ class CurrentUserSerializer(UserSerializer):
         return role in ("moderator", "admin")
 
     class Meta(UserSerializer.Meta):
-        fields = UserSerializer.Meta.fields + ("can_manage_tags",)
+        # email is only exposed to the authenticated user for their own data
+        fields = (*UserSerializer.Meta.fields, "email", "can_manage_tags")
 
 
 class PostTagSerializer(serializers.ModelSerializer):
@@ -112,9 +113,25 @@ class CommentSerializer(serializers.ModelSerializer):
         return self._get_vote_data(obj)[2]
 
     def get_replies(self, obj):
-        return CommentSerializer(
-            obj.replies.all(), many=True, context=self.context
-        ).data
+        request = self.context.get("request")
+        replies = [
+            reply
+            for reply in obj.replies.all()
+            if getattr(reply, "is_approved", True)
+            or (
+                request is not None
+                and request.user.is_authenticated
+                and (
+                    reply.author_id == request.user.id
+                    or reply.post.author_id == request.user.id
+                    or request.user.is_superuser
+                    or request.user.is_staff
+                    or getattr(getattr(request.user, "profile", None), "role", "user")
+                    in ("moderator", "admin")
+                )
+            )
+        ]
+        return CommentSerializer(replies, many=True, context=self.context).data
 
 
 class CommentListSerializer(serializers.ModelSerializer):
@@ -186,5 +203,26 @@ class PostDetailSerializer(PostSerializer):
         fields = PostSerializer.Meta.fields + ["body", "comments"]
 
     def get_comments(self, obj):
-        top_level = [c for c in obj.comments.all() if c.parent_id is None]
+        request = self.context.get("request")
+        privileged_roles = ("moderator", "admin")
+        top_level = []
+        for comment in obj.comments.all():
+            if comment.parent_id is not None:
+                continue
+            if comment.is_approved:
+                top_level.append(comment)
+                continue
+            if (
+                request is not None
+                and request.user.is_authenticated
+                and (
+                    comment.author_id == request.user.id
+                    or obj.author_id == request.user.id
+                    or request.user.is_superuser
+                    or request.user.is_staff
+                    or getattr(getattr(request.user, "profile", None), "role", "user")
+                    in privileged_roles
+                )
+            ):
+                top_level.append(comment)
         return CommentSerializer(top_level, many=True, context=self.context).data

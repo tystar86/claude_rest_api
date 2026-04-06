@@ -4,14 +4,17 @@ import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { GOOGLE_LOGIN_URL, registerUser } from '../api/client';
 
+const mockNavigate = vi.fn();
+const mockSetUser = vi.fn();
+
 vi.mock('../api/client', () => import('../test/mocks/client.js'));
 vi.mock('react-router-dom', () => ({
   Link: ({ children, to }) => React.createElement('a', { href: to }, children),
-  useNavigate: () => vi.fn(),
+  useNavigate: () => mockNavigate,
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 vi.mock('../context/AuthContext', () => ({
-  useAuth: () => ({ setUser: vi.fn() }),
+  useAuth: () => ({ setUser: mockSetUser }),
 }));
 vi.mock('../components/Navbar', () => ({
   default: () => React.createElement('div', { 'data-testid': 'navbar' }),
@@ -19,7 +22,11 @@ vi.mock('../components/Navbar', () => ({
 
 import Register from './Register';
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  mockNavigate.mockReset();
+  mockSetUser.mockReset();
+});
 
 describe('Register page', () => {
   // ── Rendering ──────────────────────────────────────────────────────────
@@ -66,6 +73,21 @@ describe('Register page', () => {
     await user.click(screen.getByRole('button', { name: /register/i }));
 
     expect(registerUser).toHaveBeenCalledWith('new@example.com', 'newuser', 'securepass');
+  });
+
+  it('sets the authenticated user and redirects on user payload response', async () => {
+    vi.mocked(registerUser).mockResolvedValue({ username: 'newuser', email: 'new@example.com' });
+    const user = userEvent.setup();
+
+    render(<Register />);
+
+    await user.type(screen.getByLabelText(/email/i), 'new@example.com');
+    await user.type(screen.getByLabelText(/username/i), 'newuser');
+    await user.type(screen.getByLabelText(/password/i), 'securepass');
+    await user.click(screen.getByRole('button', { name: /register/i }));
+
+    await waitFor(() => expect(mockSetUser).toHaveBeenCalledWith({ username: 'newuser', email: 'new@example.com' }));
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
   });
 
   it('shows a loading spinner while the request is in flight', async () => {
@@ -144,5 +166,27 @@ describe('Register page', () => {
 
     await user.click(screen.getByRole('button', { name: /register/i }));
     await waitFor(() => expect(screen.queryByText('Registration failed.')).toBeNull());
+  });
+
+  it('shows a verification success message and does not assume auth when no user payload is returned', async () => {
+    vi.mocked(registerUser).mockResolvedValue({
+      detail: 'Registration successful. Please check your email to verify your account.',
+    });
+    const user = userEvent.setup();
+
+    render(<Register />);
+
+    await user.type(screen.getByLabelText(/email/i), 'verify@example.com');
+    await user.type(screen.getByLabelText(/username/i), 'verifyuser');
+    await user.type(screen.getByLabelText(/password/i), 'securepass');
+    await user.click(screen.getByRole('button', { name: /register/i }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('Registration successful. Please check your email to verify your account.')
+      ).toBeInTheDocument()
+    );
+    expect(mockSetUser).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

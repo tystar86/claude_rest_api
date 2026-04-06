@@ -1,15 +1,29 @@
+import hashlib
+import logging
+import smtplib
+import socket
+
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.core.mail import BadHeaderError
 from django.db import IntegrityError, transaction
 from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.utils.text import slugify
+from allauth.account.internal.flows.email_verification import (
+    send_verification_email_for_user,
+)
+from allauth.account.utils import has_verified_email, setup_user_email
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import Length
@@ -25,6 +39,14 @@ from .serializers import (
     TagSerializer,
     UserSerializer,
 )
+from .throttles import (
+    BurstAnonThrottle,
+    EndpointActorThrottle,
+    GlobalAPIThrottle,
+    LoginRateThrottle,
+)
+
+security_log = logging.getLogger("security")
 
 PAGE_SIZE = 10
 _MAX_PAGE = 10_000
@@ -69,6 +91,28 @@ def can_manage_tags(user):
         return True
     role = getattr(getattr(user, "profile", None), "role", "user")
     return role in ("moderator", "admin")
+
+
+def can_view_unpublished_post(user, post):
+    if not user.is_authenticated:
+        return False
+    role = getattr(getattr(user, "profile", None), "role", "user")
+    return (
+        post.author_id == user.id
+        or user.is_superuser
+        or user.is_staff
+        or role in ("moderator", "admin")
+    )
+
+
+def can_access_comment(user, comment):
+    if comment.post.status == Post.Status.PUBLISHED and comment.is_approved:
+        return True
+    if not user.is_authenticated:
+        return False
+    if comment.author_id == user.id:
+        return True
+    return can_view_unpublished_post(user, comment.post)
 
 
 # ── Dashboard ──────────────────────────────────────────────────────────────────
@@ -148,7 +192,8 @@ def dashboard(request):
 @permission_classes([AllowAny])
 def comment_list(request):
     qs = (
-        Comment.objects.select_related("author", "post")
+        Comment.objects.filter(post__status=Post.Status.PUBLISHED, is_approved=True)
+        .select_related("author", "post")
         .prefetch_related("votes")
         .order_by("-created_at")
     )
@@ -176,11 +221,28 @@ def post_list(request):
             {"detail": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED
         )
 
-    title = (request.data.get("title") or "").strip()
-    body = (request.data.get("body") or "").strip()
-    excerpt = (request.data.get("excerpt") or "").strip()
+    title = request.data.get("title")
+    body = request.data.get("body")
+    excerpt = request.data.get("excerpt")
     status_value = request.data.get("status", Post.Status.DRAFT)
     tag_ids = request.data.get("tag_ids") or []
+
+    if title is not None and not isinstance(title, str):
+        return Response(
+            {"detail": "title must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if body is not None and not isinstance(body, str):
+        return Response(
+            {"detail": "body must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if excerpt is not None and not isinstance(excerpt, str):
+        return Response(
+            {"detail": "excerpt must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    title = (title or "").strip()
+    body = (body or "").strip()
+    excerpt = (excerpt or "").strip()
 
     if not title or not body:
         return Response(
@@ -239,15 +301,8 @@ def post_detail(request, slug):
     except Post.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
-    role = getattr(getattr(request.user, "profile", None), "role", "user")
-
     if request.method == "GET":
-        can_view_unpublished = request.user.is_authenticated and (
-            post.author_id == request.user.id
-            or request.user.is_superuser
-            or request.user.is_staff
-            or role in ("moderator", "admin")
-        )
+        can_view_unpublished = can_view_unpublished_post(request.user, post)
         if post.status != Post.Status.PUBLISHED and not can_view_unpublished:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(PostDetailSerializer(post, context={"request": request}).data)
@@ -257,12 +312,7 @@ def post_detail(request, slug):
             {"detail": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED
         )
 
-    can_manage_post = (
-        post.author_id == request.user.id
-        or request.user.is_superuser
-        or request.user.is_staff
-        or role in ("moderator", "admin")
-    )
+    can_manage_post = can_view_unpublished_post(request.user, post)
     if not can_manage_post:
         return Response(
             {"detail": "You can edit/delete only your own posts."},
@@ -278,6 +328,19 @@ def post_detail(request, slug):
     excerpt = request.data.get("excerpt")
     status_value = request.data.get("status")
     tag_ids = request.data.get("tag_ids")
+
+    if title is not None and not isinstance(title, str):
+        return Response(
+            {"detail": "title must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if body is not None and not isinstance(body, str):
+        return Response(
+            {"detail": "body must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if excerpt is not None and not isinstance(excerpt, str):
+        return Response(
+            {"detail": "excerpt must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
 
     if title is not None:
         title = title.strip()
@@ -342,7 +405,12 @@ def tag_list(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    name = (request.data.get("name") or "").strip().lower()
+    name = request.data.get("name")
+    if name is not None and not isinstance(name, str):
+        return Response(
+            {"detail": "name must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    name = (name or "").strip().lower()
     if not name:
         return Response(
             {"detail": "name is required."}, status=status.HTTP_400_BAD_REQUEST
@@ -365,7 +433,9 @@ def tag_list(request):
 @permission_classes([AllowAny])
 def tag_detail(request, slug):
     try:
-        tag = Tag.objects.get(slug=slug)
+        tag = Tag.objects.annotate(
+            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+        ).get(slug=slug)
     except Tag.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
@@ -393,7 +463,12 @@ def tag_detail(request, slug):
         tag.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    name = (request.data.get("name") or "").strip().lower()
+    name = request.data.get("name")
+    if name is not None and not isinstance(name, str):
+        return Response(
+            {"detail": "name must be a string."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    name = (name or "").strip().lower()
     if not name:
         return Response(
             {"detail": "name is required."}, status=status.HTTP_400_BAD_REQUEST
@@ -462,9 +537,17 @@ def csrf(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes(
+    [LoginRateThrottle, BurstAnonThrottle, EndpointActorThrottle, GlobalAPIThrottle]
+)
 def login_view(request):
     email = request.data.get("email", "")
     password = request.data.get("password", "")
+    if not isinstance(email, str) or not isinstance(password, str):
+        return Response(
+            {"detail": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    email = email.strip().lower()
     try:
         db_user = User.objects.get(email=email)
         username = db_user.username
@@ -472,14 +555,33 @@ def login_view(request):
         # Always run a dummy check to make response time indistinguishable from a
         # wrong-password attempt, preventing email enumeration via timing.
         check_password(password, _DUMMY_PASSWORD_HASH)
+        email_fp = hashlib.sha256(email.lower().strip().encode()).hexdigest()[:16]
+        security_log.warning(
+            "Login failed: unknown email_fp=%s ip=%s",
+            email_fp,
+            request.META.get("REMOTE_ADDR"),
+        )
         return Response(
             {"detail": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST
         )
     user = authenticate(request, username=username, password=password)
     if user is None:
+        security_log.warning(
+            "Login failed: bad password for user_id=%s ip=%s",
+            db_user.pk,
+            request.META.get("REMOTE_ADDR"),
+        )
         return Response(
             {"detail": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST
         )
+    if settings.ACCOUNT_EMAIL_VERIFICATION == "mandatory" and getattr(
+        settings, "FEATURE_EMAIL_VERIFICATION_ROLLOUT", True
+    ):
+        if not has_verified_email(user):
+            return Response(
+                {"detail": "Email address is not verified. Please check your inbox."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
     login(request, user)
     return Response(CurrentUserSerializer(user).data)
 
@@ -490,6 +592,8 @@ def register_view(request):
     email = request.data.get("email", "")
     username = request.data.get("username", "")
     password = request.data.get("password", "")
+    if isinstance(email, str):
+        email = email.strip().lower()
     if not email or not username or not password:
         return Response(
             {"detail": "email, username and password are required."},
@@ -505,17 +609,78 @@ def register_view(request):
         )
     try:
         with transaction.atomic():
+            validate_password(password, user=None)
             user = User.objects.create_user(
                 username=username, email=email, password=password
             )
+    except ValidationError as exc:
+        return Response({"password": exc.messages}, status=status.HTTP_400_BAD_REQUEST)
     except IntegrityError:
         return Response(
             {"detail": "Registration failed."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     Profile.objects.get_or_create(user=user)
+    if settings.ACCOUNT_EMAIL_VERIFICATION == "mandatory":
+        setup_user_email(request, user, [])
+        try:
+            send_verification_email_for_user(request, user)
+        except (
+            smtplib.SMTPException,
+            BadHeaderError,
+            socket.timeout,
+            TimeoutError,
+        ):
+            security_log.exception(
+                "Failed to send verification email for user_id=%s; account created, resend required",
+                user.pk,
+            )
+        return Response(
+            {
+                "detail": "Registration successful. Please check your email to verify your account."
+            },
+            status=status.HTTP_201_CREATED,
+        )
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     return Response(CurrentUserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@throttle_classes([ScopedRateThrottle])
+def resend_verification_view(request):
+    """Resend the verification email for the authenticated (but unverified) user."""
+    if not request.user.is_authenticated:
+        return Response(
+            {"detail": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    user = request.user
+    if has_verified_email(user):
+        return Response(
+            {"detail": "Email is already verified."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    setup_user_email(request, user, [])
+    try:
+        send_verification_email_for_user(request, user)
+    except (
+        smtplib.SMTPException,
+        BadHeaderError,
+        socket.timeout,
+        TimeoutError,
+    ):
+        security_log.exception(
+            "Failed to resend verification email for user_id=%s", user.pk
+        )
+        return Response(
+            {"detail": "Failed to send verification email. Please try again later."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    return Response({"detail": "Verification email sent. Please check your inbox."})
+
+
+resend_verification_view.cls.throttle_scope = "resend_verification"
 
 
 @api_view(["POST"])
@@ -526,11 +691,8 @@ def logout_view(request):
 
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def current_user(request):
-    if not request.user.is_authenticated:
-        return Response(
-            {"detail": "Not authenticated."}, status=status.HTTP_401_UNAUTHORIZED
-        )
     return Response(CurrentUserSerializer(request.user).data)
 
 
@@ -563,8 +725,10 @@ def update_profile(request):
             errors["current_password"] = "Current password is incorrect."
         else:
             new_password = new_password.strip()
-            if len(new_password) < 8:
-                errors["new_password"] = "Password must be at least 8 characters."
+            try:
+                validate_password(new_password, user)
+            except ValidationError as e:
+                errors["new_password"] = list(e.messages)
             else:
                 user.set_password(new_password)
                 password_changed = True
@@ -588,7 +752,9 @@ def user_comments(request, username):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     qs = (
-        Comment.objects.filter(author=user)
+        Comment.objects.filter(
+            author=user, post__status=Post.Status.PUBLISHED, is_approved=True
+        )
         .select_related("author", "post")
         .prefetch_related("votes")
         .order_by("-created_at")
@@ -609,8 +775,10 @@ def comment_vote(request, comment_id):
             status=status.HTTP_400_BAD_REQUEST,
         )
     try:
-        comment = Comment.objects.get(id=comment_id)
+        comment = Comment.objects.select_related("post", "author").get(id=comment_id)
     except Comment.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    if not can_access_comment(request.user, comment):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     existing = CommentVote.objects.filter(comment=comment, user=request.user).first()
@@ -630,7 +798,13 @@ def comment_vote(request, comment_id):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def comment_create(request, slug):
-    body = (request.data.get("body") or "").strip()
+    body = request.data.get("body")
+    if body is not None and not isinstance(body, str):
+        return Response(
+            {"detail": "Comment body must be a string."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    body = (body or "").strip()
     if not body:
         return Response(
             {"detail": "Comment body is required."},
@@ -640,6 +814,10 @@ def comment_create(request, slug):
     try:
         post = Post.objects.get(slug=slug)
     except Post.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    if post.status != Post.Status.PUBLISHED and not can_view_unpublished_post(
+        request.user, post
+    ):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     parent_id = request.data.get("parent_id")
@@ -680,7 +858,13 @@ def comment_update(request, comment_id):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    body = (request.data.get("body") or "").strip()
+    body = request.data.get("body")
+    if body is not None and not isinstance(body, str):
+        return Response(
+            {"detail": "Comment body must be a string."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    body = (body or "").strip()
     if not body:
         return Response(
             {"detail": "Comment body is required."},

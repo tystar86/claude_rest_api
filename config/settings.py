@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -7,7 +8,18 @@ import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
-load_dotenv(f".env.{os.environ.get('DJANGO_ENV', 'local')}")
+
+def _default_django_env() -> str:
+    argv0 = Path(sys.argv[0]).name.lower()
+    if "pytest" in argv0:
+        return "testing"
+    return "local"
+
+
+DJANGO_ENV = os.environ.get("DJANGO_ENV", _default_django_env())
+os.environ.setdefault("DJANGO_ENV", DJANGO_ENV)
+load_dotenv(f".env.{DJANGO_ENV}")
+TEST_USE_POSTGRES = os.environ.get("TEST_USE_POSTGRES", "False").lower() == "true"
 
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 
@@ -30,6 +42,7 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.staticfiles",
     "rest_framework",
     "corsheaders",
+    "anymail",
     # allauth
     "allauth",
     "allauth.account",
@@ -80,7 +93,14 @@ SITE_ID: int = 1
 # django-allauth
 ACCOUNT_LOGIN_METHODS: set[str] = {"email"}
 ACCOUNT_SIGNUP_FIELDS: list[str] = ["email*", "username*", "password1*", "password2*"]
-ACCOUNT_EMAIL_VERIFICATION: str = "none"
+ACCOUNT_EMAIL_VERIFICATION: str = os.environ.get(
+    "ACCOUNT_EMAIL_VERIFICATION", "mandatory"
+)
+# When False, login_view skips the mandatory-verification gate so existing
+# users aren't locked out before a backfill has run.  Default True (enforce).
+FEATURE_EMAIL_VERIFICATION_ROLLOUT: bool = (
+    os.environ.get("FEATURE_EMAIL_VERIFICATION_ROLLOUT", "true").lower() == "true"
+)
 LOGIN_REDIRECT_URL: str = os.environ.get(
     "LOGIN_REDIRECT_URL", "http://localhost:5173/dashboard"
 )
@@ -90,7 +110,7 @@ LOGOUT_REDIRECT_URL: str = os.environ.get(
 ACCOUNT_DEFAULT_HTTP_PROTOCOL: str = os.environ.get(
     "ACCOUNT_DEFAULT_HTTP_PROTOCOL", "http"
 )
-SOCIALACCOUNT_LOGIN_ON_GET: bool = True
+SOCIALACCOUNT_LOGIN_ON_GET: bool = False
 SOCIALACCOUNT_PROVIDERS: dict[str, Any] = {
     "google": {
         "APP": {
@@ -104,24 +124,32 @@ SOCIALACCOUNT_PROVIDERS: dict[str, Any] = {
 
 WSGI_APPLICATION: str = "config.wsgi.application"
 
-DATABASES: dict[str, Any] = {
-    "default": dj_database_url.config(
-        default="postgresql://{}:{}@{}:{}/{}".format(
-            os.environ["DB_USER"],
-            os.environ["DB_PASSWORD"],
-            os.environ.get("DB_HOST", "localhost"),
-            os.environ.get("DB_PORT", "5432"),
-            os.environ["DB_NAME"],
-        ),
-        conn_max_age=int(os.environ.get("DB_CONN_MAX_AGE", 60)),
+if DJANGO_ENV == "testing" and not TEST_USE_POSTGRES:
+    DATABASES: dict[str, Any] = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+    }
+else:
+    DATABASES = {
+        "default": dj_database_url.config(
+            default="postgresql://{}:{}@{}:{}/{}".format(
+                os.environ["DB_USER"],
+                os.environ["DB_PASSWORD"],
+                os.environ.get("DB_HOST", "localhost"),
+                os.environ.get("DB_PORT", "5432"),
+                os.environ["DB_NAME"],
+            ),
+            conn_max_age=int(os.environ.get("DB_CONN_MAX_AGE", 60)),
+        )
+    }
+    # Validate persistent connections before reuse to avoid "connection already
+    # closed" errors with long-lived workers (Django 4.1+).
+    # Only has effect when DB_CONN_MAX_AGE > 0.
+    DATABASES["default"].setdefault(
+        "CONN_HEALTH_CHECKS", os.environ.get("CONN_HEALTH_CHECKS", "True") == "True"
     )
-}
-# Validate persistent connections before reuse to avoid "connection already
-# closed" errors with long-lived workers (Django 4.1+).
-# Only has effect when DB_CONN_MAX_AGE > 0.
-DATABASES["default"].setdefault(
-    "CONN_HEALTH_CHECKS", os.environ.get("CONN_HEALTH_CHECKS", "True") == "True"
-)
 
 AUTH_PASSWORD_VALIDATORS: list[dict[str, Any]] = [
     {
@@ -216,7 +244,7 @@ REST_FRAMEWORK: dict[str, Any] = {
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_THROTTLE_CLASSES": [
         "blog.throttles.BurstAnonThrottle",
@@ -226,13 +254,19 @@ REST_FRAMEWORK: dict[str, Any] = {
     ],
     "DEFAULT_THROTTLE_RATES": {
         # Per anonymous IP across API
-        "anon": os.environ.get("DRF_THROTTLE_ANON", "120/min"),
+        "anon": os.environ.get("DRF_THROTTLE_ANON") or "120/min",
         # Per authenticated user across API
-        "user": os.environ.get("DRF_THROTTLE_USER", "240/min"),
+        "user": os.environ.get("DRF_THROTTLE_USER") or "240/min",
         # Per endpoint + per actor (user or IP)
-        "endpoint_actor": os.environ.get("DRF_THROTTLE_ENDPOINT_ACTOR", "60/min"),
+        "endpoint_actor": os.environ.get("DRF_THROTTLE_ENDPOINT_ACTOR") or "60/min",
         # Overall global API cap
-        "api_global": os.environ.get("DRF_THROTTLE_API_GLOBAL", "1000/min"),
+        "api_global": os.environ.get("DRF_THROTTLE_API_GLOBAL") or "1000/min",
+        # Login endpoint brute-force protection (per IP)
+        "login": os.environ.get("DRF_THROTTLE_LOGIN") or "5/min",
+        # Verification email resend should be much tighter than generic auth
+        "resend_verification": (
+            os.environ.get("DRF_THROTTLE_RESEND_VERIFICATION") or "5/hour"
+        ),
     },
 }
 
@@ -247,3 +281,60 @@ if DEBUG and not CORS_ALLOWED_ORIGINS:
     ]
 CORS_ALLOW_CREDENTIALS: bool = True
 CSRF_COOKIE_HTTPONLY: bool = False  # React needs to read the CSRF cookie
+
+if DJANGO_ENV == "testing":
+    CACHES: dict[str, Any] = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+        }
+    }
+    ACCOUNT_EMAIL_VERIFICATION = "none"
+    FEATURE_EMAIL_VERIFICATION_ROLLOUT = False
+    EMAIL_BACKEND = "django.core.mail.backends.dummy.EmailBackend"
+    DEFAULT_FROM_EMAIL = "noreply@example.com"
+
+# Security event logging
+LOGGING: dict[str, Any] = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "security": {
+            "format": "[%(asctime)s] %(levelname)s %(name)s %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "security",
+        },
+    },
+    "loggers": {
+        "security": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "django.security": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
+
+
+# Email — console backend locally, Mailgun via anymail in production
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+)
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@yourdomain.com")
+ANYMAIL: dict[str, Any] = {
+    "MAILGUN_API_KEY": os.environ.get("MAILGUN_API_KEY", ""),
+    "MAILGUN_SENDER_DOMAIN": os.environ.get("MAILGUN_DOMAIN", ""),
+}

@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from rest_framework import status
 
 from accounts.models import Profile
-from blog.models import Tag
+from blog.models import Post, Tag
 
 
 # ── Tag List ───────────────────────────────────────────────────────────────────
@@ -61,6 +61,11 @@ class TestTagList:
         resp = mod_client.post("/api/tags/", {"name": ""}, format="json")
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_non_string_name_returns_400(self, mod_client):
+        """Structured payloads are rejected cleanly."""
+        resp = mod_client.post("/api/tags/", {"name": {"$ne": ""}}, format="json")
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
     def test_create_generates_slug(self, mod_client):
         """A created tag receives an auto-generated slug."""
         resp = mod_client.post(
@@ -87,6 +92,31 @@ class TestTagDetail:
         """Tag detail response includes a posts list."""
         resp = api_client.get(f"/api/tags/{tag.slug}/")
         assert "results" in resp.data
+
+    def test_tag_detail_post_count_only_counts_published_posts(
+        self, api_client, tag, user
+    ):
+        """Tag detail keeps published-only post_count semantics."""
+        published_post = Post.objects.create(
+            title="Published tagged",
+            slug="published-tagged",
+            author=user,
+            body="body",
+            status=Post.Status.PUBLISHED,
+        )
+        published_post.tags.add(tag)
+        draft_post = Post.objects.create(
+            title="Draft tagged",
+            slug="draft-tagged",
+            author=user,
+            body="body",
+            status=Post.Status.DRAFT,
+        )
+        draft_post.tags.add(tag)
+
+        resp = api_client.get(f"/api/tags/{tag.slug}/")
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["tag"]["post_count"] == 1
 
     def test_get_nonexistent_tag_returns_404(self, api_client):
         """A missing tag slug returns 404."""
