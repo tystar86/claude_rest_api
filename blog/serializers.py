@@ -22,7 +22,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("id", "username", "email", "date_joined", "profile", "post_count")
+        fields = ("id", "username", "date_joined", "profile", "post_count")
 
 
 class CurrentUserSerializer(UserSerializer):
@@ -35,7 +35,8 @@ class CurrentUserSerializer(UserSerializer):
         return role in ("moderator", "admin")
 
     class Meta(UserSerializer.Meta):
-        fields = UserSerializer.Meta.fields + ("can_manage_tags",)
+        # email is only exposed to the authenticated user for their own data
+        fields = UserSerializer.Meta.fields + ("email", "can_manage_tags")
 
 
 class PostTagSerializer(serializers.ModelSerializer):

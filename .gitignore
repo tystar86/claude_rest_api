@@ -28,3 +28,5 @@ playwright-log.txt
 .pytest_cache/
 .coverage
 /.claude
+.agents/
+skills-lock.json

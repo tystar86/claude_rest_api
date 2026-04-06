@@ -30,6 +30,7 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.staticfiles",
     "rest_framework",
     "corsheaders",
+    "anymail",
     # allauth
     "allauth",
     "allauth.account",
@@ -80,7 +81,9 @@ SITE_ID: int = 1
 # django-allauth
 ACCOUNT_LOGIN_METHODS: set[str] = {"email"}
 ACCOUNT_SIGNUP_FIELDS: list[str] = ["email*", "username*", "password1*", "password2*"]
-ACCOUNT_EMAIL_VERIFICATION: str = "none"
+ACCOUNT_EMAIL_VERIFICATION: str = os.environ.get(
+    "ACCOUNT_EMAIL_VERIFICATION", "mandatory"
+)
 LOGIN_REDIRECT_URL: str = os.environ.get(
     "LOGIN_REDIRECT_URL", "http://localhost:5173/dashboard"
 )
@@ -90,7 +93,7 @@ LOGOUT_REDIRECT_URL: str = os.environ.get(
 ACCOUNT_DEFAULT_HTTP_PROTOCOL: str = os.environ.get(
     "ACCOUNT_DEFAULT_HTTP_PROTOCOL", "http"
 )
-SOCIALACCOUNT_LOGIN_ON_GET: bool = True
+SOCIALACCOUNT_LOGIN_ON_GET: bool = False
 SOCIALACCOUNT_PROVIDERS: dict[str, Any] = {
     "google": {
         "APP": {
@@ -216,7 +219,7 @@ REST_FRAMEWORK: dict[str, Any] = {
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_THROTTLE_CLASSES": [
         "blog.throttles.BurstAnonThrottle",
@@ -233,6 +236,8 @@ REST_FRAMEWORK: dict[str, Any] = {
         "endpoint_actor": os.environ.get("DRF_THROTTLE_ENDPOINT_ACTOR", "60/min"),
         # Overall global API cap
         "api_global": os.environ.get("DRF_THROTTLE_API_GLOBAL", "1000/min"),
+        # Login endpoint brute-force protection (per IP)
+        "login": os.environ.get("DRF_THROTTLE_LOGIN", "5/min"),
     },
 }
 
@@ -247,3 +252,49 @@ if DEBUG and not CORS_ALLOWED_ORIGINS:
     ]
 CORS_ALLOW_CREDENTIALS: bool = True
 CSRF_COOKIE_HTTPONLY: bool = False  # React needs to read the CSRF cookie
+
+# Security event logging
+LOGGING: dict[str, Any] = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "security": {
+            "format": "[%(asctime)s] %(levelname)s %(name)s %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "security",
+        },
+    },
+    "loggers": {
+        "security": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "django.security": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
+
+
+# Email — console backend locally, Mailgun via anymail in production
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+)
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@yourdomain.com")
+ANYMAIL: dict[str, Any] = {
+    "MAILGUN_API_KEY": os.environ.get("MAILGUN_API_KEY", ""),
+    "MAILGUN_SENDER_DOMAIN": os.environ.get("MAILGUN_DOMAIN", ""),
+}

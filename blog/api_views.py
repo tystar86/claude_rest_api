@@ -1,13 +1,17 @@
+import logging
+
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
@@ -25,6 +29,9 @@ from .serializers import (
     TagSerializer,
     UserSerializer,
 )
+from .throttles import LoginRateThrottle
+
+security_log = logging.getLogger("security")
 
 PAGE_SIZE = 10
 _MAX_PAGE = 10_000
@@ -462,6 +469,7 @@ def csrf(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([LoginRateThrottle])
 def login_view(request):
     email = request.data.get("email", "")
     password = request.data.get("password", "")
@@ -472,11 +480,21 @@ def login_view(request):
         # Always run a dummy check to make response time indistinguishable from a
         # wrong-password attempt, preventing email enumeration via timing.
         check_password(password, _DUMMY_PASSWORD_HASH)
+        security_log.warning(
+            "Login failed: unknown email=%r ip=%s",
+            email,
+            request.META.get("REMOTE_ADDR"),
+        )
         return Response(
             {"detail": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST
         )
     user = authenticate(request, username=username, password=password)
     if user is None:
+        security_log.warning(
+            "Login failed: bad password for user_id=%s ip=%s",
+            db_user.pk,
+            request.META.get("REMOTE_ADDR"),
+        )
         return Response(
             {"detail": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST
         )
@@ -526,11 +544,8 @@ def logout_view(request):
 
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def current_user(request):
-    if not request.user.is_authenticated:
-        return Response(
-            {"detail": "Not authenticated."}, status=status.HTTP_401_UNAUTHORIZED
-        )
     return Response(CurrentUserSerializer(request.user).data)
 
 
@@ -563,8 +578,10 @@ def update_profile(request):
             errors["current_password"] = "Current password is incorrect."
         else:
             new_password = new_password.strip()
-            if len(new_password) < 8:
-                errors["new_password"] = "Password must be at least 8 characters."
+            try:
+                validate_password(new_password, user)
+            except ValidationError as e:
+                errors["new_password"] = list(e.messages)
             else:
                 user.set_password(new_password)
                 password_changed = True

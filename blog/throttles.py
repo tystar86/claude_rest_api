@@ -42,3 +42,13 @@ class BurstAnonThrottle(AnonRateThrottle):
 
 class BurstUserThrottle(UserRateThrottle):
     scope = "user"
+
+
+class LoginRateThrottle(SimpleRateThrottle):
+    """Tight per-IP throttle for the login endpoint to prevent brute force."""
+
+    scope = "login"
+
+    def get_cache_key(self, request, view):
+        ident = self.get_ident(request)
+        return self.cache_format % {"scope": self.scope, "ident": ident}
