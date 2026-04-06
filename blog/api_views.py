@@ -1,5 +1,7 @@
 import hashlib
 import logging
+import smtplib
+import socket
 
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
@@ -8,6 +10,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.core.mail import BadHeaderError
 from django.db import IntegrityError, transaction
 from django.middleware.csrf import get_token
 from django.utils import timezone
@@ -20,6 +23,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import Length
@@ -621,7 +625,12 @@ def register_view(request):
         setup_user_email(request, user, [])
         try:
             send_verification_email_for_user(request, user)
-        except Exception:
+        except (
+            smtplib.SMTPException,
+            BadHeaderError,
+            socket.timeout,
+            TimeoutError,
+        ):
             security_log.exception(
                 "Failed to send verification email for user_id=%s; account created, resend required",
                 user.pk,
@@ -638,6 +647,7 @@ def register_view(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([ScopedRateThrottle])
 def resend_verification_view(request):
     """Resend the verification email for the authenticated (but unverified) user."""
     if not request.user.is_authenticated:
@@ -654,7 +664,12 @@ def resend_verification_view(request):
     setup_user_email(request, user, [])
     try:
         send_verification_email_for_user(request, user)
-    except Exception:
+    except (
+        smtplib.SMTPException,
+        BadHeaderError,
+        socket.timeout,
+        TimeoutError,
+    ):
         security_log.exception(
             "Failed to resend verification email for user_id=%s", user.pk
         )
@@ -663,6 +678,9 @@ def resend_verification_view(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
     return Response({"detail": "Verification email sent. Please check your inbox."})
+
+
+resend_verification_view.cls.throttle_scope = "resend_verification"
 
 
 @api_view(["POST"])

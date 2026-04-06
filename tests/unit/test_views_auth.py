@@ -189,14 +189,13 @@ class TestLoginView:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
         assert resp.data["detail"] == "Invalid credentials."
 
-    def test_duplicate_email_in_db_returns_400(self, api_client, user):
-        """MultipleObjectsReturned when two DB rows share an email is treated as auth failure."""
-        other = User.objects.create_user(
-            username="other", email="other@example.com", password="otherpass123"
-        )
-        # Force both users to share the same email, bypassing the unique constraint
-        User.objects.filter(pk=other.pk).update(email="test@example.com")
+    def test_duplicate_email_lookup_returns_400(self, api_client, monkeypatch):
+        """MultipleObjectsReturned during email lookup is treated as auth failure."""
 
+        def raise_multiple(*args, **kwargs):
+            raise User.MultipleObjectsReturned
+
+        monkeypatch.setattr(User.objects, "get", raise_multiple)
         resp = api_client.post(
             "/api/auth/login/",
             {"email": "test@example.com", "password": "testpass123"},

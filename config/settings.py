@@ -263,6 +263,10 @@ REST_FRAMEWORK: dict[str, Any] = {
         "api_global": os.environ.get("DRF_THROTTLE_API_GLOBAL") or "1000/min",
         # Login endpoint brute-force protection (per IP)
         "login": os.environ.get("DRF_THROTTLE_LOGIN") or "5/min",
+        # Verification email resend should be much tighter than generic auth
+        "resend_verification": (
+            os.environ.get("DRF_THROTTLE_RESEND_VERIFICATION") or "5/hour"
+        ),
     },
 }
 

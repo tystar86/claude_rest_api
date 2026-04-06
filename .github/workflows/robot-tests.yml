@@ -26,6 +26,7 @@ env:
   FEATURE_EMAIL_VERIFICATION_ROLLOUT: "false"
   EMAIL_BACKEND: "django.core.mail.backends.dummy.EmailBackend"
   PASSWORD_HASHERS: "django.contrib.auth.hashers.MD5PasswordHasher"
+  DRF_THROTTLE_LOGIN: "1000/min"
   API_BASE_URL: "http://localhost:8000"
   UI_BASE_URL: "http://localhost:5173"
   BROWSER: "chromium"
