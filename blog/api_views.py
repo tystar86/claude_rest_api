@@ -1,5 +1,7 @@
+import hashlib
 import logging
 
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import User
@@ -10,6 +12,10 @@ from django.db import IntegrityError, transaction
 from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.utils.text import slugify
+from allauth.account.internal.flows.email_verification import (
+    send_verification_email_for_user,
+)
+from allauth.account.utils import has_verified_email, setup_user_email
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -29,7 +35,12 @@ from .serializers import (
     TagSerializer,
     UserSerializer,
 )
-from .throttles import LoginRateThrottle
+from .throttles import (
+    BurstAnonThrottle,
+    EndpointActorThrottle,
+    GlobalAPIThrottle,
+    LoginRateThrottle,
+)
 
 security_log = logging.getLogger("security")
 
@@ -469,7 +480,9 @@ def csrf(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
-@throttle_classes([LoginRateThrottle])
+@throttle_classes(
+    [LoginRateThrottle, BurstAnonThrottle, EndpointActorThrottle, GlobalAPIThrottle]
+)
 def login_view(request):
     email = request.data.get("email", "")
     password = request.data.get("password", "")
@@ -480,9 +493,10 @@ def login_view(request):
         # Always run a dummy check to make response time indistinguishable from a
         # wrong-password attempt, preventing email enumeration via timing.
         check_password(password, _DUMMY_PASSWORD_HASH)
+        email_fp = hashlib.sha256(email.lower().strip().encode()).hexdigest()[:16]
         security_log.warning(
-            "Login failed: unknown email=%r ip=%s",
-            email,
+            "Login failed: unknown email_fp=%s ip=%s",
+            email_fp,
             request.META.get("REMOTE_ADDR"),
         )
         return Response(
@@ -498,6 +512,12 @@ def login_view(request):
         return Response(
             {"detail": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST
         )
+    if settings.ACCOUNT_EMAIL_VERIFICATION == "mandatory":
+        if not has_verified_email(user):
+            return Response(
+                {"detail": "Email address is not verified. Please check your inbox."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
     login(request, user)
     return Response(CurrentUserSerializer(user).data)
 
@@ -532,6 +552,15 @@ def register_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     Profile.objects.get_or_create(user=user)
+    if settings.ACCOUNT_EMAIL_VERIFICATION == "mandatory":
+        setup_user_email(request, user, [])
+        send_verification_email_for_user(request, user)
+        return Response(
+            {
+                "detail": "Registration successful. Please check your email to verify your account."
+            },
+            status=status.HTTP_201_CREATED,
+        )
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     return Response(CurrentUserSerializer(user).data, status=status.HTTP_201_CREATED)
 

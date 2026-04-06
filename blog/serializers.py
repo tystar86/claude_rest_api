@@ -36,7 +36,7 @@ class CurrentUserSerializer(UserSerializer):
 
     class Meta(UserSerializer.Meta):
         # email is only exposed to the authenticated user for their own data
-        fields = UserSerializer.Meta.fields + ("email", "can_manage_tags")
+        fields = (*UserSerializer.Meta.fields, "email", "can_manage_tags")
 
 
 class PostTagSerializer(serializers.ModelSerializer):

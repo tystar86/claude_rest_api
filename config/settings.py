@@ -229,15 +229,15 @@ REST_FRAMEWORK: dict[str, Any] = {
     ],
     "DEFAULT_THROTTLE_RATES": {
         # Per anonymous IP across API
-        "anon": os.environ.get("DRF_THROTTLE_ANON", "120/min"),
+        "anon": os.environ.get("DRF_THROTTLE_ANON") or "120/min",
         # Per authenticated user across API
-        "user": os.environ.get("DRF_THROTTLE_USER", "240/min"),
+        "user": os.environ.get("DRF_THROTTLE_USER") or "240/min",
         # Per endpoint + per actor (user or IP)
-        "endpoint_actor": os.environ.get("DRF_THROTTLE_ENDPOINT_ACTOR", "60/min"),
+        "endpoint_actor": os.environ.get("DRF_THROTTLE_ENDPOINT_ACTOR") or "60/min",
         # Overall global API cap
-        "api_global": os.environ.get("DRF_THROTTLE_API_GLOBAL", "1000/min"),
+        "api_global": os.environ.get("DRF_THROTTLE_API_GLOBAL") or "1000/min",
         # Login endpoint brute-force protection (per IP)
-        "login": os.environ.get("DRF_THROTTLE_LOGIN", "5/min"),
+        "login": os.environ.get("DRF_THROTTLE_LOGIN") or "5/min",
     },
 }
 

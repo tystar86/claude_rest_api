@@ -197,10 +197,10 @@ class TestCurrentUserView:
         assert resp.status_code == status.HTTP_200_OK
         assert resp.data["username"] == "testuser"
 
-    def test_unauthenticated_returns_401(self, api_client):
-        """Unauthenticated requests are rejected with 401."""
+    def test_unauthenticated_returns_403(self, api_client):
+        """Unauthenticated requests are rejected; DRF SessionAuthentication returns 403."""
         resp = api_client.get("/api/auth/user/")
-        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
 
 
 # ── Update Profile ─────────────────────────────────────────────────────────────
@@ -289,13 +289,16 @@ class TestGoogleOAuth:
     # ── Redirect ────────────────────────────────────────────────────────────
 
     def test_google_login_endpoint_redirects(self, client):
-        """GET /accounts/google/login/ triggers the OAuth redirect flow (302)."""
-        resp = client.get("/accounts/google/login/")
+        """POST /accounts/google/login/ triggers the OAuth redirect flow (302).
+        SOCIALACCOUNT_LOGIN_ON_GET=False means GET returns a confirmation form (200);
+        a POST is required to initiate the redirect.
+        """
+        resp = client.post("/accounts/google/login/")
         assert resp.status_code == status.HTTP_302_FOUND
 
     def test_google_login_redirect_targets_google(self, client):
-        """The redirect URL points to accounts.google.com."""
-        resp = client.get("/accounts/google/login/")
+        """The POST redirect URL points to accounts.google.com."""
+        resp = client.post("/accounts/google/login/")
         location = resp.headers.get("Location", "")
         assert "accounts.google.com" in location
 
@@ -364,7 +367,7 @@ class TestGoogleOAuth:
         """An unauthenticated request is still rejected even for OAuth-created accounts."""
         client = APIClient()
         resp = client.get("/api/auth/user/")
-        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
 
     # ── ensure_sites_migrations command ────────────────────────────────────
 
