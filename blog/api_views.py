@@ -486,6 +486,10 @@ def csrf(request):
 def login_view(request):
     email = request.data.get("email", "")
     password = request.data.get("password", "")
+    if not isinstance(email, str) or not isinstance(password, str):
+        return Response(
+            {"detail": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST
+        )
     try:
         db_user = User.objects.get(email=email)
         username = db_user.username
@@ -512,7 +516,9 @@ def login_view(request):
         return Response(
             {"detail": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST
         )
-    if settings.ACCOUNT_EMAIL_VERIFICATION == "mandatory":
+    if settings.ACCOUNT_EMAIL_VERIFICATION == "mandatory" and getattr(
+        settings, "FEATURE_EMAIL_VERIFICATION_ROLLOUT", True
+    ):
         if not has_verified_email(user):
             return Response(
                 {"detail": "Email address is not verified. Please check your inbox."},
@@ -554,7 +560,13 @@ def register_view(request):
     Profile.objects.get_or_create(user=user)
     if settings.ACCOUNT_EMAIL_VERIFICATION == "mandatory":
         setup_user_email(request, user, [])
-        send_verification_email_for_user(request, user)
+        try:
+            send_verification_email_for_user(request, user)
+        except Exception:
+            security_log.exception(
+                "Failed to send verification email for user_id=%s; account created, resend required",
+                user.pk,
+            )
         return Response(
             {
                 "detail": "Registration successful. Please check your email to verify your account."
@@ -563,6 +575,35 @@ def register_view(request):
         )
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     return Response(CurrentUserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def resend_verification_view(request):
+    """Resend the verification email for the authenticated (but unverified) user."""
+    if not request.user.is_authenticated:
+        return Response(
+            {"detail": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    user = request.user
+    if has_verified_email(user):
+        return Response(
+            {"detail": "Email is already verified."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    setup_user_email(request, user, [])
+    try:
+        send_verification_email_for_user(request, user)
+    except Exception:
+        security_log.exception(
+            "Failed to resend verification email for user_id=%s", user.pk
+        )
+        return Response(
+            {"detail": "Failed to send verification email. Please try again later."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    return Response({"detail": "Verification email sent. Please check your inbox."})
 
 
 @api_view(["POST"])

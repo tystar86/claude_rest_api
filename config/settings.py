@@ -84,6 +84,11 @@ ACCOUNT_SIGNUP_FIELDS: list[str] = ["email*", "username*", "password1*", "passwo
 ACCOUNT_EMAIL_VERIFICATION: str = os.environ.get(
     "ACCOUNT_EMAIL_VERIFICATION", "mandatory"
 )
+# When False, login_view skips the mandatory-verification gate so existing
+# users aren't locked out before a backfill has run.  Default True (enforce).
+FEATURE_EMAIL_VERIFICATION_ROLLOUT: bool = (
+    os.environ.get("FEATURE_EMAIL_VERIFICATION_ROLLOUT", "true").lower() == "true"
+)
 LOGIN_REDIRECT_URL: str = os.environ.get(
     "LOGIN_REDIRECT_URL", "http://localhost:5173/dashboard"
 )

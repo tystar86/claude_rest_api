@@ -148,6 +148,16 @@ class TestLoginView:
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_non_string_credentials_return_400(self, api_client):
+        """NoSQL-style dict payloads must be rejected with 400, not cause a 500."""
+        resp = api_client.post(
+            "/api/auth/login/",
+            {"email": {"$ne": ""}, "password": {"$ne": ""}},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.data["detail"] == "Invalid credentials."
+
     def test_duplicate_email_in_db_returns_400(self, api_client, user):
         """MultipleObjectsReturned when two DB rows share an email is treated as auth failure."""
         other = User.objects.create_user(

@@ -17,6 +17,7 @@ urlpatterns = [
     path("auth/login/", api_views.login_view),
     path("auth/register/", api_views.register_view),
     path("auth/logout/", api_views.logout_view),
+    path("auth/resend-verification/", api_views.resend_verification_view),
     path("auth/user/", api_views.current_user),
     path("auth/profile/", api_views.update_profile),
     path("comments/<int:comment_id>/vote/", api_views.comment_vote),
