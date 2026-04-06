@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -7,7 +8,18 @@ import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
-load_dotenv(f".env.{os.environ.get('DJANGO_ENV', 'local')}")
+
+def _default_django_env() -> str:
+    argv0 = Path(sys.argv[0]).name.lower()
+    if "pytest" in argv0:
+        return "testing"
+    return "local"
+
+
+DJANGO_ENV = os.environ.get("DJANGO_ENV", _default_django_env())
+os.environ.setdefault("DJANGO_ENV", DJANGO_ENV)
+load_dotenv(f".env.{DJANGO_ENV}")
+TEST_USE_POSTGRES = os.environ.get("TEST_USE_POSTGRES", "False").lower() == "true"
 
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 
@@ -112,24 +124,32 @@ SOCIALACCOUNT_PROVIDERS: dict[str, Any] = {
 
 WSGI_APPLICATION: str = "config.wsgi.application"
 
-DATABASES: dict[str, Any] = {
-    "default": dj_database_url.config(
-        default="postgresql://{}:{}@{}:{}/{}".format(
-            os.environ["DB_USER"],
-            os.environ["DB_PASSWORD"],
-            os.environ.get("DB_HOST", "localhost"),
-            os.environ.get("DB_PORT", "5432"),
-            os.environ["DB_NAME"],
-        ),
-        conn_max_age=int(os.environ.get("DB_CONN_MAX_AGE", 60)),
+if DJANGO_ENV == "testing" and not TEST_USE_POSTGRES:
+    DATABASES: dict[str, Any] = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+    }
+else:
+    DATABASES = {
+        "default": dj_database_url.config(
+            default="postgresql://{}:{}@{}:{}/{}".format(
+                os.environ["DB_USER"],
+                os.environ["DB_PASSWORD"],
+                os.environ.get("DB_HOST", "localhost"),
+                os.environ.get("DB_PORT", "5432"),
+                os.environ["DB_NAME"],
+            ),
+            conn_max_age=int(os.environ.get("DB_CONN_MAX_AGE", 60)),
+        )
+    }
+    # Validate persistent connections before reuse to avoid "connection already
+    # closed" errors with long-lived workers (Django 4.1+).
+    # Only has effect when DB_CONN_MAX_AGE > 0.
+    DATABASES["default"].setdefault(
+        "CONN_HEALTH_CHECKS", os.environ.get("CONN_HEALTH_CHECKS", "True") == "True"
     )
-}
-# Validate persistent connections before reuse to avoid "connection already
-# closed" errors with long-lived workers (Django 4.1+).
-# Only has effect when DB_CONN_MAX_AGE > 0.
-DATABASES["default"].setdefault(
-    "CONN_HEALTH_CHECKS", os.environ.get("CONN_HEALTH_CHECKS", "True") == "True"
-)
 
 AUTH_PASSWORD_VALIDATORS: list[dict[str, Any]] = [
     {
@@ -257,6 +277,17 @@ if DEBUG and not CORS_ALLOWED_ORIGINS:
     ]
 CORS_ALLOW_CREDENTIALS: bool = True
 CSRF_COOKIE_HTTPONLY: bool = False  # React needs to read the CSRF cookie
+
+if DJANGO_ENV == "testing":
+    CACHES: dict[str, Any] = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+        }
+    }
+    ACCOUNT_EMAIL_VERIFICATION = "none"
+    FEATURE_EMAIL_VERIFICATION_ROLLOUT = False
+    EMAIL_BACKEND = "django.core.mail.backends.dummy.EmailBackend"
+    DEFAULT_FROM_EMAIL = "noreply@example.com"
 
 # Security event logging
 LOGGING: dict[str, Any] = {
