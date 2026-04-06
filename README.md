@@ -20,18 +20,6 @@ Internal developer documentation now lives in [`docs/developers/README.md`](docs
 
 New contributors should start with [`docs/developers/START_HERE.md`](docs/developers/START_HERE.md).
 
-Tracked follow-ups from the `Common Pitfalls` section:
-
-- [`TYS-161` Align pytest database defaults with local development expectations](https://linear.app/tystar/issue/TYS-161/align-pytest-database-defaults-with-local-development-expectations)
-- [`TYS-162` Unify local PostgreSQL port expectations across Docker and standalone setups](https://linear.app/tystar/issue/TYS-162/unify-local-postgresql-port-expectations-across-docker-and-standalone)
-- [`TYS-163` Clarify Google OAuth routing between django-allauth and API auth endpoints](https://linear.app/tystar/issue/TYS-163/clarify-google-oauth-routing-between-django-allauth-and-api-auth)
-- [`TYS-164` Provide clean login-ready seed accounts separate from fixture and load-test users](https://linear.app/tystar/issue/TYS-164/provide-clean-login-ready-seed-accounts-separate-from-fixture-and-load)
-- [`TYS-165` Document and validate CSRF requirements for session-authenticated write requests](https://linear.app/tystar/issue/TYS-165/document-and-validate-csrf-requirements-for-session-authenticated)
-- [`TYS-166` Keep profile role display consistent with Django staff and superuser privileges](https://linear.app/tystar/issue/TYS-166/keep-profile-role-display-consistent-with-django-staff-and-superuser)
-- [`TYS-167` Harden deploy migration ordering around Django Sites and allauth tables](https://linear.app/tystar/issue/TYS-167/harden-deploy-migration-ordering-around-django-sites-and-allauth)
-
----
-
 ## Tech Stack
 
 ### Backend
