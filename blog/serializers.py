@@ -246,12 +246,12 @@ class PostWriteSerializer(serializers.ModelSerializer):
             instance.body = validated_data["body"]
         if "excerpt" in validated_data:
             instance.excerpt = validated_data["excerpt"]
-        if "status" in validated_data:
-            status_value = validated_data["status"]
+        if (status_value := validated_data.get("status")) is not None:
             instance.status = status_value
-            instance.published_at = (
-                timezone.now() if status_value == Post.Status.PUBLISHED else None
-            )
+            if status_value == Post.Status.PUBLISHED:
+                instance.published_at = instance.published_at or timezone.now()
+            else:
+                instance.published_at = None
 
         instance.save()
 
