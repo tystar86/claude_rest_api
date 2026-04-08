@@ -244,3 +244,51 @@ Recommended minimum before opening a PR:
 - backend changes: `pytest`
 - frontend changes: `cd frontend && npm run lint && npm test`
 - security/auth/routing changes: consider Robot and security smoke scripts too
+
+## django-silk — SQL query profiler (dev only)
+
+How to enable:
+
+1. Uncomment `silk` in `INSTALLED_APPS` in `config/settings.py`
+2. Uncomment `silk.middleware.SilkyMiddleware` in `MIDDLEWARE` in `config/settings.py`
+3. Uncomment the Silk URL pattern in `config/urls.py`
+4. Run `python manage.py migrate` (creates Silk profiling tables)
+5. Browse to <http://localhost:8000/silk/>
+
+Usage:
+
+- Silk records every request while enabled.
+- `/silk/requests/` — list of HTTP requests with total time and query count
+- `/silk/request/{id}/` — drill into one request: each SQL query, duration, `EXPLAIN` plan, and Python traceback
+- `/silk/summary/` — aggregated view by endpoint (average time, count)
+- `/silk/profiling/` — if `SILKY_PYTHON_PROFILER=True`, shows cProfile output
+
+To profile a specific view with cProfile, decorate it:
+
+```python
+from silk.profiling.profiler import silk_profile
+
+@silk_profile(name="post_list")
+def post_list(request):
+    ...
+```
+
+Useful settings (uncomment and adjust in `config/settings.py` as needed):
+
+```python
+SILKY_PYTHON_PROFILER = True  # Enable cProfile per-request
+SILKY_MAX_RECORDED_REQUESTS = 10_000  # Auto-prune old requests (default: 10k)
+SILKY_MAX_RECORDED_REQUESTS_CHECK_PERCENT = 10  # % of requests that trigger prune
+SILKY_AUTHENTICATION = True  # Require login to view /silk/
+SILKY_AUTHORISATION = True  # Require is_staff to view /silk/
+SILKY_INTERCEPT_PERCENT = 100  # % of requests to profile (lower = less overhead)
+
+# ⚠ DEV ONLY — these control how much of each request/response body Silk stores.
+# -1 = unlimited and will capture tokens, API keys, and PII in full.
+# In production, use conservative limits (bytes) to avoid storing sensitive data:
+SILKY_MAX_REQUEST_BODY_SIZE = 1024   # prod recommendation: 1024–5120
+SILKY_MAX_RESPONSE_BODY_SIZE = 1024  # prod recommendation: 1024–5120
+
+# Mask sensitive fields in captured data (always configure in any environment):
+SILKY_SENSITIVE_KEYS = {"token", "password", "secret", "authorization", "api_key"}
+```

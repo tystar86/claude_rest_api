@@ -43,6 +43,7 @@ INSTALLED_APPS: list[str] = [
     "rest_framework",
     "corsheaders",
     "anymail",
+    # "silk",  # Uncomment to enable django-silk query profiler (dev only)
     # allauth
     "allauth",
     "allauth.account",
@@ -59,6 +60,7 @@ MIDDLEWARE: list[str | None] = [
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    # "silk.middleware.SilkyMiddleware",  # Uncomment to enable django-silk (dev only)
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",

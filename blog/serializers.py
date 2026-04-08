@@ -1,8 +1,10 @@
 from django.contrib.auth.models import User
+from django.utils import timezone
 from rest_framework import serializers
 
 from accounts.models import Profile
 from .models import Comment, CommentVote, Post, Tag
+from .utils import build_unique_slug
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -194,6 +196,78 @@ class PostSerializer(serializers.ModelSerializer):
             "published_at",
             "comment_count",
         ]
+
+
+class PostWriteSerializer(serializers.ModelSerializer):
+    """Create (partial=False) or patch (partial=True) posts; input shape is the same."""
+
+    tag_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = Post
+        fields = ["title", "body", "excerpt", "status", "tag_ids"]
+        extra_kwargs = {
+            "excerpt": {"required": False, "allow_blank": True, "default": ""},
+            "status": {"required": False, "default": Post.Status.DRAFT},
+        }
+
+    def validate_tag_ids(self, value):
+        if value is None:
+            return value
+        existing = set(Tag.objects.filter(id__in=value).values_list("id", flat=True))
+        missing = sorted(set(value) - existing)
+        if missing:
+            raise serializers.ValidationError(f"Tag IDs not found: {missing}")
+        return value
+
+    def create(self, validated_data):
+        tag_ids = validated_data.pop("tag_ids", []) or []
+        status_value = validated_data.get("status", Post.Status.DRAFT)
+        post = Post.objects.create(
+            title=validated_data["title"],
+            slug=build_unique_slug(Post, validated_data["title"]),
+            author=self.context["request"].user,
+            body=validated_data["body"],
+            excerpt=validated_data.get("excerpt", ""),
+            status=status_value,
+            published_at=(
+                timezone.now() if status_value == Post.Status.PUBLISHED else None
+            ),
+        )
+        if tag_ids:
+            post.tags.set(Tag.objects.filter(id__in=tag_ids))
+        return post
+
+    def update(self, instance, validated_data):
+        tag_ids_provided = "tag_ids" in validated_data
+        tag_ids = validated_data.pop("tag_ids", None)
+
+        if "title" in validated_data:
+            instance.title = validated_data["title"]
+            instance.slug = build_unique_slug(
+                Post, instance.title, instance_id=instance.id
+            )
+        if "body" in validated_data:
+            instance.body = validated_data["body"]
+        if "excerpt" in validated_data:
+            instance.excerpt = validated_data["excerpt"]
+        if (status_value := validated_data.get("status")) is not None:
+            instance.status = status_value
+            if status_value == Post.Status.PUBLISHED:
+                instance.published_at = instance.published_at or timezone.now()
+            else:
+                instance.published_at = None
+
+        instance.save()
+
+        if tag_ids_provided and tag_ids is not None:
+            instance.tags.set(Tag.objects.filter(id__in=tag_ids))
+
+        return instance
 
 
 class PostDetailSerializer(PostSerializer):
