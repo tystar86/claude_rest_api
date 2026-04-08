@@ -13,8 +13,6 @@ from django.core.exceptions import ValidationError
 from django.core.mail import BadHeaderError
 from django.db import IntegrityError, transaction
 from django.middleware.csrf import get_token
-from django.utils import timezone
-from django.utils.text import slugify
 from allauth.account.internal.flows.email_verification import (
     send_verification_email_for_user,
 )
@@ -25,8 +23,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 
-from django.db.models import Avg, Count, Q
-from django.db.models.functions import Length
+from django.db.models import Avg, Count, IntegerField, OuterRef, Q, Subquery
+from django.db.models.functions import Coalesce, Length
 
 from accounts.models import Profile
 from .models import Comment, CommentVote, Post, Tag
@@ -36,9 +34,11 @@ from .serializers import (
     CurrentUserSerializer,
     PostDetailSerializer,
     PostSerializer,
+    PostWriteSerializer,
     TagSerializer,
     UserSerializer,
 )
+from .utils import build_unique_slug
 from .throttles import (
     BurstAnonThrottle,
     EndpointActorThrottle,
@@ -70,18 +70,26 @@ def paginate(qs, request, serializer_class):
     }
 
 
-def build_unique_slug(model_cls, source_text, instance_id=None):
-    base = slugify(source_text or "").strip("-")[:50] or "item"
-    candidate = base
-    n = 2
-    while True:
-        qs = model_cls.objects.filter(slug=candidate)
-        if instance_id is not None:
-            qs = qs.exclude(id=instance_id)
-        if not qs.exists():
-            return candidate
-        candidate = f"{base}-{n}"
-        n += 1
+def _published_posts_list_qs():
+    """Queryset for PostSerializer list cards: skip heavy body, count public comments only."""
+    approved_count = (
+        Comment.objects.filter(post=OuterRef("pk"), is_approved=True)
+        .order_by()
+        .values("post")
+        .annotate(cnt=Count("id"))
+        .values("cnt")
+    )
+    return (
+        Post.objects.filter(status=Post.Status.PUBLISHED)
+        .defer("body")
+        .select_related("author")
+        .prefetch_related("tags")
+        .annotate(
+            comment_count=Coalesce(
+                Subquery(approved_count, output_field=IntegerField()), 0
+            )
+        )
+    )
 
 
 def can_manage_tags(user):
@@ -151,17 +159,11 @@ def dashboard(request):
             "average_depth_words": average_depth_words,
         },
         "latest_posts": PostSerializer(
-            published.select_related("author")
-            .prefetch_related("tags")
-            .annotate(comment_count=Count("comments"))
-            .order_by("-created_at")[:10],
+            _published_posts_list_qs().order_by("-created_at")[:10],
             many=True,
         ).data,
         "most_commented_posts": PostSerializer(
-            published.select_related("author")
-            .prefetch_related("tags")
-            .annotate(comment_count=Count("comments"))
-            .order_by("-comment_count")[:10],
+            _published_posts_list_qs().order_by("-comment_count")[:10],
             many=True,
         ).data,
         "most_used_tags": TagSerializer(
@@ -207,13 +209,7 @@ def comment_list(request):
 @permission_classes([AllowAny])
 def post_list(request):
     if request.method == "GET":
-        qs = (
-            Post.objects.filter(status=Post.Status.PUBLISHED)
-            .select_related("author")
-            .prefetch_related("tags")
-            .annotate(comment_count=Count("comments"))
-            .order_by("-created_at")
-        )
+        qs = _published_posts_list_qs().order_by("-created_at")
         return Response(paginate(qs, request, PostSerializer))
 
     if not request.user.is_authenticated:
@@ -221,51 +217,10 @@ def post_list(request):
             {"detail": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED
         )
 
-    title = request.data.get("title")
-    body = request.data.get("body")
-    excerpt = request.data.get("excerpt")
-    status_value = request.data.get("status", Post.Status.DRAFT)
-    tag_ids = request.data.get("tag_ids") or []
-
-    if title is not None and not isinstance(title, str):
-        return Response(
-            {"detail": "title must be a string."}, status=status.HTTP_400_BAD_REQUEST
-        )
-    if body is not None and not isinstance(body, str):
-        return Response(
-            {"detail": "body must be a string."}, status=status.HTTP_400_BAD_REQUEST
-        )
-    if excerpt is not None and not isinstance(excerpt, str):
-        return Response(
-            {"detail": "excerpt must be a string."}, status=status.HTTP_400_BAD_REQUEST
-        )
-
-    title = (title or "").strip()
-    body = (body or "").strip()
-    excerpt = (excerpt or "").strip()
-
-    if not title or not body:
-        return Response(
-            {"detail": "title and body are required."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    if status_value not in (Post.Status.DRAFT, Post.Status.PUBLISHED):
-        return Response(
-            {"detail": "Invalid status."}, status=status.HTTP_400_BAD_REQUEST
-        )
-
-    post = Post.objects.create(
-        title=title,
-        slug=build_unique_slug(Post, title),
-        author=request.user,
-        body=body,
-        excerpt=excerpt,
-        status=status_value,
-        published_at=timezone.now() if status_value == Post.Status.PUBLISHED else None,
-    )
-    if tag_ids:
-        tags = Tag.objects.filter(id__in=tag_ids)
-        post.tags.set(tags)
+    serializer = PostWriteSerializer(data=request.data, context={"request": request})
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    post = serializer.save()
     post = (
         Post.objects.select_related("author")
         .prefetch_related(
@@ -323,56 +278,15 @@ def post_detail(request, slug):
         post.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    title = request.data.get("title")
-    body = request.data.get("body")
-    excerpt = request.data.get("excerpt")
-    status_value = request.data.get("status")
-    tag_ids = request.data.get("tag_ids")
-
-    if title is not None and not isinstance(title, str):
-        return Response(
-            {"detail": "title must be a string."}, status=status.HTTP_400_BAD_REQUEST
-        )
-    if body is not None and not isinstance(body, str):
-        return Response(
-            {"detail": "body must be a string."}, status=status.HTTP_400_BAD_REQUEST
-        )
-    if excerpt is not None and not isinstance(excerpt, str):
-        return Response(
-            {"detail": "excerpt must be a string."}, status=status.HTTP_400_BAD_REQUEST
-        )
-
-    if title is not None:
-        title = title.strip()
-        if not title:
-            return Response(
-                {"detail": "title cannot be empty."}, status=status.HTTP_400_BAD_REQUEST
-            )
-        post.title = title
-        post.slug = build_unique_slug(Post, title, instance_id=post.id)
-    if body is not None:
-        body = body.strip()
-        if not body:
-            return Response(
-                {"detail": "body cannot be empty."}, status=status.HTTP_400_BAD_REQUEST
-            )
-        post.body = body
-    if excerpt is not None:
-        post.excerpt = excerpt.strip()
-    if status_value is not None:
-        if status_value not in (Post.Status.DRAFT, Post.Status.PUBLISHED):
-            return Response(
-                {"detail": "Invalid status."}, status=status.HTTP_400_BAD_REQUEST
-            )
-        post.status = status_value
-        post.published_at = (
-            timezone.now() if status_value == Post.Status.PUBLISHED else None
-        )
-
-    post.save()
-    if tag_ids is not None:
-        tags = Tag.objects.filter(id__in=tag_ids)
-        post.tags.set(tags)
+    serializer = PostWriteSerializer(
+        post,
+        data=request.data,
+        partial=True,
+        context={"request": request},
+    )
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer.save()
     post = (
         Post.objects.select_related("author")
         .prefetch_related(

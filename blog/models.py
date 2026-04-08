@@ -58,6 +58,11 @@ class Comment(models.Model):
             models.Index(
                 fields=["post", "created_at"], name="blog_comment_post_created_idx"
             ),
+            models.Index(
+                fields=["post"],
+                condition=models.Q(is_approved=True),
+                name="blog_comment_post_approved_idx",
+            ),
         ]
 
     def __str__(self):

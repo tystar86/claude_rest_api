@@ -1,10 +1,11 @@
-"""Unit tests for api_views utility functions: paginate, build_unique_slug, can_manage_tags."""
+"""Unit tests for blog.utils (build_unique_slug) and api_views helpers (paginate, can_manage_tags)."""
 
 import pytest
 from django.contrib.auth.models import AnonymousUser
 from rest_framework.test import APIRequestFactory
 
-from blog.api_views import build_unique_slug, can_manage_tags, paginate
+from blog.api_views import can_manage_tags, paginate
+from blog.utils import build_unique_slug
 from blog.models import Tag
 from blog.serializers import TagSerializer
 
