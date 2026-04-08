@@ -34,12 +34,10 @@ export default function Navbar() {
         `${tickerStats.authors ?? 0} authors active`,
         `${tickerStats.active_tags ?? 0} tags available`,
         `${tickerStats.comments ?? 0} comments total`,
-        `${tickerStats.average_depth_words ?? 0} avg word depth`,
         `${tickerStats.total_posts ?? 0} posts published`,
         `${tickerStats.authors ?? 0} authors active`,
         `${tickerStats.active_tags ?? 0} tags available`,
         `${tickerStats.comments ?? 0} comments total`,
-        `${tickerStats.average_depth_words ?? 0} avg word depth`,
       ]
     : null;
 

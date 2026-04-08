@@ -30,3 +30,5 @@ playwright-log.txt
 /.claude
 .agents/
 skills-lock.json
+docs/superpowers/specs/2026-04-08-dashboard-endpoint-optimization-design.md
+docs/superpowers/specs/2026-04-08-run-silk-profiler-design.md

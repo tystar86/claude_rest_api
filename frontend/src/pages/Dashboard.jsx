@@ -36,17 +36,16 @@ export default function Dashboard() {
     <div className="nb-layout-full">
 
       {/* Stats row */}
-      <div style={{ borderBottom: "var(--border)", display: "grid", gridTemplateColumns: "repeat(5, 1fr)" }}>
+      <div style={{ borderBottom: "var(--border)", display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }}>
         {[
           { label: "Total Posts", value: stats.total_posts ?? 0, to: "/posts" },
           { label: "Comments", value: stats.comments ?? 0, to: "/comments" },
           { label: "Authors", value: stats.authors ?? 0, to: "/users" },
           { label: "Active Tags", value: stats.active_tags ?? 0, to: "/tags" },
-          { label: "Avg Words", value: stats.average_depth_words ?? 0, to: null },
         ].map((s, i) => (
           <div
             key={i}
-            style={{ borderRight: i < 4 ? "var(--border)" : "none", padding: "24px", background: "var(--white)" }}
+            style={{ borderRight: i < 3 ? "var(--border)" : "none", padding: "24px", background: "var(--white)" }}
           >
             {s.to ? (
               <Link to={s.to} style={{ textDecoration: "none", display: "block" }}>

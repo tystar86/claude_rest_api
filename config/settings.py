@@ -50,7 +50,7 @@ INSTALLED_APPS: list[str] = [
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google",
     # local
-    "blog",
+    "blog.apps.BlogConfig",
     "accounts",
 ]
 

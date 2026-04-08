@@ -2,6 +2,7 @@
 
 import pytest
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from rest_framework import status
 
 from blog.models import Comment, Post, Tag
@@ -10,6 +11,16 @@ from blog.models import Comment, Post, Tag
 @pytest.mark.django_db
 class TestDashboardView:
     """Tests for GET /api/dashboard/."""
+
+    @pytest.fixture(autouse=True)
+    def use_locmem_cache(self, settings):
+        settings.CACHES = {
+            "default": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+                "LOCATION": "dashboard-view-tests",
+            }
+        }
+        cache.clear()
 
     def test_returns_200_for_anonymous(self, api_client):
         """Anyone can access the dashboard."""
@@ -33,7 +44,7 @@ class TestDashboardView:
         assert "comments" in stats
         assert "authors" in stats
         assert "active_tags" in stats
-        assert "average_depth_words" in stats
+        assert "average_depth_words" not in stats
 
     def test_stats_reflect_created_content(self, api_client, post, comment):
         """Stats accurately count existing posts and comments."""
@@ -50,7 +61,6 @@ class TestDashboardView:
         assert stats["comments"] == 0
         assert stats["authors"] == 0
         assert stats["active_tags"] == 0
-        assert stats["average_depth_words"] == 0
 
     def test_latest_posts_is_list(self, api_client):
         """latest_posts is always a list."""
@@ -63,10 +73,38 @@ class TestDashboardView:
         for author in resp.data["top_authors"]:
             assert author["post_count"] > 0
 
-    def test_average_depth_words_computed(self, api_client, post):
-        """average_depth_words is a positive integer when posts exist."""
+    def test_post_create_invalidates_cached_snapshot(self, api_client, user, post):
+        """A new published post invalidates the cached dashboard snapshot."""
         resp = api_client.get("/api/dashboard/")
-        assert resp.data["stats"]["average_depth_words"] > 0
+        assert resp.data["stats"]["total_posts"] == 1
+
+        Post.objects.create(
+            title="Another published post",
+            slug="another-published-post",
+            author=user,
+            body="New post body.",
+            status=Post.Status.PUBLISHED,
+        )
+
+        resp = api_client.get("/api/dashboard/")
+        assert resp.data["stats"]["total_posts"] == 2
+
+    def test_comment_create_invalidates_cached_snapshot(
+        self, api_client, post, comment, user
+    ):
+        """A new comment on a published post invalidates the cached dashboard snapshot."""
+        resp = api_client.get("/api/dashboard/")
+        assert resp.data["stats"]["comments"] == 1
+
+        Comment.objects.create(
+            post=post,
+            author=user,
+            body="Another comment.",
+            is_approved=True,
+        )
+
+        resp = api_client.get("/api/dashboard/")
+        assert resp.data["stats"]["comments"] == 2
 
     def test_draft_post_comments_excluded_from_comment_count(self, api_client, db):
         """Comments on draft posts are not counted in the stats comment total."""
@@ -125,3 +163,13 @@ class TestDashboardView:
         assert resp.status_code == status.HTTP_200_OK
         author_usernames = [a["username"] for a in resp.data["top_authors"]]
         assert draft_author.username not in author_usernames
+
+    def test_tag_assignment_invalidates_cached_snapshot(self, api_client, post, tag):
+        """Tag m2m changes invalidate the cached dashboard snapshot."""
+        resp = api_client.get("/api/dashboard/")
+        assert resp.data["stats"]["active_tags"] == 0
+
+        post.tags.add(tag)
+
+        resp = api_client.get("/api/dashboard/")
+        assert resp.data["stats"]["active_tags"] == 1

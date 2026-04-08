@@ -34,6 +34,11 @@ class Post(models.Model):
             models.Index(
                 fields=["status", "-created_at"], name="blog_post_status_created_idx"
             ),
+            models.Index(
+                fields=["author"],
+                condition=models.Q(status="published"),
+                name="blog_post_author_published_idx",
+            ),
         ]
 
     def __str__(self):

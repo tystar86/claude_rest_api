@@ -26,7 +26,6 @@ const FULL_PAYLOAD = {
     comments: 17,
     authors: 5,
     active_tags: 8,
-    average_depth_words: 120,
   },
   latest_posts: [
     {
@@ -72,7 +71,6 @@ const EMPTY_PAYLOAD = {
     comments: 0,
     authors: 0,
     active_tags: 0,
-    average_depth_words: 0,
   },
   latest_posts: [],
   most_commented_posts: [],
@@ -102,7 +100,7 @@ describe('Dashboard', () => {
     expect(screen.getByText('Comments')).toBeInTheDocument();
     expect(screen.getByText('Authors')).toBeInTheDocument();
     expect(screen.getByText('Active Tags')).toBeInTheDocument();
-    expect(screen.getByText('Avg Words')).toBeInTheDocument();
+    expect(screen.queryByText('Avg Words')).toBeNull();
 
     // Stat values rendered as plain numbers
     expect(screen.getByText('42')).toBeInTheDocument();
@@ -165,6 +163,6 @@ describe('Dashboard', () => {
 
     // Stat cards still render with 0
     const zeroStats = screen.getAllByText('0');
-    expect(zeroStats.length).toBeGreaterThanOrEqual(5);
+    expect(zeroStats.length).toBeGreaterThanOrEqual(4);
   });
 });

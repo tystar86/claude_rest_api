@@ -8,7 +8,6 @@ from django.contrib.auth import authenticate, login, logout, update_session_auth
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
-from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.mail import BadHeaderError
 from django.db import IntegrityError, transaction
@@ -23,10 +22,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 
-from django.db.models import Avg, Count, IntegerField, OuterRef, Q, Subquery
-from django.db.models.functions import Coalesce, Length
+from django.db.models import Count, IntegerField, OuterRef, Q, Subquery
+from django.db.models.functions import Coalesce
 
 from accounts.models import Profile
+from .dashboard_query import get_dashboard_data
 from .models import Comment, CommentVote, Post, Tag
 from .serializers import (
     CommentListSerializer,
@@ -123,68 +123,10 @@ def can_access_comment(user, comment):
     return can_view_unpublished_post(user, comment.post)
 
 
-# ── Dashboard ──────────────────────────────────────────────────────────────────
-
-
-_DASHBOARD_CACHE_KEY = "dashboard_data"
-_DASHBOARD_CACHE_TTL = 60  # seconds
-
-
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def dashboard(request):
-    data = cache.get(_DASHBOARD_CACHE_KEY)
-    if data is not None:
-        return Response(data)
-
-    published = Post.objects.filter(status=Post.Status.PUBLISHED)
-    total_posts = published.count()
-    total_comments = Comment.objects.filter(post__status=Post.Status.PUBLISHED).count()
-    total_authors = (
-        User.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
-    )
-    active_tags = (
-        Tag.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
-    )
-
-    avg_chars = published.aggregate(avg=Avg(Length("body")))["avg"] or 0
-    average_depth_words = round(avg_chars / 5)
-
-    data = {
-        "stats": {
-            "total_posts": total_posts,
-            "comments": total_comments,
-            "authors": total_authors,
-            "active_tags": active_tags,
-            "average_depth_words": average_depth_words,
-        },
-        "latest_posts": PostSerializer(
-            _published_posts_list_qs().order_by("-created_at")[:10],
-            many=True,
-        ).data,
-        "most_commented_posts": PostSerializer(
-            _published_posts_list_qs().order_by("-comment_count")[:10],
-            many=True,
-        ).data,
-        "most_used_tags": TagSerializer(
-            Tag.objects.annotate(
-                post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
-            ).order_by("-post_count")[:10],
-            many=True,
-        ).data,
-        "top_authors": UserSerializer(
-            User.objects.select_related("profile")
-            .annotate(
-                post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
-            )
-            .filter(post_count__gt=0)
-            .order_by("-post_count")[:10],
-            many=True,
-        ).data,
-    }
-
-    cache.set(_DASHBOARD_CACHE_KEY, data, _DASHBOARD_CACHE_TTL)
-    return Response(data)
+    return Response(get_dashboard_data())
 
 
 # ── Posts ──────────────────────────────────────────────────────────────────────
