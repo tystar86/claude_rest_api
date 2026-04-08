@@ -215,6 +215,15 @@ class PostWriteSerializer(serializers.ModelSerializer):
             "status": {"required": False, "default": Post.Status.DRAFT},
         }
 
+    def validate_tag_ids(self, value):
+        if value is None:
+            return value
+        existing = set(Tag.objects.filter(id__in=value).values_list("id", flat=True))
+        missing = sorted(set(value) - existing)
+        if missing:
+            raise serializers.ValidationError(f"Tag IDs not found: {missing}")
+        return value
+
     def create(self, validated_data):
         tag_ids = validated_data.pop("tag_ids", []) or []
         status_value = validated_data.get("status", Post.Status.DRAFT)

@@ -11,6 +11,7 @@ from blog.serializers import (
     CurrentUserSerializer,
     PostDetailSerializer,
     PostSerializer,
+    PostWriteSerializer,
     ProfileSerializer,
     TagSerializer,
     UserSerializer,
@@ -202,3 +203,86 @@ class TestCommentSerializer:
         request.user = AnonymousUser()
         data = CommentSerializer(comment, context={"request": request}).data
         assert data["user_vote"] is None
+
+
+# ── PostWriteSerializer — validate_tag_ids ────────────────────────────────────
+
+
+@pytest.mark.django_db
+class TestPostWriteSerializerTagValidation:
+    """Tests for PostWriteSerializer.validate_tag_ids."""
+
+    def _make_context(self, user):
+        factory = APIRequestFactory()
+        request = factory.post("/")
+        request.user = user
+        return {"request": request}
+
+    def test_valid_tag_ids_accepted(self, user, tag):
+        """Existing tag IDs pass validation."""
+        ctx = self._make_context(user)
+        ser = PostWriteSerializer(
+            data={"title": "T", "body": "B", "tag_ids": [tag.id]},
+            context=ctx,
+        )
+        assert ser.is_valid(), ser.errors
+        assert ser.validated_data["tag_ids"] == [tag.id]
+
+    def test_nonexistent_tag_id_rejected(self, user):
+        """A tag ID that doesn't exist causes a validation error."""
+        ctx = self._make_context(user)
+        ser = PostWriteSerializer(
+            data={"title": "T", "body": "B", "tag_ids": [99999]},
+            context=ctx,
+        )
+        assert not ser.is_valid()
+        assert "tag_ids" in ser.errors
+
+    def test_mix_of_valid_and_invalid_tag_ids_rejected(self, user, tag):
+        """If any tag ID is invalid, the whole field fails validation."""
+        ctx = self._make_context(user)
+        ser = PostWriteSerializer(
+            data={"title": "T", "body": "B", "tag_ids": [tag.id, 99999]},
+            context=ctx,
+        )
+        assert not ser.is_valid()
+        assert "tag_ids" in ser.errors
+
+    def test_null_tag_ids_accepted(self, user):
+        """null tag_ids is allowed (field has allow_null=True)."""
+        ctx = self._make_context(user)
+        ser = PostWriteSerializer(
+            data={"title": "T", "body": "B", "tag_ids": None},
+            context=ctx,
+        )
+        assert ser.is_valid(), ser.errors
+
+    def test_omitted_tag_ids_accepted(self, user):
+        """Omitting tag_ids entirely is valid (field is not required)."""
+        ctx = self._make_context(user)
+        ser = PostWriteSerializer(
+            data={"title": "T", "body": "B"},
+            context=ctx,
+        )
+        assert ser.is_valid(), ser.errors
+
+    def test_empty_tag_ids_accepted(self, user):
+        """An empty list is valid."""
+        ctx = self._make_context(user)
+        ser = PostWriteSerializer(
+            data={"title": "T", "body": "B", "tag_ids": []},
+            context=ctx,
+        )
+        assert ser.is_valid(), ser.errors
+
+    def test_error_message_lists_missing_ids(self, user, tag):
+        """The validation error message includes the specific missing IDs."""
+        ctx = self._make_context(user)
+        ser = PostWriteSerializer(
+            data={"title": "T", "body": "B", "tag_ids": [tag.id, 77777, 88888]},
+            context=ctx,
+        )
+        assert not ser.is_valid()
+        error_msg = ser.errors["tag_ids"][0]
+        assert "77777" in str(error_msg)
+        assert "88888" in str(error_msg)

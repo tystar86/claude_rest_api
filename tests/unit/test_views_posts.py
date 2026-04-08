@@ -82,6 +82,16 @@ class TestPostList:
         assert resp.status_code == status.HTTP_201_CREATED
         assert any(t["slug"] == tag.slug for t in resp.data["tags"])
 
+    def test_create_post_with_nonexistent_tag_ids_returns_400(self, auth_client):
+        """Nonexistent tag IDs are rejected with a 400 response."""
+        resp = auth_client.post(
+            "/api/posts/",
+            {"title": "Bad Tags", "body": "body", "tag_ids": [99999]},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "tag_ids" in resp.data
+
     def test_create_published_post_sets_published_at(self, auth_client):
         """Creating a published post populates published_at."""
         resp = auth_client.post(

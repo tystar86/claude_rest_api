@@ -282,6 +282,13 @@ SILKY_MAX_RECORDED_REQUESTS_CHECK_PERCENT = 10  # % of requests that trigger pru
 SILKY_AUTHENTICATION = True  # Require login to view /silk/
 SILKY_AUTHORISATION = True  # Require is_staff to view /silk/
 SILKY_INTERCEPT_PERCENT = 100  # % of requests to profile (lower = less overhead)
-SILKY_MAX_REQUEST_BODY_SIZE = -1  # -1 = unlimited, 0 = don't store bodies
-SILKY_MAX_RESPONSE_BODY_SIZE = -1  # -1 = unlimited, 0 = don't store responses
+
+# ⚠ DEV ONLY — these control how much of each request/response body Silk stores.
+# -1 = unlimited and will capture tokens, API keys, and PII in full.
+# In production, use conservative limits (bytes) to avoid storing sensitive data:
+SILKY_MAX_REQUEST_BODY_SIZE = 1024   # prod recommendation: 1024–5120
+SILKY_MAX_RESPONSE_BODY_SIZE = 1024  # prod recommendation: 1024–5120
+
+# Mask sensitive fields in captured data (always configure in any environment):
+SILKY_SENSITIVE_KEYS = {"token", "password", "secret", "authorization", "api_key"}
 ```

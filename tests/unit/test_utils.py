@@ -45,11 +45,33 @@ class TestBuildUniqueSlug:
         """Falls back to 'item' when the source text is None."""
         assert build_unique_slug(Tag, None) == "item"
 
-    def test_slug_truncated_to_50_chars(self):
-        """Generated base slug does not exceed 50 characters."""
-        long_title = "word " * 20
+    def test_slug_truncated_to_model_max_length(self):
+        """Base slug is truncated to the model field's max_length."""
+        long_title = "word " * 20  # Tag.slug max_length=50
         slug = build_unique_slug(Tag, long_title)
         assert len(slug) <= 50
+
+    def test_explicit_max_length_overrides_model_field(self):
+        """An explicit max_length parameter is respected over the model field."""
+        slug = build_unique_slug(Tag, "a-fairly-long-title", max_length=10)
+        assert len(slug) <= 10
+
+    def test_collision_suffix_respects_max_length(self, db):
+        """Slug with collision suffix never exceeds max_length."""
+        Tag.objects.create(name="abcdefghij", slug="abcdefghij")
+        slug = build_unique_slug(Tag, "abcdefghij", max_length=10)
+        assert slug == "abcdefgh-2"
+        assert len(slug) <= 10
+
+    def test_many_collisions_truncate_base_for_longer_suffix(self, db):
+        """As suffix grows (e.g. -10, -11), the base is trimmed further."""
+        # Fill slugs up to -9 to force a two-digit suffix
+        Tag.objects.create(name="abcdefghij", slug="abcdefghij")
+        for n in range(2, 10):
+            Tag.objects.create(name=f"abcdefghij-{n}", slug=f"abcdefgh-{n}")
+        slug = build_unique_slug(Tag, "abcdefghij", max_length=10)
+        assert slug == "abcdefg-10"
+        assert len(slug) <= 10
 
 
 # ── can_manage_tags ────────────────────────────────────────────────────────────
