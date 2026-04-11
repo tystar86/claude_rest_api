@@ -98,7 +98,7 @@ export default function Navbar() {
                       return;
                     }
                     e.preventDefault();
-                    navigate("/posts", { state: { openCreate: true } });
+                    navigate("/posts", { state: { openCreate: true }, replace: true });
                   }}
                 >
                   + New Post

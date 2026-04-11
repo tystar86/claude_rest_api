@@ -104,9 +104,10 @@ export default function PostList() {
   useEffect(() => {
     if (!location.state?.openCreate) return;
     setShowCreate(true);
+    const { openCreate: _, ...restState } = location.state;
     navigate(
       { pathname: location.pathname, search: location.search },
-      { replace: true, state: {} },
+      { replace: true, state: restState },
     );
   }, [location.pathname, location.search, location.state, navigate]);
 
