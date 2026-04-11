@@ -1,0 +1,127 @@
+import React from "react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { vi } from "vitest";
+import { fetchDashboard } from "../api/client";
+
+vi.mock("../api/client", () => import("../test/mocks/client.js"));
+
+const authStore = { user: null, logout: vi.fn() };
+
+vi.mock("../context/AuthContext", () => ({
+  useAuth: () => ({ user: authStore.user, logout: authStore.logout }),
+}));
+
+import Navbar from "./Navbar";
+
+function LocationEcho() {
+  const { pathname, state } = useLocation();
+  const open = Boolean(state?.openCreate);
+  return (
+    <div>
+      <div data-testid="echo-path">{pathname}</div>
+      <div data-testid="echo-open-create">{open ? "yes" : "no"}</div>
+    </div>
+  );
+}
+
+afterEach(() => {
+  vi.clearAllMocks();
+  authStore.user = null;
+});
+
+describe("Navbar", () => {
+  beforeEach(() => {
+    authStore.user = { username: "alice", profile: { role: "user" } };
+    vi.mocked(fetchDashboard).mockResolvedValue({
+      stats: {
+        total_posts: 1,
+        authors: 1,
+        active_tags: 1,
+        comments: 0,
+        average_depth_words: 100,
+      },
+    });
+  });
+
+  it("shows + New Post when the user is signed in", async () => {
+    render(
+      <MemoryRouter>
+        <Navbar />
+      </MemoryRouter>,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "+ New Post" })).toBeInTheDocument(),
+    );
+  });
+
+  it("does not show + New Post when logged out", async () => {
+    authStore.user = null;
+    render(
+      <MemoryRouter>
+        <Navbar />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole("link", { name: "+ New Post" })).toBeNull();
+    await waitFor(() => expect(vi.mocked(fetchDashboard)).toHaveBeenCalled());
+  });
+
+  it("navigates to /posts with openCreate when + New Post is used from another page", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/tags"]}>
+        <Routes>
+          <Route
+            path="/tags"
+            element={
+              <>
+                <Navbar />
+                <div>tags page</div>
+              </>
+            }
+          />
+          <Route
+            path="/posts"
+            element={
+              <>
+                <Navbar />
+                <LocationEcho />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("link", { name: "+ New Post" }));
+
+    await waitFor(() => expect(screen.getByTestId("echo-path")).toHaveTextContent("/posts"));
+    expect(screen.getByTestId("echo-open-create")).toHaveTextContent("yes");
+  });
+
+  it("applies openCreate when + New Post is clicked while already on /posts", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/posts"]}>
+        <Routes>
+          <Route
+            path="/posts"
+            element={
+              <>
+                <Navbar />
+                <LocationEcho />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("echo-open-create")).toHaveTextContent("no");
+
+    await user.click(screen.getByRole("link", { name: "+ New Post" }));
+
+    await waitFor(() => expect(screen.getByTestId("echo-open-create")).toHaveTextContent("yes"));
+  });
+});
