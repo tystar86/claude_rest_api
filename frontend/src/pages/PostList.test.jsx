@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes, useSearchParams } from "react-router-dom";
 import { vi } from "vitest";
 import { fetchPosts, fetchTags } from "../api/client";
 
@@ -28,10 +29,9 @@ const SAMPLE_POST = {
   comment_count: 0,
 };
 
-function RouterStateEmpty() {
-  const { state } = useLocation();
-  const empty = !state || Object.keys(state).length === 0;
-  return <span data-testid="router-state-empty">{empty ? "yes" : "no"}</span>;
+function CreateParamEcho() {
+  const [searchParams] = useSearchParams();
+  return <span data-testid="create-param">{searchParams.get("create") ?? "none"}</span>;
 }
 
 afterEach(() => {
@@ -65,18 +65,16 @@ describe("PostList", () => {
     expect(screen.queryByPlaceholderText(/compelling title/i)).toBeNull();
   });
 
-  it("opens the create composer and clears openCreate from history when requested via location state", async () => {
+  it("opens the create composer and clears the create param from the URL when requested via search param", async () => {
     render(
-      <MemoryRouter
-        initialEntries={[{ pathname: "/posts", state: { openCreate: true } }]}
-      >
+      <MemoryRouter initialEntries={["/posts?create=1"]}>
         <Routes>
           <Route
             path="/posts"
             element={
               <>
                 <PostList />
-                <RouterStateEmpty />
+                <CreateParamEcho />
               </>
             }
           />
@@ -87,6 +85,43 @@ describe("PostList", () => {
     await waitFor(() =>
       expect(screen.getByPlaceholderText(/compelling title/i)).toBeInTheDocument(),
     );
-    await waitFor(() => expect(screen.getByTestId("router-state-empty")).toHaveTextContent("yes"));
+    await waitFor(() => expect(screen.getByTestId("create-param")).toHaveTextContent("none"));
+  });
+
+  it("closes the composer when the Cancel button is clicked", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/posts?create=1"]}>
+        <Routes>
+          <Route path="/posts" element={<PostList />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText(/compelling title/i)).toBeInTheDocument(),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByPlaceholderText(/compelling title/i)).toBeNull();
+  });
+
+  it("opens the composer via the inline toggle button without a URL param", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/posts"]}>
+        <Routes>
+          <Route path="/posts" element={<PostList />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.queryByText("Hello")).toBeInTheDocument());
+    expect(screen.queryByPlaceholderText(/compelling title/i)).toBeNull();
+
+    await user.click(screen.getAllByRole("button", { name: "+ New Post" })[0]);
+
+    expect(screen.getByPlaceholderText(/compelling title/i)).toBeInTheDocument();
   });
 });

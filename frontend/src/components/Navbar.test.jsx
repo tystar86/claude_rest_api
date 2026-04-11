@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation, useSearchParams } from "react-router-dom";
 import { vi } from "vitest";
 import { fetchDashboard } from "../api/client";
 
@@ -16,8 +16,9 @@ vi.mock("../context/AuthContext", () => ({
 import Navbar from "./Navbar";
 
 function LocationEcho() {
-  const { pathname, state } = useLocation();
-  const open = Boolean(state?.openCreate);
+  const { pathname } = useLocation();
+  const [searchParams] = useSearchParams();
+  const open = searchParams.get("create") === "1";
   return (
     <div>
       <div data-testid="echo-path">{pathname}</div>
@@ -54,6 +55,16 @@ describe("Navbar", () => {
     await waitFor(() =>
       expect(screen.getByRole("link", { name: "+ New Post" })).toBeInTheDocument(),
     );
+  });
+
+  it("the + New Post link href includes ?create=1", async () => {
+    render(
+      <MemoryRouter>
+        <Navbar />
+      </MemoryRouter>,
+    );
+    const link = await screen.findByRole("link", { name: "+ New Post" });
+    expect(link).toHaveAttribute("href", "/posts?create=1");
   });
 
   it("does not show + New Post when logged out", async () => {
