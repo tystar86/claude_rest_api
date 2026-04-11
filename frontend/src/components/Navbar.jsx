@@ -89,8 +89,7 @@ export default function Navbar() {
                   Logout
                 </button>
                 <Link
-                  to="/posts"
-                  state={{ openCreate: true }}
+                  to="/posts?create=1"
                   className="nb-btn-head cta"
                   onClick={(e) => {
                     if (location.pathname !== "/posts") return;
@@ -98,7 +97,7 @@ export default function Navbar() {
                       return;
                     }
                     e.preventDefault();
-                    navigate("/posts", { state: { openCreate: true }, replace: true });
+                    navigate("/posts?create=1", { replace: true });
                   }}
                 >
                   + New Post

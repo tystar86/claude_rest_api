@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { createPost, deletePost, fetchPosts, fetchTags } from "../api/client";
 import StatusBadge from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
@@ -57,7 +57,7 @@ function MarkdownEditor({ value, onChange, disabled = false }) {
 export default function PostList() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -102,14 +102,10 @@ export default function PostList() {
   }, []);
 
   useEffect(() => {
-    if (!location.state?.openCreate) return;
+    if (searchParams.get("create") !== "1") return;
     setShowCreate(true);
-    const { openCreate: _, ...restState } = location.state;
-    navigate(
-      { pathname: location.pathname, search: location.search, hash: location.hash },
-      { replace: true, state: restState },
-    );
-  }, [location.pathname, location.search, location.state, navigate]);
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const loadMore = () => {
     const next = page + 1;
