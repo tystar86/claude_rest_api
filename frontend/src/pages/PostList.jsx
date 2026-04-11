@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPost, deletePost, fetchPosts, fetchTags } from "../api/client";
 import StatusBadge from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
@@ -57,6 +57,7 @@ function MarkdownEditor({ value, onChange, disabled = false }) {
 export default function PostList() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [items, setItems] = useState(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -99,6 +100,15 @@ export default function PostList() {
       });
     loadAllTags();
   }, []);
+
+  useEffect(() => {
+    if (!location.state?.openCreate) return;
+    setShowCreate(true);
+    navigate(
+      { pathname: location.pathname, search: location.search },
+      { replace: true, state: {} },
+    );
+  }, [location.pathname, location.search, location.state, navigate]);
 
   const loadMore = () => {
     const next = page + 1;

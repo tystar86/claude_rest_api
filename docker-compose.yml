@@ -27,21 +27,22 @@ services:
     environment:
       SECRET_KEY: dev-secret-key
       DEBUG: "True"
-      ALLOWED_HOSTS: "localhost,127.0.0.1,backend"
+      ALLOWED_HOSTS: "localhost,127.0.0.1,0.0.0.0,backend"
       DB_NAME: claude_rest_api
       DB_USER: claude_rest_api
       DB_PASSWORD: claude_rest_api
       DB_HOST: db
       DB_PORT: "5432"
-      CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
-      CSRF_TRUSTED_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+      CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173,http://0.0.0.0:5173"
+      CSRF_TRUSTED_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173,http://0.0.0.0:5173"
       ACCOUNT_EMAIL_VERIFICATION: "none"
       FEATURE_EMAIL_VERIFICATION_ROLLOUT: "false"
+      UV_CACHE_DIR: "/tmp/uv-cache"
     ports:
       - "8000:8000"
     volumes:
       - .:/app
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    command: sh -c "uv sync --frozen && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
 
   frontend:
     build:
