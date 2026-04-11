@@ -132,6 +132,7 @@ Use `loaddata` only when you specifically want a smaller static demo dataset.
 
 - `config/` holds Django settings, root URLs, ASGI, and WSGI
 - `blog/` holds almost all API behavior: models, serializers, throttles, API views, URLs, and management commands
+- `blog/api/` is the new Django Ninja migration foundation; preview migration routes can live under `/api/_ninja/...`
 - `accounts/` holds the `Profile` model and the signal that auto-creates a profile for each Django user
 
 Important onboarding note:
