@@ -88,7 +88,19 @@ export default function Navbar() {
                 <button className="nb-btn-head" onClick={handleLogout} type="button">
                   Logout
                 </button>
-                <Link to="/posts" className="nb-btn-head cta">
+                <Link
+                  to="/posts"
+                  state={{ openCreate: true }}
+                  className="nb-btn-head cta"
+                  onClick={(e) => {
+                    if (location.pathname !== "/posts") return;
+                    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+                      return;
+                    }
+                    e.preventDefault();
+                    navigate("/posts", { state: { openCreate: true }, replace: true });
+                  }}
+                >
                   + New Post
                 </Link>
               </>

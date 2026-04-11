@@ -1,3 +1,6 @@
+# Vite cache (can appear at project root if Vite is misconfigured)
+.vite/
+
 # Python-generated files
 __pycache__/
 *.py[oc]
@@ -30,3 +33,5 @@ playwright-log.txt
 /.claude
 .agents/
 skills-lock.json
+/docs/superpowers
+/.vscode
