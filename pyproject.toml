@@ -10,6 +10,7 @@ dependencies = [
     "django-allauth[socialaccount]>=65.15.0",
     "django-anymail>=14.0",
     "django-cors-headers>=4.9.0",
+    "django-ninja>=1.6.2",
     "djangorestframework>=3.17.1",
     "gunicorn>=23.0.0",
     "psycopg>=3.3.3",
