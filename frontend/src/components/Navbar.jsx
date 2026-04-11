@@ -97,7 +97,7 @@ export default function Navbar() {
                       return;
                     }
                     e.preventDefault();
-                    navigate("/posts?create=1");
+                    navigate("/posts?create=1", { replace: true });
                   }}
                 >
                   + New Post
