@@ -56,10 +56,25 @@ class TestNinjaReadPreview:
             body="draft comment",
             is_approved=True,
         )
+        published = Post.objects.create(
+            title="Visible Post",
+            slug="visible-post-preview",
+            author=user,
+            body="visible content",
+            status=Post.Status.PUBLISHED,
+        )
+        Comment.objects.create(
+            post=published,
+            author=user,
+            body="published comment",
+            is_approved=True,
+        )
 
         resp = api_client.get("/api/_ninja/read/comments/")
         assert resp.status_code == status.HTTP_200_OK
-        assert all(item["post_slug"] != draft.slug for item in resp.data["results"])
+        slugs = [item["post_slug"] for item in resp.data["results"]]
+        assert published.slug in slugs, "approved comment on published post must appear"
+        assert draft.slug not in slugs, "comment on draft post must be excluded"
 
     def test_user_routes_are_available(self, api_client, post, comment):
         list_resp = api_client.get("/api/_ninja/read/users/")

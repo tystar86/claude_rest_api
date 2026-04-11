@@ -88,7 +88,9 @@ def dashboard(request: HttpRequest):
                     post_count=Count(
                         "posts", filter=Q(posts__status=Post.Status.PUBLISHED)
                     )
-                ).order_by("-post_count")[:10],
+                )
+                .filter(post_count__gt=0)
+                .order_by("-post_count")[:10],
                 many=True,
             ),
             "top_authors": _serialize(

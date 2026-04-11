@@ -43,6 +43,7 @@ class TestUserCommentsView:
         resp = api_client.get(f"/api/users/{comment.author.username}/comments/")
         assert resp.status_code == status.HTTP_200_OK
         assert "results" in resp.data
+        assert len(resp.data["results"]) > 0, "fixture comment must appear in results"
         assert all(
             item["author"] == str(comment.author) for item in resp.data["results"]
         )

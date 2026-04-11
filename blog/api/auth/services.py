@@ -27,8 +27,12 @@ def json_compat_response(payload: dict, *, status: int = 200) -> JsonResponse:
 
 
 def empty_compat_response(*, status: int) -> JsonResponse:
-    response = JsonResponse({}, status=status)
-    response.data = None
+    if status == 404:
+        payload = {"detail": "Not found."}
+        response = JsonResponse(payload, status=status)
+        response.data = payload
+    else:
+        response = JsonResponse({}, status=status)
     return response
 
 
