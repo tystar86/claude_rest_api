@@ -65,6 +65,22 @@ describe("PostList", () => {
     expect(screen.queryByPlaceholderText(/compelling title/i)).toBeNull();
   });
 
+  it("shows the composer while posts are still loading when create=1 is present", async () => {
+    vi.mocked(fetchPosts).mockReturnValue(new Promise(() => {}));
+
+    render(
+      <MemoryRouter initialEntries={["/posts?create=1"]}>
+        <Routes>
+          <Route path="/posts" element={<PostList />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText(/compelling title/i)).toBeInTheDocument(),
+    );
+  });
+
   it("opens the create composer and clears the create param from the URL when requested via search param", async () => {
     render(
       <MemoryRouter initialEntries={["/posts?create=1"]}>

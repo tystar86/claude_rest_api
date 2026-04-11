@@ -104,7 +104,14 @@ export default function PostList() {
   useEffect(() => {
     if (searchParams.get("create") !== "1") return;
     setShowCreate(true);
-    setSearchParams({}, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("create");
+        return next;
+      },
+      { replace: true },
+    );
   }, [searchParams, setSearchParams]);
 
   const loadMore = () => {
@@ -166,13 +173,15 @@ export default function PostList() {
     }
   };
 
-  if (items === null) return (
-    <div className="nb-layout">
-      <div className="nb-main nb-spinner">
-        <div className="spinner-border" />
+  if (items === null && !(user && showCreate)) {
+    return (
+      <div className="nb-layout">
+        <div className="nb-main nb-spinner">
+          <div className="spinner-border" />
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
   if (fetchError) return (
     <div className="nb-layout">
@@ -185,6 +194,7 @@ export default function PostList() {
   );
 
   const sidebarTags = allTags.slice(0, 12);
+  const listItems = items ?? [];
 
   return (
     <div className="nb-layout">
@@ -204,7 +214,7 @@ export default function PostList() {
         {/* Section bar */}
         <div className="nb-section-bar">
           <span className="nb-section-title">All Posts — Latest First</span>
-          <span className="nb-section-count">{items.length} loaded</span>
+          <span className="nb-section-count">{listItems.length} loaded</span>
         </div>
 
         {/* New Post toggle */}
@@ -291,13 +301,13 @@ export default function PostList() {
         )}
 
         {/* Post rows */}
-        {items.length === 0 && (
+        {items !== null && listItems.length === 0 && (
           <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
             No posts yet.
           </div>
         )}
 
-        {items.map((post, index) => {
+        {listItems.map((post, index) => {
           const num = String(index + 1).padStart(2, "0");
           return (
             <Link
@@ -363,7 +373,7 @@ export default function PostList() {
           </div>
           <div className="nb-stat-row">
             <span>Loaded</span>
-            <span>{items.length}</span>
+            <span>{listItems.length}</span>
           </div>
         </div>
 
