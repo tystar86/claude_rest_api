@@ -33,5 +33,5 @@ playwright-log.txt
 /.claude
 .agents/
 skills-lock.json
-/docs/superpowers
+/docs/superpowers/
 /.vscode
