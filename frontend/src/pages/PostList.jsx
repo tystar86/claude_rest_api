@@ -106,7 +106,7 @@ export default function PostList() {
     setShowCreate(true);
     const { openCreate: _, ...restState } = location.state;
     navigate(
-      { pathname: location.pathname, search: location.search },
+      { pathname: location.pathname, search: location.search, hash: location.hash },
       { replace: true, state: restState },
     );
   }, [location.pathname, location.search, location.state, navigate]);
