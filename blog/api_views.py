@@ -54,11 +54,7 @@ def _published_posts_list_qs():
         .defer("body")
         .select_related("author")
         .prefetch_related("tags")
-        .annotate(
-            comment_count=Coalesce(
-                Subquery(approved_count, output_field=IntegerField()), 0
-            )
-        )
+        .annotate(comment_count=Coalesce(Subquery(approved_count, output_field=IntegerField()), 0))
     )
 
 
@@ -102,16 +98,12 @@ _DASHBOARD_CACHE_TTL = 60  # seconds
 
 
 def build_dashboard_payload():
-    """Assemble dashboard JSON (no caching); shared by DRF and Ninja read APIs."""
+    """Assemble dashboard JSON (no caching); used by Ninja read routes."""
     published = Post.objects.filter(status=Post.Status.PUBLISHED)
     total_posts = published.count()
     total_comments = Comment.objects.filter(post__status=Post.Status.PUBLISHED).count()
-    total_authors = (
-        User.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
-    )
-    active_tags = (
-        Tag.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
-    )
+    total_authors = User.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
+    active_tags = Tag.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
 
     avg_chars = published.aggregate(avg=Avg(Length("body")))["avg"] or 0
     average_depth_words = round(avg_chars / 5)
@@ -142,9 +134,7 @@ def build_dashboard_payload():
         ).data,
         "top_authors": UserSerializer(
             User.objects.select_related("profile")
-            .annotate(
-                post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
-            )
+            .annotate(post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED)))
             .filter(post_count__gt=0)
             .order_by("-post_count")[:10],
             many=True,
@@ -152,5 +142,4 @@ def build_dashboard_payload():
     }
 
 
-# DRF endpoint handlers were removed after the full Ninja write/read migration.
-# Keep this module focused on shared query helpers and permission predicates.
+# Keep this module focused on shared query helpers and permission predicates for Ninja routes.

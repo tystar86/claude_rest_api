@@ -44,13 +44,9 @@ class TestCommentList:
 
         resp = api_client.get("/api/comments/")
         assert resp.status_code == 200
-        assert all(
-            item["post_slug"] != "hidden-draft" for item in resp.json()["results"]
-        )
+        assert all(item["post_slug"] != "hidden-draft" for item in resp.json()["results"])
 
-    def test_post_comments_list_returns_paginated_response(
-        self, api_client, post, comment
-    ):
+    def test_post_comments_list_returns_paginated_response(self, api_client, post, comment):
         """GET /api/posts/<slug>/comments/ returns paginated comments for the post."""
         resp = api_client.get(f"/api/posts/{post.slug}/comments/")
         data = resp.json()
@@ -128,9 +124,7 @@ class TestCommentCreate:
         )
         assert resp.status_code == 400
 
-    def test_regular_user_cannot_comment_on_another_users_draft(
-        self, api_client, draft_post
-    ):
+    def test_regular_user_cannot_comment_on_another_users_draft(self, api_client, draft_post):
         """A non-owner cannot comment on a draft post they cannot view."""
         other = User.objects.create_user(
             username="other-draft-user",
@@ -174,9 +168,7 @@ class TestCommentUpdate:
 
     def test_other_user_cannot_update_comment(self, api_client, comment, db):
         """A different user cannot edit someone else's comment."""
-        other = User.objects.create_user(
-            username="other", email="o@x.com", password="p"
-        )
+        other = User.objects.create_user(username="other", email="o@x.com", password="p")
         api_client.force_login(other)
         resp = api_client.patch(
             f"/api/comments/{comment.id}/",
@@ -219,9 +211,7 @@ class TestCommentDelete:
 
     def test_other_user_cannot_delete_comment(self, api_client, comment, db):
         """A different user cannot delete someone else's comment."""
-        other = User.objects.create_user(
-            username="other2", email="o2@x.com", password="p"
-        )
+        other = User.objects.create_user(username="other2", email="o2@x.com", password="p")
         api_client.force_login(other)
         resp = api_client.delete(f"/api/comments/{comment.id}/")
         assert resp.status_code == 404
@@ -261,9 +251,7 @@ class TestCommentVote:
 
     def test_voting_same_type_twice_toggles_off(self, auth_client, user, comment):
         """Sending the same vote twice removes the vote (toggle off)."""
-        CommentVote.objects.create(
-            comment=comment, user=user, vote=CommentVote.VoteType.LIKE
-        )
+        CommentVote.objects.create(comment=comment, user=user, vote=CommentVote.VoteType.LIKE)
         resp = auth_client.post(
             f"/api/comments/{comment.id}/vote/",
             {"vote": "like"},
@@ -274,9 +262,7 @@ class TestCommentVote:
 
     def test_switching_vote_updates_counts(self, auth_client, user, comment):
         """Switching from like to dislike updates both counts correctly."""
-        CommentVote.objects.create(
-            comment=comment, user=user, vote=CommentVote.VoteType.LIKE
-        )
+        CommentVote.objects.create(comment=comment, user=user, vote=CommentVote.VoteType.LIKE)
         resp = auth_client.post(
             f"/api/comments/{comment.id}/vote/",
             {"vote": "dislike"},

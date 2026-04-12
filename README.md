@@ -1,6 +1,6 @@
 # TheBlog
 
-A full-stack blog platform with a Django REST Framework API backend and a React frontend. Features role-based access control, threaded comments with voting, tag management, and session-based email/password auth.
+A full-stack blog platform with a Django + Django Ninja API backend and a React frontend. Features role-based access control, threaded comments with voting, tag management, and session-based email/password auth.
 
 ---
 
@@ -26,10 +26,10 @@ New contributors should start with [`docs/developers/START_HERE.md`](docs/develo
 | | |
 |---|---|
 | Language | Python 3.14 |
-| Framework | Django 6.0 + Django REST Framework |
+| Framework | Django 6.0 + Django Ninja (`django-ninja`) |
 | Database | PostgreSQL 16 (Neon) |
 | Auth | Session-based email/password (Django Ninja `/api/auth/`) |
-| Rate limiting | DRF throttling (per-user, per-endpoint, global) |
+| Rate limiting | Django Ninja throttling (per-user, per-endpoint, global) |
 | Server | Gunicorn (Render) |
 
 ### Frontend

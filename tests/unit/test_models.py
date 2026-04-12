@@ -122,9 +122,7 @@ class TestCommentVoteModel:
 
     def test_unique_constraint_prevents_duplicate_vote(self, comment, user):
         """A user cannot cast two votes on the same comment."""
-        CommentVote.objects.create(
-            comment=comment, user=user, vote=CommentVote.VoteType.LIKE
-        )
+        CommentVote.objects.create(comment=comment, user=user, vote=CommentVote.VoteType.LIKE)
         with pytest.raises(IntegrityError):
             CommentVote.objects.create(
                 comment=comment, user=user, vote=CommentVote.VoteType.DISLIKE

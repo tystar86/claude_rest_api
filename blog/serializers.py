@@ -1,3 +1,5 @@
+"""ModelSerializer-based JSON builders shared by Django Ninja routes (no DRF view layer)."""
+
 from django.contrib.auth.models import User
 from django.utils import timezone
 from rest_framework import serializers
@@ -92,9 +94,7 @@ class CommentSerializer(serializers.ModelSerializer):
             likes = dislikes = 0
             user_vote = None
             request = self.context.get("request")
-            user_id = (
-                request.user.id if (request and request.user.is_authenticated) else None
-            )
+            user_id = request.user.id if (request and request.user.is_authenticated) else None
             for v in obj.votes.all():
                 if v.vote == CommentVote.VoteType.LIKE:
                     likes += 1
@@ -234,9 +234,7 @@ class PostWriteSerializer(serializers.ModelSerializer):
             body=validated_data["body"],
             excerpt=validated_data.get("excerpt", ""),
             status=status_value,
-            published_at=(
-                timezone.now() if status_value == Post.Status.PUBLISHED else None
-            ),
+            published_at=(timezone.now() if status_value == Post.Status.PUBLISHED else None),
         )
         if tag_ids:
             post.tags.set(Tag.objects.filter(id__in=tag_ids))
@@ -248,9 +246,7 @@ class PostWriteSerializer(serializers.ModelSerializer):
 
         if "title" in validated_data:
             instance.title = validated_data["title"]
-            instance.slug = build_unique_slug(
-                Post, instance.title, instance_id=instance.id
-            )
+            instance.slug = build_unique_slug(Post, instance.title, instance_id=instance.id)
         if "body" in validated_data:
             instance.body = validated_data["body"]
         if "excerpt" in validated_data:

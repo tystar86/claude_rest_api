@@ -18,6 +18,13 @@ dependencies = [
     "whitenoise>=6.9.0",
 ]
 
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint.per-file-ignores]
+# Constant must be defined before `.auth`/`.data` imports (circular import).
+"blog/api/__init__.py" = ["E402"]
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py"]

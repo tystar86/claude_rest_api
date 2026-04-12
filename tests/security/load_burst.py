@@ -32,9 +32,7 @@ def single_request(url: str, timeout: float) -> int:
 def run(url: str, requests_count: int, concurrency: int, timeout: float) -> int:
     statuses: Counter[int] = Counter()
     with ThreadPoolExecutor(max_workers=concurrency) as pool:
-        futures = [
-            pool.submit(single_request, url, timeout) for _ in range(requests_count)
-        ]
+        futures = [pool.submit(single_request, url, timeout) for _ in range(requests_count)]
         for f in as_completed(futures):
             statuses[f.result()] += 1
 
@@ -50,9 +48,7 @@ def run(url: str, requests_count: int, concurrency: int, timeout: float) -> int:
     return 1
 
 
-def run_all_endpoints(
-    base_url: str, requests_count: int, concurrency: int, timeout: float
-) -> int:
+def run_all_endpoints(base_url: str, requests_count: int, concurrency: int, timeout: float) -> int:
     """Run burst test against all DEFAULT_ENDPOINTS and print a summary table."""
     results: list[tuple[str, Counter[int], bool]] = []
     for path in DEFAULT_ENDPOINTS:
@@ -60,9 +56,7 @@ def run_all_endpoints(
         print(f"\n--- Burst: {url} ---")
         statuses: Counter[int] = Counter()
         with ThreadPoolExecutor(max_workers=concurrency) as pool:
-            futures = [
-                pool.submit(single_request, url, timeout) for _ in range(requests_count)
-            ]
+            futures = [pool.submit(single_request, url, timeout) for _ in range(requests_count)]
             for f in as_completed(futures):
                 statuses[f.result()] += 1
         throttled = 429 in statuses

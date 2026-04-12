@@ -27,9 +27,7 @@ SECRET_KEY: str = os.environ["SECRET_KEY"]
 
 DEBUG: bool = os.environ.get("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS: list[str] = [
-    h for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h
-]
+ALLOWED_HOSTS: list[str] = [h for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h]
 
 INSTALLED_APPS: list[str] = [
     "django.contrib.admin",
@@ -116,9 +114,7 @@ else:
     )
 
 AUTH_PASSWORD_VALIDATORS: list[dict[str, Any]] = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -203,8 +199,8 @@ PASSWORD_HASHERS: list[str] = os.environ.get(
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
 ).split(",")
 
-# API rate limits: shared dict consumed by DRF (until removed) and Django Ninja
-# (`NINJA_DEFAULT_THROTTLE_RATES`). Env names remain DRF_THROTTLE_* for existing deploys.
+# API rate limits for Django Ninja (`NINJA_DEFAULT_THROTTLE_RATES` / `API_THROTTLE_RATES`).
+# Env names remain DRF_THROTTLE_* for existing deploys.
 API_THROTTLE_RATES: dict[str, str] = {
     "anon": os.environ.get("DRF_THROTTLE_ANON") or "120/min",
     "user": os.environ.get("DRF_THROTTLE_USER") or "240/min",
@@ -216,22 +212,9 @@ API_THROTTLE_RATES: dict[str, str] = {
 # Django Ninja reads this alias via ninja.conf.settings.DEFAULT_THROTTLE_RATES
 NINJA_DEFAULT_THROTTLE_RATES: dict[str, str | None] = API_THROTTLE_RATES
 
-# DRF
-REST_FRAMEWORK: dict[str, Any] = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
-    ],
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
-    ],
-    "DEFAULT_THROTTLE_CLASSES": [
-        "blog.throttles.BurstAnonThrottle",
-        "blog.throttles.BurstUserThrottle",
-        "blog.throttles.EndpointActorThrottle",
-        "blog.throttles.GlobalAPIThrottle",
-    ],
-    "DEFAULT_THROTTLE_RATES": API_THROTTLE_RATES,
-}
+# `rest_framework` stays in INSTALLED_APPS for `blog/serializers.py` (ModelSerializer).
+# HTTP APIs are Django Ninja; throttling is configured via NINJA_DEFAULT_THROTTLE_RATES above.
+REST_FRAMEWORK: dict[str, Any] = {}
 
 # CORS
 CORS_ALLOWED_ORIGINS: list[str] = [
@@ -291,9 +274,7 @@ LOGGING: dict[str, Any] = {
 
 
 # Email — console backend locally, Mailgun via anymail in production
-EMAIL_BACKEND = os.environ.get(
-    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
-)
+EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@yourdomain.com")
 ANYMAIL: dict[str, Any] = {
     "MAILGUN_API_KEY": os.environ.get("MAILGUN_API_KEY", ""),

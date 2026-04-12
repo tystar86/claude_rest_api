@@ -8,14 +8,14 @@ This project uses:
 - CSRF protection for authenticated writes
 - CORS allowlists
 - role-based authorization through `Profile.role`
-- DRF throttling with both standard and custom scopes
+- Django Ninja throttling with scoped limits (anon, user, endpoint, global, login)
 - production cookie hardening and HSTS settings
 
 ## Authentication
 
 ### Primary auth path
 
-- Session-based auth through Django and DRF `SessionAuthentication`
+- Session-based auth through Django sessions (Ninja `SessionAuth` on protected operations)
 - Login, register, logout, current-user, and profile update endpoints are implemented in `blog/api/auth/router.py` (Django Ninja)
 
 ## Authorization
@@ -29,7 +29,7 @@ The repo uses a combination of:
 Notable helper functions in `blog/api_views.py`:
 
 - `can_manage_tags`
-- `can_view_unpublished_post`
+- `has_elevated_post_access`
 - `can_access_comment`
 
 Examples:
@@ -70,27 +70,23 @@ Local fallback when `DEBUG=True` and the env var is empty:
 
 ## Rate Limiting
 
-The API uses DRF throttling globally.
+The API uses Django Ninja throttling (`blog/api/throttling.py`), wired on routers via `READ_THROTTLES`, `WRITE_THROTTLES`, and `LOGIN_THROTTLES`.
 
-Configured default throttle classes:
+Throttle classes:
 
-- `BurstAnonThrottle`
-- `BurstUserThrottle`
+- `AnonThrottle`
+- `UserThrottle`
 - `EndpointActorThrottle`
 - `GlobalAPIThrottle`
+- `LoginThrottle` (login route stack)
 
-Special-case throttle:
-
-- `LoginRateThrottle` on the login endpoint
-
-Throttle env vars:
+Throttle env vars (legacy names, unchanged for deploys):
 
 - `DRF_THROTTLE_ANON`
 - `DRF_THROTTLE_USER`
 - `DRF_THROTTLE_ENDPOINT_ACTOR`
 - `DRF_THROTTLE_API_GLOBAL`
 - `DRF_THROTTLE_LOGIN`
-- `DRF_THROTTLE_RESEND_VERIFICATION`
 
 Why this matters:
 

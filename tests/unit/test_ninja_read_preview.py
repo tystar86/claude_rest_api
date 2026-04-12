@@ -80,10 +80,7 @@ class TestNinjaRead:
         assert detail_resp.status_code == 200
         assert comments_resp.status_code == 200
         assert detail_resp.json()["user"]["username"] == post.author.username
-        assert all(
-            item["author"] == str(post.author)
-            for item in comments_resp.json()["results"]
-        )
+        assert all(item["author"] == str(post.author) for item in comments_resp.json()["results"])
 
     def test_missing_user_routes_return_404(self, api_client):
         detail_resp = api_client.get("/api/users/no-such-user/")

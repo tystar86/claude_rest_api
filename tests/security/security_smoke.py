@@ -26,13 +26,9 @@ def check_security_headers(base_url: str) -> CheckResult:
     xfo = r.headers.get("X-Frame-Options", "")
     xcto = r.headers.get("X-Content-Type-Options", "")
     ok = (
-        r.status_code == 200
-        and xfo.upper() in {"DENY", "SAMEORIGIN"}
-        and xcto.lower() == "nosniff"
+        r.status_code == 200 and xfo.upper() in {"DENY", "SAMEORIGIN"} and xcto.lower() == "nosniff"
     )
-    return CheckResult(
-        "security_headers", ok, f"status={r.status_code}, xfo={xfo}, xcto={xcto}"
-    )
+    return CheckResult("security_headers", ok, f"status={r.status_code}, xfo={xfo}, xcto={xcto}")
 
 
 def check_cors_rejects_unknown_origin(base_url: str) -> CheckResult:

@@ -2,9 +2,7 @@
 
 import json
 
-from django.http import HttpRequest
-
-from .auth.services import json_compat_response
+from django.http import HttpRequest, JsonResponse
 
 
 def request_data(request: HttpRequest) -> dict:
@@ -24,4 +22,4 @@ def request_data_or_error(request: HttpRequest):
     try:
         return request_data(request), None
     except ValueError as exc:
-        return {}, json_compat_response({"detail": str(exc)}, status=400)
+        return {}, JsonResponse({"detail": str(exc)}, status=400)

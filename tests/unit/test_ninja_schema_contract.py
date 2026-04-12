@@ -1,6 +1,6 @@
 """Verify Ninja response schemas stay aligned with serializer output.
 
-Each test serializes a model instance through the legacy DRF serializer then
+Each test serializes a model instance through the shared ModelSerializer then
 validates the result against the corresponding Ninja Pydantic schema.  A
 failure means the two layers have drifted and the API contract is at risk.
 """
@@ -11,7 +11,6 @@ from django.db.models import Count, Q
 from django.test import RequestFactory
 
 from blog.api.auth.schemas import CurrentUserResponse
-from blog.api.auth.services import serialize_current_user
 from blog.api.data.schemas import (
     CommentListItemResponse,
     CommentResponse,
@@ -31,6 +30,7 @@ from blog.models import Comment, Post, Tag
 from blog.serializers import (
     CommentListSerializer,
     CommentSerializer,
+    CurrentUserSerializer,
     PostDetailSerializer,
     PostSerializer,
     TagSerializer,
@@ -49,14 +49,14 @@ def _anon_request():
 @pytest.mark.django_db
 class TestCurrentUserSchemaContract:
     def test_serialized_user_validates_against_ninja_schema(self, user):
-        payload = serialize_current_user(user)
+        payload = dict(CurrentUserSerializer(user).data)
         validated = CurrentUserResponse(**payload)
         assert validated.username == user.username
         assert validated.email == user.email
         assert validated.can_manage_tags is False
 
     def test_moderator_payload_validates(self, moderator):
-        payload = serialize_current_user(moderator)
+        payload = dict(CurrentUserSerializer(moderator).data)
         validated = CurrentUserResponse(**payload)
         assert validated.can_manage_tags is True
 
@@ -187,9 +187,7 @@ class TestUserDetailSchemaContract:
         request = _anon_request()
         annotated_user = (
             User.objects.select_related("profile")
-            .annotate(
-                post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
-            )
+            .annotate(post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED)))
             .get(pk=user.pk)
         )
         user_data = UserSerializer(annotated_user).data

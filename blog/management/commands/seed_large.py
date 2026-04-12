@@ -522,9 +522,7 @@ class Command(BaseCommand):
     def _create_profiles(self, rng: random.Random, users: list[User]) -> None:
         existing = set(Profile.objects.values_list("user_id", flat=True))
         to_create = [
-            Profile(user=u, role="user", bio=_make_bio(rng))
-            for u in users
-            if u.pk not in existing
+            Profile(user=u, role="user", bio=_make_bio(rng)) for u in users if u.pk not in existing
         ]
         Profile.objects.bulk_create(to_create, batch_size=500)
 

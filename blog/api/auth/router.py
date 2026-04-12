@@ -11,27 +11,22 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.http import HttpRequest
+from django.http import HttpRequest, JsonResponse
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 
 from blog import api_views
-
+from blog.serializers import CurrentUserSerializer
 from ninja import Router
+from ninja.security import SessionAuth
 
+from .. import AUTHENTICATION_REQUIRED_DETAIL
 from .schemas import CsrfTokenResponse, CurrentUserResponse, DetailResponse
-from .services import (
-    AUTHENTICATION_REQUIRED_DETAIL,
-    compat_session_auth,
-    attach_forced_user,
-    json_compat_response,
-    serialize_current_user,
-)
 from ..throttling import LOGIN_THROTTLES, WRITE_THROTTLES
 from ..utils import request_data_or_error as _request_data_or_error
 
 router = Router(tags=["Auth"])
-
+compat_session_auth = SessionAuth()
 _USER_LOOKUP_BY_EMAIL_ERRORS = (User.DoesNotExist, User.MultipleObjectsReturned)
 
 
@@ -41,20 +36,19 @@ _USER_LOOKUP_BY_EMAIL_ERRORS = (User.DoesNotExist, User.MultipleObjectsReturned)
 @router.api_operation(["GET", "HEAD"], "/csrf/", response=CsrfTokenResponse)
 @ensure_csrf_cookie
 def csrf_token(request: HttpRequest):
-    return json_compat_response({"csrfToken": get_token(request)})
+    return JsonResponse({"csrfToken": get_token(request)}, status=200)
 
 
 @router.post("/login/", throttle=LOGIN_THROTTLES)
 @csrf_protect
 def login(request: HttpRequest):
-    attach_forced_user(request)
     data, error = _request_data_or_error(request)
     if error is not None:
         return error
     email = data.get("email", "")
     password = data.get("password", "")
     if not isinstance(email, str) or not isinstance(password, str):
-        return json_compat_response({"detail": "Invalid credentials."}, status=400)
+        return JsonResponse({"detail": "Invalid credentials."}, status=400)
 
     email = email.strip().lower()
     try:
@@ -68,7 +62,7 @@ def login(request: HttpRequest):
             email_fp,
             request.META.get("REMOTE_ADDR"),
         )
-        return json_compat_response({"detail": "Invalid credentials."}, status=400)
+        return JsonResponse({"detail": "Invalid credentials."}, status=400)
 
     user = authenticate(request, username=username, password=password)
     if user is None:
@@ -77,43 +71,33 @@ def login(request: HttpRequest):
             db_user.pk,
             request.META.get("REMOTE_ADDR"),
         )
-        return json_compat_response({"detail": "Invalid credentials."}, status=400)
+        return JsonResponse({"detail": "Invalid credentials."}, status=400)
 
     auth_login(request, user)
-    return json_compat_response(serialize_current_user(user))
+    return JsonResponse(dict(CurrentUserSerializer(user).data), status=200)
 
 
 @router.post("/register/", throttle=WRITE_THROTTLES)
 @csrf_protect
 def register(request: HttpRequest):
-    attach_forced_user(request)
     data, error = _request_data_or_error(request)
     if error is not None:
         return error
     email = data.get("email", "")
     username = data.get("username", "")
     password = data.get("password", "")
-    if (
-        not isinstance(email, str)
-        or not isinstance(username, str)
-        or not isinstance(password, str)
-    ):
-        return json_compat_response(
-            {"detail": "email, username and password are required."},
-            status=400,
-        )
+    if not isinstance(email, str) or not isinstance(username, str) or not isinstance(password, str):
+        return JsonResponse({"detail": "email, username and password are required."}, status=400)
+
     email = email.strip().lower()
     username = username.strip()
     if not email or not username or not password.strip():
-        return json_compat_response(
+        return JsonResponse(
             {"detail": "email, username and password are required."},
             status=400,
         )
-    if (
-        User.objects.filter(email=email).exists()
-        or User.objects.filter(username=username).exists()
-    ):
-        return json_compat_response({"detail": "Registration failed."}, status=400)
+    if User.objects.filter(email=email).exists() or User.objects.filter(username=username).exists():
+        return JsonResponse({"detail": "Registration failed."}, status=400)
 
     try:
         with transaction.atomic():
@@ -125,12 +109,12 @@ def register(request: HttpRequest):
                 password=password,
             )
     except ValidationError as exc:
-        return json_compat_response({"password": exc.messages}, status=400)
+        return JsonResponse({"password": exc.messages}, status=400)
     except IntegrityError:
-        return json_compat_response({"detail": "Registration failed."}, status=400)
+        return JsonResponse({"detail": "Registration failed."}, status=400)
 
     auth_login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-    return json_compat_response(serialize_current_user(user), status=201)
+    return JsonResponse(dict(CurrentUserSerializer(user).data), status=201)
 
 
 # ── Authenticated + CSRF-protected ────────────────────────────────────────────
@@ -144,7 +128,7 @@ def register(request: HttpRequest):
 )
 def current_user(request: HttpRequest):
     user = getattr(request, "auth", None) or request.user
-    return json_compat_response(serialize_current_user(user))
+    return JsonResponse(dict(CurrentUserSerializer(user).data), status=200)
 
 
 @router.post("/logout/", auth=compat_session_auth, response=DetailResponse)
@@ -152,18 +136,14 @@ def current_user(request: HttpRequest):
 def logout_view(request: HttpRequest):
     if getattr(request.user, "is_authenticated", False):
         logout(request)
-    return json_compat_response({"detail": "Logged out."})
+    return JsonResponse({"detail": "Logged out."}, status=200)
 
 
 @router.patch("/profile/", throttle=WRITE_THROTTLES)
 @csrf_protect
 def update_profile(request: HttpRequest):
-    attach_forced_user(request)
     if not request.user.is_authenticated:
-        return json_compat_response(
-            {"detail": AUTHENTICATION_REQUIRED_DETAIL},
-            status=401,
-        )
+        return JsonResponse({"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=401)
 
     user = request.user
     data, error = _request_data_or_error(request)
@@ -183,9 +163,7 @@ def update_profile(request: HttpRequest):
             new_username = new_username.strip()
             if not new_username:
                 errors["username"] = "Username cannot be empty."
-            elif (
-                User.objects.filter(username=new_username).exclude(id=user.id).exists()
-            ):
+            elif User.objects.filter(username=new_username).exclude(id=user.id).exists():
                 errors["username"] = "Username already taken."
             else:
                 user.username = new_username
@@ -194,9 +172,7 @@ def update_profile(request: HttpRequest):
         if not isinstance(new_password, str):
             errors["new_password"] = "Password must be a string."
         elif not current_password:
-            errors["current_password"] = (
-                "Current password is required to change password."
-            )
+            errors["current_password"] = "Current password is required to change password."
         elif not isinstance(current_password, str):
             errors["current_password"] = "Current password must be a string."
         elif not user.check_password(current_password):
@@ -211,16 +187,16 @@ def update_profile(request: HttpRequest):
                 password_changed = True
 
     if errors:
-        return json_compat_response(errors, status=400)
+        return JsonResponse(errors, status=400)
 
     try:
         user.save()
     except IntegrityError:
-        return json_compat_response(
+        return JsonResponse(
             {"username": "Username already taken."},
             status=400,
         )
     if password_changed:
         update_session_auth_hash(request, user)
 
-    return json_compat_response(serialize_current_user(user))
+    return JsonResponse(dict(CurrentUserSerializer(user).data), status=200)

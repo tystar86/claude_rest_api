@@ -110,9 +110,7 @@ def _run_endpoints(client, endpoints, repeat, host):
 
 def _cleanup_write_side_effects(user_id, vote_comment_id):
     CommentVote.objects.filter(user_id=user_id, comment_id=vote_comment_id).delete()
-    Comment.objects.filter(
-        author_id=user_id, body="Silk profiler test comment."
-    ).delete()
+    Comment.objects.filter(author_id=user_id, body="Silk profiler test comment.").delete()
     Post.objects.filter(author_id=user_id, title="Silk profiler test post").delete()
 
 
@@ -190,9 +188,7 @@ class Command(BaseCommand):
         try:
             from silk.models import Request as SilkRequest
         except ImportError as exc:
-            raise CommandError(
-                "django-silk is not installed in the active environment."
-            ) from exc
+            raise CommandError("django-silk is not installed in the active environment.") from exc
 
         keep = options["keep"]
         repeat = options["repeat"]
@@ -219,9 +215,7 @@ class Command(BaseCommand):
         # -- Optionally clear previous Silk data -----------------------------
         if not keep:
             deleted, _ = SilkRequest.objects.all().delete()
-            self.stdout.write(
-                self.style.WARNING(f"Cleared {deleted} previous Silk records.")
-            )
+            self.stdout.write(self.style.WARNING(f"Cleared {deleted} previous Silk records."))
 
         # -- Mark the start so we only query our requests --------------------
         run_marker = timezone.now()
@@ -243,9 +237,7 @@ class Command(BaseCommand):
         host = {"SERVER_NAME": "localhost"}
         responses = _run_endpoints(client, read_endpoints, repeat, host)
         responses.extend(
-            _run_write_endpoints(
-                client, write_endpoints, repeat, host, user.id, comment.id
-            )
+            _run_write_endpoints(client, write_endpoints, repeat, host, user.id, comment.id)
         )
 
         # -- Collect Silk data for this run ----------------------------------
@@ -317,17 +309,11 @@ class Command(BaseCommand):
             f"{self.style.ERROR(f'{server_err} 5xx')}"
         )
         self.stdout.write(f"  Wall time (sum):     {total_time:,.1f} ms")
-        self.stdout.write(
-            f"  Avg per request:     {total_time / n:,.1f} ms" if n else ""
-        )
+        self.stdout.write(f"  Avg per request:     {total_time / n:,.1f} ms" if n else "")
         self.stdout.write(f"  SQL queries total:   {total_queries}")
-        self.stdout.write(
-            f"  Avg queries/request: {total_queries / n:,.1f}" if n else ""
-        )
+        self.stdout.write(f"  Avg queries/request: {total_queries / n:,.1f}" if n else "")
         self.stdout.write(f"  SQL time total:      {total_sql_time:,.1f} ms")
-        self.stdout.write(
-            f"  Avg SQL time/req:    {total_sql_time / n:,.1f} ms" if n else ""
-        )
+        self.stdout.write(f"  Avg SQL time/req:    {total_sql_time / n:,.1f} ms" if n else "")
 
         self.stdout.write(self.style.MIGRATE_HEADING("\n  Hotspots\n"))
         self.stdout.write(
@@ -351,9 +337,7 @@ class Command(BaseCommand):
             # Compute from collected Silk requests (avoids null meta fields)
             from collections import defaultdict
 
-            buckets: dict[tuple[str, str], list[tuple[float, int, float]]] = (
-                defaultdict(list)
-            )
+            buckets: dict[tuple[str, str], list[tuple[float, int, float]]] = defaultdict(list)
             for sr in silk_requests:
                 sql_t = sr.meta_time_spent_queries or 0.0
                 if not sql_t:
@@ -373,8 +357,7 @@ class Command(BaseCommand):
 
             for avg_t, m, p, avg_q, avg_s, hits in rows:
                 self.stdout.write(
-                    f"  {m:<6}  {p:<42}  "
-                    f"{avg_t:>8.1f}  {avg_q:>7.1f}  {avg_s:>10.1f}  {hits:>5}"
+                    f"  {m:<6}  {p:<42}  {avg_t:>8.1f}  {avg_q:>7.1f}  {avg_s:>10.1f}  {hits:>5}"
                 )
 
         self.stdout.write(self.style.SUCCESS("\nDone. Silk UI available at: /silk/\n"))

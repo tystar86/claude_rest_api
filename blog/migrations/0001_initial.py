@@ -66,9 +66,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "tags",
-                    models.ManyToManyField(
-                        blank=True, related_name="posts", to="blog.tag"
-                    ),
+                    models.ManyToManyField(blank=True, related_name="posts", to="blog.tag"),
                 ),
             ],
             options={
