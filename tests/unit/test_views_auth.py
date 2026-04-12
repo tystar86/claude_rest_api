@@ -358,7 +358,7 @@ class TestEmailVerificationFlow:
     ):
         """SMTP failures still return 200 to avoid leaking valid unverified accounts."""
         with patch(
-            "blog.api.write.router.send_verification_email_for_user",
+            "blog.api.auth.router.send_verification_email_for_user",
             side_effect=smtplib.SMTPException("mail transport unavailable"),
         ):
             resp = api_client.post(

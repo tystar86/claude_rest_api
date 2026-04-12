@@ -1,9 +1,8 @@
 """
-Django Ninja rate limits for the write API.
+Unified Django Ninja rate limits for all API surfaces.
 
-Uses ``ninja.throttling`` only. Limits come from Django setting
-``NINJA_DEFAULT_THROTTLE_RATES`` (see ``config.settings.API_THROTTLE_RATES``).
-The stack mirrors the rate-limit tiers used by the original write handlers.
+Rates come from ``NINJA_DEFAULT_THROTTLE_RATES`` (aliased from
+``API_THROTTLE_RATES`` in ``config.settings``).
 """
 
 from typing import Optional
@@ -12,9 +11,7 @@ from django.http import HttpRequest
 from ninja.throttling import SimpleRateThrottle
 
 
-class WriteAnonThrottle(SimpleRateThrottle):
-    """Throttle anonymous clients by IP; skip authenticated users."""
-
+class AnonThrottle(SimpleRateThrottle):
     scope = "anon"
 
     def get_cache_key(self, request: HttpRequest) -> Optional[str]:
@@ -27,9 +24,7 @@ class WriteAnonThrottle(SimpleRateThrottle):
         }
 
 
-class WriteUserThrottle(SimpleRateThrottle):
-    """Throttle authenticated users by user id."""
-
+class UserThrottle(SimpleRateThrottle):
     scope = "user"
 
     def get_cache_key(self, request: HttpRequest) -> Optional[str]:
@@ -42,9 +37,7 @@ class WriteUserThrottle(SimpleRateThrottle):
         }
 
 
-class WriteEndpointActorThrottle(SimpleRateThrottle):
-    """Per URL name (or path) and per user or client IP."""
-
+class EndpointActorThrottle(SimpleRateThrottle):
     scope = "endpoint_actor"
 
     def get_cache_key(self, request: HttpRequest) -> str:
@@ -63,9 +56,7 @@ class WriteEndpointActorThrottle(SimpleRateThrottle):
         return self.cache_format % {"scope": self.scope, "ident": ident}
 
 
-class WriteGlobalAPIThrottle(SimpleRateThrottle):
-    """Cross-endpoint cap per authenticated user or per anonymous IP."""
-
+class GlobalAPIThrottle(SimpleRateThrottle):
     scope = "api_global"
 
     def get_cache_key(self, request: HttpRequest) -> str:
@@ -77,19 +68,17 @@ class WriteGlobalAPIThrottle(SimpleRateThrottle):
         return self.cache_format % {"scope": self.scope, "ident": ident}
 
 
-class WriteLoginThrottle(SimpleRateThrottle):
-    """Tight per-IP throttle for login attempts."""
-
+class LoginThrottle(SimpleRateThrottle):
     scope = "login"
 
     def get_cache_key(self, request: HttpRequest) -> str:
-        ident = self.get_ident(request)
-        return self.cache_format % {"scope": self.scope, "ident": ident}
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": self.get_ident(request),
+        }
 
 
-class WriteResendVerificationThrottle(SimpleRateThrottle):
-    """Tight resend-verification throttle per authenticated user (fallback: IP)."""
-
+class ResendVerificationThrottle(SimpleRateThrottle):
     scope = "resend_verification"
 
     def get_cache_key(self, request: HttpRequest) -> str:
@@ -101,15 +90,19 @@ class WriteResendVerificationThrottle(SimpleRateThrottle):
         return self.cache_format % {"scope": self.scope, "ident": ident}
 
 
-WRITE_API_THROTTLES = [
-    WriteAnonThrottle(),
-    WriteUserThrottle(),
-    WriteEndpointActorThrottle(),
-    WriteGlobalAPIThrottle(),
+# Pre-built throttle lists referenced by routers.
+READ_THROTTLES = [AnonThrottle(), EndpointActorThrottle(), GlobalAPIThrottle()]
+
+WRITE_THROTTLES = [
+    AnonThrottle(),
+    UserThrottle(),
+    EndpointActorThrottle(),
+    GlobalAPIThrottle(),
 ]
 
-WRITE_LOGIN_THROTTLES = [WriteLoginThrottle(), *WRITE_API_THROTTLES]
-WRITE_RESEND_VERIFICATION_THROTTLES = [
-    WriteResendVerificationThrottle(),
-    *WRITE_API_THROTTLES,
+LOGIN_THROTTLES = [LoginThrottle(), *WRITE_THROTTLES]
+
+RESEND_VERIFICATION_THROTTLES = [
+    ResendVerificationThrottle(),
+    *WRITE_THROTTLES,
 ]

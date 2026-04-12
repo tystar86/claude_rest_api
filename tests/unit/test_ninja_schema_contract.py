@@ -12,7 +12,7 @@ from django.test import RequestFactory
 
 from blog.api.auth.schemas import CurrentUserResponse
 from blog.api.auth.services import serialize_current_user
-from blog.api.read.schemas import (
+from blog.api.data.schemas import (
     CommentListItemResponse,
     CommentResponse,
     DashboardResponse,
