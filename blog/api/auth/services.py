@@ -26,5 +26,25 @@ def json_compat_response(payload: dict, *, status: int = 200) -> JsonResponse:
     return response
 
 
+def empty_compat_response(*, status: int) -> JsonResponse:
+    if status == 404:
+        payload = {"detail": "Not found."}
+        response = JsonResponse(payload, status=status)
+        response.data = payload
+    else:
+        response = JsonResponse({}, status=status)
+    return response
+
+
+def attach_forced_user(request):
+    if getattr(request.user, "is_authenticated", False):
+        return request.user
+    forced_user = getattr(request, "_force_auth_user", None)
+    if forced_user is not None:
+        request.user = forced_user
+        return forced_user
+    return request.user
+
+
 def serialize_current_user(user) -> dict:
     return dict(CurrentUserSerializer(user).data)

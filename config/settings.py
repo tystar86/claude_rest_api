@@ -240,6 +240,22 @@ PASSWORD_HASHERS: list[str] = os.environ.get(
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
 ).split(",")
 
+# API rate limits: shared dict consumed by DRF (until removed) and Django Ninja
+# (`NINJA_DEFAULT_THROTTLE_RATES`). Env names remain DRF_THROTTLE_* for existing deploys.
+API_THROTTLE_RATES: dict[str, str] = {
+    "anon": os.environ.get("DRF_THROTTLE_ANON") or "120/min",
+    "user": os.environ.get("DRF_THROTTLE_USER") or "240/min",
+    "endpoint_actor": os.environ.get("DRF_THROTTLE_ENDPOINT_ACTOR") or "60/min",
+    "api_global": os.environ.get("DRF_THROTTLE_API_GLOBAL") or "1000/min",
+    "login": os.environ.get("DRF_THROTTLE_LOGIN") or "5/min",
+    "resend_verification": (
+        os.environ.get("DRF_THROTTLE_RESEND_VERIFICATION") or "5/hour"
+    ),
+}
+
+# Django Ninja reads this alias via ninja.conf.settings.DEFAULT_THROTTLE_RATES
+NINJA_DEFAULT_THROTTLE_RATES: dict[str, str | None] = API_THROTTLE_RATES
+
 # DRF
 REST_FRAMEWORK: dict[str, Any] = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -254,22 +270,7 @@ REST_FRAMEWORK: dict[str, Any] = {
         "blog.throttles.EndpointActorThrottle",
         "blog.throttles.GlobalAPIThrottle",
     ],
-    "DEFAULT_THROTTLE_RATES": {
-        # Per anonymous IP across API
-        "anon": os.environ.get("DRF_THROTTLE_ANON") or "120/min",
-        # Per authenticated user across API
-        "user": os.environ.get("DRF_THROTTLE_USER") or "240/min",
-        # Per endpoint + per actor (user or IP)
-        "endpoint_actor": os.environ.get("DRF_THROTTLE_ENDPOINT_ACTOR") or "60/min",
-        # Overall global API cap
-        "api_global": os.environ.get("DRF_THROTTLE_API_GLOBAL") or "1000/min",
-        # Login endpoint brute-force protection (per IP)
-        "login": os.environ.get("DRF_THROTTLE_LOGIN") or "5/min",
-        # Verification email resend should be much tighter than generic auth
-        "resend_verification": (
-            os.environ.get("DRF_THROTTLE_RESEND_VERIFICATION") or "5/hour"
-        ),
-    },
+    "DEFAULT_THROTTLE_RATES": API_THROTTLE_RATES,
 }
 
 # CORS
