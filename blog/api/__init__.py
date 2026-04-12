@@ -5,6 +5,7 @@ from ninja import NinjaAPI
 from .auth import router as auth_router
 from .auth.services import AUTHENTICATION_REQUIRED_DETAIL, json_compat_response
 from .read import router as read_router
+from .read.throttling import READ_API_THROTTLES
 
 
 def _add_auth_handlers(api: NinjaAPI) -> None:
@@ -47,6 +48,7 @@ public_read_api = NinjaAPI(
     urls_namespace="blog_ninja_read_public",
     docs_url=None,
     openapi_url=None,
+    throttle=READ_API_THROTTLES,
 )
 
 preview_read_api = NinjaAPI(
@@ -56,6 +58,7 @@ preview_read_api = NinjaAPI(
     urls_namespace="blog_ninja_read_preview",
     docs_url=None,
     openapi_url="/openapi.json",
+    throttle=READ_API_THROTTLES,
 )
 
 public_read_api.add_router("/", read_router)

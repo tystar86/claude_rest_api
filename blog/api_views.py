@@ -134,13 +134,8 @@ _DASHBOARD_CACHE_KEY = "dashboard_data"
 _DASHBOARD_CACHE_TTL = 60  # seconds
 
 
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def dashboard(request):
-    data = cache.get(_DASHBOARD_CACHE_KEY)
-    if data is not None:
-        return Response(data)
-
+def build_dashboard_payload():
+    """Assemble dashboard JSON (no caching); shared by DRF and Ninja read APIs."""
     published = Post.objects.filter(status=Post.Status.PUBLISHED)
     total_posts = published.count()
     total_comments = Comment.objects.filter(post__status=Post.Status.PUBLISHED).count()
@@ -154,7 +149,7 @@ def dashboard(request):
     avg_chars = published.aggregate(avg=Avg(Length("body")))["avg"] or 0
     average_depth_words = round(avg_chars / 5)
 
-    data = {
+    return {
         "stats": {
             "total_posts": total_posts,
             "comments": total_comments,
@@ -187,7 +182,14 @@ def dashboard(request):
         ).data,
     }
 
-    cache.set(_DASHBOARD_CACHE_KEY, data, _DASHBOARD_CACHE_TTL)
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def dashboard(request):
+    data = cache.get(_DASHBOARD_CACHE_KEY)
+    if data is None:
+        data = build_dashboard_payload()
+        cache.set(_DASHBOARD_CACHE_KEY, data, _DASHBOARD_CACHE_TTL)
     return Response(data)
 
 

@@ -1,7 +1,6 @@
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.db.models import Avg, Count, Q
-from django.db.models.functions import Length
+from django.db.models import Count, Q
 from django.http import HttpRequest
 from ninja import Router
 
@@ -51,61 +50,7 @@ def _serialize(
 def dashboard(request: HttpRequest):
     data = cache.get(api_views._DASHBOARD_CACHE_KEY)
     if data is None:
-        published = Post.objects.filter(status=Post.Status.PUBLISHED)
-        total_posts = published.count()
-        total_comments = Comment.objects.filter(
-            post__status=Post.Status.PUBLISHED
-        ).count()
-        total_authors = (
-            User.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
-        )
-        active_tags = (
-            Tag.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
-        )
-        avg_chars = published.aggregate(avg=Avg(Length("body")))["avg"] or 0
-        average_depth_words = round(avg_chars / 5)
-        data = {
-            "stats": {
-                "total_posts": total_posts,
-                "comments": total_comments,
-                "authors": total_authors,
-                "active_tags": active_tags,
-                "average_depth_words": average_depth_words,
-            },
-            "latest_posts": _serialize(
-                PostSerializer,
-                api_views._published_posts_list_qs().order_by("-created_at")[:10],
-                many=True,
-            ),
-            "most_commented_posts": _serialize(
-                PostSerializer,
-                api_views._published_posts_list_qs().order_by("-comment_count")[:10],
-                many=True,
-            ),
-            "most_used_tags": _serialize(
-                TagSerializer,
-                Tag.objects.annotate(
-                    post_count=Count(
-                        "posts", filter=Q(posts__status=Post.Status.PUBLISHED)
-                    )
-                )
-                .filter(post_count__gt=0)
-                .order_by("-post_count")[:10],
-                many=True,
-            ),
-            "top_authors": _serialize(
-                UserSerializer,
-                User.objects.select_related("profile")
-                .annotate(
-                    post_count=Count(
-                        "posts", filter=Q(posts__status=Post.Status.PUBLISHED)
-                    )
-                )
-                .filter(post_count__gt=0)
-                .order_by("-post_count")[:10],
-                many=True,
-            ),
-        }
+        data = api_views.build_dashboard_payload()
         cache.set(api_views._DASHBOARD_CACHE_KEY, data, api_views._DASHBOARD_CACHE_TTL)
     return json_compat_response(data)
 
