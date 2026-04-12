@@ -11,6 +11,7 @@ Recommended reading order:
 5. [security.md](./security.md) for auth, CSRF, CORS, throttling, and release checks.
 6. [tooling-testing.md](./tooling-testing.md) for commands, CI, linting, and test workflows.
 7. [package-inventory.md](./package-inventory.md) for every declared package, why it exists, and where it is used.
+8. [Architecture decision records](../architecture-decisions/README.md) when you need to document a significant technical choice in writing.
 
 ## What This Docs Set Covers
 
