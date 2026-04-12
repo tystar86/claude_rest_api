@@ -199,6 +199,13 @@ class TestLoginView:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
         assert resp.data["detail"] == "Invalid credentials."
 
+    def test_get_login_returns_json_405(self, api_client):
+        """Unsupported methods return a JSON 405 payload with Allow header."""
+        resp = api_client.get("/api/auth/login/")
+        assert resp.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+        assert resp.data["detail"] == "Method not allowed."
+        assert "POST" in resp.headers.get("Allow", "")
+
     def test_duplicate_email_lookup_returns_400(self, api_client, monkeypatch):
         """MultipleObjectsReturned during email lookup is treated as auth failure."""
 

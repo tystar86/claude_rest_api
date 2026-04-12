@@ -1,6 +1,4 @@
 from django.urls import path
-from django.http import HttpResponseNotAllowed
-from django.views.decorators.csrf import csrf_exempt
 
 from .api import (
     preview_auth_api,
@@ -10,14 +8,30 @@ from .api import (
     public_read_callbacks,
     public_write_callbacks,
 )
+from .api.auth.services import json_compat_response
 
 
 def _dispatch_by_method(**method_views):
-    @csrf_exempt
     def view(request, *args, **kwargs):
-        handler = method_views.get(request.method)
+        is_head_fallback = request.method == "HEAD" and "HEAD" not in method_views
+        lookup_method = "GET" if is_head_fallback else request.method
+        handler = method_views.get(lookup_method)
         if handler is None:
-            return HttpResponseNotAllowed(method_views.keys())
+            allowed_methods = sorted(set(method_views.keys()))
+            if "GET" in allowed_methods and "HEAD" not in allowed_methods:
+                allowed_methods.append("HEAD")
+            response = json_compat_response(
+                {"detail": "Method not allowed."}, status=405
+            )
+            response["Allow"] = ", ".join(allowed_methods)
+            return response
+        if is_head_fallback:
+            original_method = request.method
+            request.method = "GET"
+            try:
+                return handler(request, *args, **kwargs)
+            finally:
+                request.method = original_method
         return handler(request, *args, **kwargs)
 
     return view
@@ -30,7 +44,10 @@ urlpatterns = [
     path("_ninja/write/", preview_write_api.urls),
     path("dashboard/", public_read_callbacks["dashboard"]),
     path("comments/", public_read_callbacks["comment_list"]),
-    path("posts/<slug:slug>/comments/", public_write_callbacks["comment_create"]),
+    path(
+        "posts/<slug:slug>/comments/",
+        _dispatch_by_method(POST=public_write_callbacks["comment_create"]),
+    ),
     path(
         "posts/",
         _dispatch_by_method(
@@ -64,11 +81,28 @@ urlpatterns = [
     path("users/", public_read_callbacks["user_list"]),
     path("users/<str:username>/comments/", public_read_callbacks["user_comments"]),
     path("users/<str:username>/", public_read_callbacks["user_detail"]),
-    path("auth/login/", public_write_callbacks["login"]),
-    path("auth/register/", public_write_callbacks["register"]),
-    path("auth/resend-verification/", public_write_callbacks["resend_verification"]),
-    path("auth/profile/", public_write_callbacks["update_profile"]),
-    path("comments/<int:comment_id>/vote/", public_write_callbacks["comment_vote"]),
-    path("comments/<int:comment_id>/", public_write_callbacks["comment_update"]),
-    path("comments/<int:comment_id>/delete/", public_write_callbacks["comment_delete"]),
+    path("auth/login/", _dispatch_by_method(POST=public_write_callbacks["login"])),
+    path(
+        "auth/register/", _dispatch_by_method(POST=public_write_callbacks["register"])
+    ),
+    path(
+        "auth/resend-verification/",
+        _dispatch_by_method(POST=public_write_callbacks["resend_verification"]),
+    ),
+    path(
+        "auth/profile/",
+        _dispatch_by_method(PATCH=public_write_callbacks["update_profile"]),
+    ),
+    path(
+        "comments/<int:comment_id>/vote/",
+        _dispatch_by_method(POST=public_write_callbacks["comment_vote"]),
+    ),
+    path(
+        "comments/<int:comment_id>/",
+        _dispatch_by_method(PATCH=public_write_callbacks["comment_update"]),
+    ),
+    path(
+        "comments/<int:comment_id>/delete/",
+        _dispatch_by_method(DELETE=public_write_callbacks["comment_delete"]),
+    ),
 ]

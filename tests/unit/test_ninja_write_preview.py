@@ -1,17 +1,33 @@
 """Preview tests for write-oriented Ninja migration routes."""
 
 import json
+from contextlib import contextmanager
 
 import pytest
 from django.conf import settings
+from django.core.cache import cache
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from blog.api import preview_write_api
-from blog.api.write.throttling import (
-    WriteLoginThrottle,
-    WriteResendVerificationThrottle,
-)
+from blog.api.write import throttling as write_throttling
+from blog.models import Post
+
+
+@contextmanager
+def _temporary_throttle_rate(throttle, rate: str):
+    original_rate = throttle.rate
+    original_num_requests = throttle.num_requests
+    original_duration = throttle.duration
+    throttle.rate = rate
+    throttle.num_requests, throttle.duration = throttle.parse_rate(rate)
+    try:
+        yield
+    finally:
+        throttle.rate = original_rate
+        throttle.num_requests = original_num_requests
+        throttle.duration = original_duration
 
 
 @pytest.mark.django_db
@@ -83,51 +99,109 @@ class TestNinjaWritePreview:
         assert authed.status_code == status.HTTP_200_OK
         assert authed.data["likes"] == 1
 
+    def test_comment_create_rejects_invalid_parent_id(self, user, post):
+        client = APIClient()
+        client.force_authenticate(user=user)
+        resp = client.post(
+            f"/api/_ninja/write/posts/{post.slug}/comments/",
+            {"body": "reply", "parent_id": {"bad": "value"}},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.data["detail"] == "Invalid parent_id."
+
     def test_public_delete_route_dispatches_to_delete_handler(self, user, post):
         anon_client = APIClient()
         auth_client = APIClient()
         auth_client.force_authenticate(user=user)
+        post.author = user
+        post.save(update_fields=["author"])
 
         anon_resp = anon_client.delete(f"/api/posts/{post.slug}/")
         auth_resp = auth_client.delete(f"/api/posts/{post.slug}/")
 
-        assert anon_resp.status_code != status.HTTP_404_NOT_FOUND
-        assert auth_resp.status_code != status.HTTP_404_NOT_FOUND
+        assert anon_resp.status_code == status.HTTP_401_UNAUTHORIZED
+        assert auth_resp.status_code == status.HTTP_204_NO_CONTENT
+        assert Post.objects.filter(pk=post.pk).exists() is False
 
-    def test_login_route_uses_login_scope_throttle(self):
-        bound_routers = preview_write_api._get_bound_routers()
-        for bound_router in bound_routers:
-            for _, path_view in bound_router.path_operations.items():
-                for operation in path_view.operations:
-                    if operation.view_func.__name__ != "login":
-                        continue
-                    assert any(
-                        isinstance(throttle, WriteLoginThrottle)
-                        for throttle in operation.throttle_objects
-                    )
-                    assert (
-                        WriteLoginThrottle().rate
-                        == settings.API_THROTTLE_RATES["login"]
-                    )
-                    return
-        raise AssertionError("Could not find login operation in preview_write_api")
+    def test_head_request_falls_back_to_get_dispatch(self, api_client):
+        head_resp = api_client.head("/api/posts/")
+        get_resp = api_client.get("/api/posts/")
+        assert head_resp.status_code == status.HTTP_200_OK
+        assert get_resp.status_code == status.HTTP_200_OK
 
-    def test_resend_route_uses_resend_verification_scope_throttle(self):
-        bound_routers = preview_write_api._get_bound_routers()
-        for bound_router in bound_routers:
-            for _, path_view in bound_router.path_operations.items():
-                for operation in path_view.operations:
-                    if operation.view_func.__name__ != "resend_verification":
-                        continue
-                    assert len(operation.throttle_objects) == 1
-                    assert isinstance(
-                        operation.throttle_objects[0], WriteResendVerificationThrottle
-                    )
-                    assert (
-                        WriteResendVerificationThrottle().rate
-                        == settings.API_THROTTLE_RATES["resend_verification"]
-                    )
-                    return
-        raise AssertionError(
-            "Could not find resend_verification operation in preview_write_api"
-        )
+    def test_login_route_rate_limits_with_low_scope_rate(self):
+        assert preview_write_api.urls_namespace == "blog_ninja_write_preview"
+        base_rates = dict(settings.API_THROTTLE_RATES)
+        low_rates = {
+            **base_rates,
+            "login": "1/min",
+            "resend_verification": "1/min",
+        }
+
+        with override_settings(
+            API_THROTTLE_RATES=low_rates,
+            NINJA_DEFAULT_THROTTLE_RATES=low_rates,
+            CACHES={
+                "default": {
+                    "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+                    "LOCATION": "test-ninja-write-preview-login-throttle",
+                }
+            },
+        ):
+            assert settings.API_THROTTLE_RATES["login"] == "1/min"
+            cache.clear()
+            throttle = write_throttling.WRITE_LOGIN_THROTTLES[0]
+            with _temporary_throttle_rate(
+                throttle, settings.API_THROTTLE_RATES["login"]
+            ):
+                client = APIClient()
+                first = client.post(
+                    "/api/_ninja/write/auth/login/",
+                    {"email": "missing@example.com", "password": "wrongpass"},
+                    format="json",
+                )
+                second = client.post(
+                    "/api/_ninja/write/auth/login/",
+                    {"email": "missing@example.com", "password": "wrongpass"},
+                    format="json",
+                )
+            cache.clear()
+
+        assert first.status_code == status.HTTP_400_BAD_REQUEST
+        assert second.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+
+    def test_resend_route_rate_limits_with_low_scope_rate(self, user):
+        assert preview_write_api.urls_namespace == "blog_ninja_write_preview"
+        base_rates = dict(settings.API_THROTTLE_RATES)
+        low_rates = {
+            **base_rates,
+            "login": "1/min",
+            "resend_verification": "1/min",
+        }
+
+        with override_settings(
+            API_THROTTLE_RATES=low_rates,
+            NINJA_DEFAULT_THROTTLE_RATES=low_rates,
+            CACHES={
+                "default": {
+                    "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+                    "LOCATION": "test-ninja-write-preview-resend-throttle",
+                }
+            },
+        ):
+            assert settings.API_THROTTLE_RATES["resend_verification"] == "1/min"
+            cache.clear()
+            throttle = write_throttling.WRITE_RESEND_VERIFICATION_THROTTLES[0]
+            with _temporary_throttle_rate(
+                throttle,
+                settings.API_THROTTLE_RATES["resend_verification"],
+            ):
+                client = APIClient()
+                client.force_authenticate(user=user)
+                first = client.post("/api/_ninja/write/auth/resend-verification/")
+                second = client.post("/api/_ninja/write/auth/resend-verification/")
+            cache.clear()
+
+        assert first.status_code == status.HTTP_200_OK
+        assert second.status_code == status.HTTP_429_TOO_MANY_REQUESTS

@@ -50,14 +50,23 @@ router = Router(tags=["Write API"])
 
 
 def _request_data(request: HttpRequest) -> dict:
-    raw_body = getattr(request, "body", b"") or b"{}"
+    raw_body = getattr(request, "body", b"") or b""
+    if not raw_body:
+        return {}
     try:
         data = json.loads(raw_body)
     except json.JSONDecodeError:
-        return {}
+        raise ValueError("Malformed JSON body.")
     if isinstance(data, dict):
         return data
-    return {}
+    raise ValueError("JSON body must be an object.")
+
+
+def _request_data_or_error(request: HttpRequest) -> tuple[dict, HttpResponse | None]:
+    try:
+        return _request_data(request), None
+    except ValueError as exc:
+        return {}, json_compat_response({"detail": str(exc)}, status=400)
 
 
 def _post_detail_queryset():
@@ -73,7 +82,9 @@ def _post_detail_queryset():
 @router.post("/auth/login/", throttle=WRITE_LOGIN_THROTTLES)
 def login(request: HttpRequest):
     attach_forced_user(request)
-    data = _request_data(request)
+    data, error = _request_data_or_error(request)
+    if error is not None:
+        return error
     email = data.get("email", "")
     password = data.get("password", "")
     if not isinstance(email, str) or not isinstance(password, str):
@@ -118,7 +129,9 @@ def login(request: HttpRequest):
 @router.post("/auth/register/")
 def register(request: HttpRequest):
     attach_forced_user(request)
-    data = _request_data(request)
+    data, error = _request_data_or_error(request)
+    if error is not None:
+        return error
     email = data.get("email", "")
     username = data.get("username", "")
     password = data.get("password", "")
@@ -132,7 +145,8 @@ def register(request: HttpRequest):
             status=400,
         )
     email = email.strip().lower()
-    if not email or not username.strip() or not password.strip():
+    username = username.strip()
+    if not email or not username or not password.strip():
         return json_compat_response(
             {"detail": "email, username and password are required."},
             status=400,
@@ -217,7 +231,9 @@ def update_profile(request: HttpRequest):
         )
 
     user = request.user
-    data = _request_data(request)
+    data, error = _request_data_or_error(request)
+    if error is not None:
+        return error
     new_username = data.get("username")
     current_password = data.get("current_password")
     new_password = data.get("new_password")
@@ -279,8 +295,11 @@ def create_post(request: HttpRequest):
             status=401,
         )
 
+    data, error = _request_data_or_error(request)
+    if error is not None:
+        return error
     serializer = PostWriteSerializer(
-        data=_request_data(request),
+        data=data,
         context={"request": request},
     )
     if not serializer.is_valid():
@@ -295,16 +314,16 @@ def create_post(request: HttpRequest):
 @router.patch("/posts/{slug}/")
 def update_post(request: HttpRequest, slug: str):
     attach_forced_user(request)
-    try:
-        post = _post_detail_queryset().get(slug=slug)
-    except Post.DoesNotExist:
-        return HttpResponse(status=404)
-
     if not request.user.is_authenticated:
         return json_compat_response(
             {"detail": "Authentication required."},
             status=401,
         )
+
+    try:
+        post = _post_detail_queryset().get(slug=slug)
+    except Post.DoesNotExist:
+        return HttpResponse(status=404)
 
     if not api_views.can_view_unpublished_post(request.user, post):
         return json_compat_response(
@@ -312,9 +331,12 @@ def update_post(request: HttpRequest, slug: str):
             status=403,
         )
 
+    data, error = _request_data_or_error(request)
+    if error is not None:
+        return error
     serializer = PostWriteSerializer(
         post,
-        data=_request_data(request),
+        data=data,
         partial=True,
         context={"request": request},
     )
@@ -330,16 +352,16 @@ def update_post(request: HttpRequest, slug: str):
 @router.delete("/posts/{slug}/")
 def delete_post(request: HttpRequest, slug: str):
     attach_forced_user(request)
-    try:
-        post = _post_detail_queryset().get(slug=slug)
-    except Post.DoesNotExist:
-        return HttpResponse(status=404)
-
     if not request.user.is_authenticated:
         return json_compat_response(
             {"detail": "Authentication required."},
             status=401,
         )
+
+    try:
+        post = _post_detail_queryset().get(slug=slug)
+    except Post.DoesNotExist:
+        return HttpResponse(status=404)
 
     if not api_views.can_view_unpublished_post(request.user, post):
         return json_compat_response(
@@ -359,7 +381,9 @@ def comment_create(request: HttpRequest, slug: str):
             {"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=403
         )
 
-    data = _request_data(request)
+    data, error = _request_data_or_error(request)
+    if error is not None:
+        return error
     body = data.get("body")
     if body is not None and not isinstance(body, str):
         return json_compat_response(
@@ -381,6 +405,12 @@ def comment_create(request: HttpRequest, slug: str):
     parent_id = data.get("parent_id")
     parent = None
     if parent_id is not None:
+        try:
+            if isinstance(parent_id, bool):
+                raise TypeError
+            parent_id = int(parent_id)
+        except (TypeError, ValueError):
+            return json_compat_response({"detail": "Invalid parent_id."}, status=400)
         try:
             parent = Comment.objects.get(id=parent_id, post=post)
         except Comment.DoesNotExist:
@@ -408,7 +438,10 @@ def create_tag(request: HttpRequest):
             status=403,
         )
 
-    name = _request_data(request).get("name")
+    data, error = _request_data_or_error(request)
+    if error is not None:
+        return error
+    name = data.get("name")
     if name is not None and not isinstance(name, str):
         return json_compat_response({"detail": "name must be a string."}, status=400)
     name = (name or "").strip().lower()
@@ -441,7 +474,10 @@ def update_tag(request: HttpRequest, slug: str):
             status=403,
         )
 
-    name = _request_data(request).get("name")
+    data, error = _request_data_or_error(request)
+    if error is not None:
+        return error
+    name = data.get("name")
     if name is not None and not isinstance(name, str):
         return json_compat_response({"detail": "name must be a string."}, status=400)
     name = (name or "").strip().lower()
@@ -484,7 +520,10 @@ def comment_vote(request: HttpRequest, comment_id: int):
             {"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=403
         )
 
-    vote_type = _request_data(request).get("vote")
+    data, error = _request_data_or_error(request)
+    if error is not None:
+        return error
+    vote_type = data.get("vote")
     if vote_type not in (CommentVote.VoteType.LIKE, CommentVote.VoteType.DISLIKE):
         return json_compat_response(
             {"detail": "vote must be 'like' or 'dislike'."},
@@ -532,7 +571,10 @@ def comment_update(request: HttpRequest, comment_id: int):
             status=403,
         )
 
-    body = _request_data(request).get("body")
+    data, error = _request_data_or_error(request)
+    if error is not None:
+        return error
+    body = data.get("body")
     if body is not None and not isinstance(body, str):
         return json_compat_response(
             {"detail": "Comment body must be a string."}, status=400
