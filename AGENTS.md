@@ -154,3 +154,32 @@ All endpoints are rate-limited. Default page size: **10**.
 - Review `tests/security/SECURITY_CHECKLIST.md` before deploying.
 - CSRF token available at `GET /api/auth/csrf/` — React reads it from cookies.
 - Auth is session-based (not JWT), managed by Django sessions.
+
+---
+
+## Cursor Cloud specific instructions
+
+### Services overview
+
+| Service | Port | How to start |
+|---|---|---|
+| PostgreSQL 16 | 5432 | `sudo pg_ctlcluster 16 main start` (installed via `apt`) |
+| Django backend | 8000 | `uv run python manage.py runserver 0.0.0.0:8000` (from repo root) |
+| React frontend | 5173 | `npm run dev -- --host 0.0.0.0 --port 5173` (from `frontend/`) |
+
+### Environment files
+
+`.env.local` and `.env.testing` are gitignored and must be created manually. Reference `.env.example` for the full variable list. Key values for local dev:
+- `SECRET_KEY` — any non-empty string (e.g. `dev-secret-key-for-local-development`)
+- `DB_*` — `claude_rest_api` / `claude_rest_api` / `claude_rest_api` / `localhost` / `5432`
+- `ACCOUNT_EMAIL_VERIFICATION=none` and `FEATURE_EMAIL_VERIFICATION_ROLLOUT=false` — disables email verification so registration works without a mail server
+- `.env.testing` should also set `PASSWORD_HASHERS=django.contrib.auth.hashers.MD5PasswordHasher` for fast tests
+
+### Gotchas
+
+- The register API field is `password` (not `password1`/`password2`). Login accepts `email` (not `username`).
+- `pytest` uses SQLite in-memory by default (`DJANGO_ENV=testing`), so PostgreSQL is **not** needed for unit tests. Set `TEST_USE_POSTGRES=true` to use Postgres in tests.
+- Always run `uv run python manage.py migrate` after pulling new code — migrations may have been added.
+- `uv run` prefix is needed to use the virtualenv managed by `uv` (or activate `.venv` manually).
+- Frontend `npm ci` may warn about deprecated packages — these are safe to ignore.
+- Pre-commit hooks block direct commits to `main` and `production` branches.
