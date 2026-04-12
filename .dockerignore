@@ -1,16 +1,39 @@
-.env*
-.git
-.gitignore
-.venv
+# Vite cache (can appear at project root if Vite is misconfigured)
+.vite/
+
+# Python-generated files
 __pycache__/
-*.pyc
-node_modules/
-frontend/node_modules/
-dist/
+*.py[oc]
 build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Environment files — never commit real secrets
+.env.local
+.env.testing
+.env.production
+
+# Django
 staticfiles/
-*.log
-output.xml
+
+# Robot Framework outputs
 log.html
+output.xml
 report.html
 playwright/
+.DS_Store
+playwright-log.txt
+.ruff_cache/
+.pytest_cache/
+.coverage
+.claude
+.agents/
+skills-lock.json
+/docs/superpowers/
+/.vscode
+AGENTS.md
+results/ # Robot test results

@@ -20,18 +20,22 @@ wheels/
 # Django
 staticfiles/
 
-# Robot Framework outputs
-log.html
-output.xml
-report.html
-playwright/
 .DS_Store
-playwright-log.txt
 .ruff_cache/
 .pytest_cache/
 .coverage
-/.claude
+.claude
 .agents/
 skills-lock.json
 /docs/superpowers/
 /.vscode
+AGENTS.md
+
+# Robot Framework outputs
+results/
+browser/
+playwright-log.txt
+playwright/
+log.html
+output.xml
+report.html
