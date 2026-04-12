@@ -41,6 +41,10 @@ from ..auth.services import (
     json_compat_response,
     serialize_current_user,
 )
+from .throttling import (
+    WRITE_LOGIN_THROTTLES,
+    WRITE_RESEND_VERIFICATION_THROTTLES,
+)
 
 router = Router(tags=["Write API"])
 
@@ -66,7 +70,7 @@ def _post_detail_queryset():
     )
 
 
-@router.post("/auth/login/")
+@router.post("/auth/login/", throttle=WRITE_LOGIN_THROTTLES)
 def login(request: HttpRequest):
     attach_forced_user(request)
     data = _request_data(request)
@@ -118,9 +122,17 @@ def register(request: HttpRequest):
     email = data.get("email", "")
     username = data.get("username", "")
     password = data.get("password", "")
-    if isinstance(email, str):
-        email = email.strip().lower()
-    if not email or not username or not password:
+    if (
+        not isinstance(email, str)
+        or not isinstance(username, str)
+        or not isinstance(password, str)
+    ):
+        return json_compat_response(
+            {"detail": "email, username and password are required."},
+            status=400,
+        )
+    email = email.strip().lower()
+    if not email or not username.strip() or not password.strip():
         return json_compat_response(
             {"detail": "email, username and password are required."},
             status=400,
@@ -165,7 +177,7 @@ def register(request: HttpRequest):
     return json_compat_response(serialize_current_user(user), status=201)
 
 
-@router.post("/auth/resend-verification/")
+@router.post("/auth/resend-verification/", throttle=WRITE_RESEND_VERIFICATION_THROTTLES)
 def resend_verification(request: HttpRequest):
     attach_forced_user(request)
     if not request.user.is_authenticated:
@@ -214,19 +226,28 @@ def update_profile(request: HttpRequest):
     password_changed = False
 
     if new_username is not None:
-        new_username = new_username.strip()
-        if not new_username:
-            errors["username"] = "Username cannot be empty."
-        elif User.objects.filter(username=new_username).exclude(id=user.id).exists():
-            errors["username"] = "Username already taken."
+        if not isinstance(new_username, str):
+            errors["username"] = "Username must be a string."
         else:
-            user.username = new_username
+            new_username = new_username.strip()
+            if not new_username:
+                errors["username"] = "Username cannot be empty."
+            elif (
+                User.objects.filter(username=new_username).exclude(id=user.id).exists()
+            ):
+                errors["username"] = "Username already taken."
+            else:
+                user.username = new_username
 
     if new_password is not None:
-        if not current_password:
+        if not isinstance(new_password, str):
+            errors["new_password"] = "Password must be a string."
+        elif not current_password:
             errors["current_password"] = (
                 "Current password is required to change password."
             )
+        elif not isinstance(current_password, str):
+            errors["current_password"] = "Current password must be a string."
         elif not user.check_password(current_password):
             errors["current_password"] = "Current password is incorrect."
         else:

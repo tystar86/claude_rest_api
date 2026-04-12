@@ -1,4 +1,5 @@
 from django.urls import path
+from django.http import HttpResponseNotAllowed
 from django.views.decorators.csrf import csrf_exempt
 
 from .api import (
@@ -11,12 +12,13 @@ from .api import (
 )
 
 
-def _read_or_write(read_view, write_view):
+def _dispatch_by_method(**method_views):
     @csrf_exempt
     def view(request, *args, **kwargs):
-        if request.method == "GET":
-            return read_view(request, *args, **kwargs)
-        return write_view(request, *args, **kwargs)
+        handler = method_views.get(request.method)
+        if handler is None:
+            return HttpResponseNotAllowed(method_views.keys())
+        return handler(request, *args, **kwargs)
 
     return view
 
@@ -31,26 +33,32 @@ urlpatterns = [
     path("posts/<slug:slug>/comments/", public_write_callbacks["comment_create"]),
     path(
         "posts/",
-        _read_or_write(
-            public_read_callbacks["post_list"], public_write_callbacks["create_post"]
+        _dispatch_by_method(
+            GET=public_read_callbacks["post_list"],
+            POST=public_write_callbacks["create_post"],
         ),
     ),
     path(
         "posts/<slug:slug>/",
-        _read_or_write(
-            public_read_callbacks["post_detail"], public_write_callbacks["update_post"]
+        _dispatch_by_method(
+            GET=public_read_callbacks["post_detail"],
+            PATCH=public_write_callbacks["update_post"],
+            DELETE=public_write_callbacks["delete_post"],
         ),
     ),
     path(
         "tags/",
-        _read_or_write(
-            public_read_callbacks["tag_list"], public_write_callbacks["create_tag"]
+        _dispatch_by_method(
+            GET=public_read_callbacks["tag_list"],
+            POST=public_write_callbacks["create_tag"],
         ),
     ),
     path(
         "tags/<slug:slug>/",
-        _read_or_write(
-            public_read_callbacks["tag_detail"], public_write_callbacks["update_tag"]
+        _dispatch_by_method(
+            GET=public_read_callbacks["tag_detail"],
+            PATCH=public_write_callbacks["update_tag"],
+            DELETE=public_write_callbacks["delete_tag"],
         ),
     ),
     path("users/", public_read_callbacks["user_list"]),

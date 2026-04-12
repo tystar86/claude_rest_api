@@ -3,8 +3,15 @@
 import json
 
 import pytest
+from django.conf import settings
 from rest_framework import status
 from rest_framework.test import APIClient
+
+from blog.api import preview_write_api
+from blog.api.write.throttling import (
+    WriteLoginThrottle,
+    WriteResendVerificationThrottle,
+)
 
 
 @pytest.mark.django_db
@@ -75,3 +82,52 @@ class TestNinjaWritePreview:
         assert anon.status_code == status.HTTP_403_FORBIDDEN
         assert authed.status_code == status.HTTP_200_OK
         assert authed.data["likes"] == 1
+
+    def test_public_delete_route_dispatches_to_delete_handler(self, user, post):
+        anon_client = APIClient()
+        auth_client = APIClient()
+        auth_client.force_authenticate(user=user)
+
+        anon_resp = anon_client.delete(f"/api/posts/{post.slug}/")
+        auth_resp = auth_client.delete(f"/api/posts/{post.slug}/")
+
+        assert anon_resp.status_code != status.HTTP_404_NOT_FOUND
+        assert auth_resp.status_code != status.HTTP_404_NOT_FOUND
+
+    def test_login_route_uses_login_scope_throttle(self):
+        bound_routers = preview_write_api._get_bound_routers()
+        for bound_router in bound_routers:
+            for _, path_view in bound_router.path_operations.items():
+                for operation in path_view.operations:
+                    if operation.view_func.__name__ != "login":
+                        continue
+                    assert any(
+                        isinstance(throttle, WriteLoginThrottle)
+                        for throttle in operation.throttle_objects
+                    )
+                    assert (
+                        WriteLoginThrottle().rate
+                        == settings.API_THROTTLE_RATES["login"]
+                    )
+                    return
+        raise AssertionError("Could not find login operation in preview_write_api")
+
+    def test_resend_route_uses_resend_verification_scope_throttle(self):
+        bound_routers = preview_write_api._get_bound_routers()
+        for bound_router in bound_routers:
+            for _, path_view in bound_router.path_operations.items():
+                for operation in path_view.operations:
+                    if operation.view_func.__name__ != "resend_verification":
+                        continue
+                    assert len(operation.throttle_objects) == 1
+                    assert isinstance(
+                        operation.throttle_objects[0], WriteResendVerificationThrottle
+                    )
+                    assert (
+                        WriteResendVerificationThrottle().rate
+                        == settings.API_THROTTLE_RATES["resend_verification"]
+                    )
+                    return
+        raise AssertionError(
+            "Could not find resend_verification operation in preview_write_api"
+        )
