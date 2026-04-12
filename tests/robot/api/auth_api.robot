@@ -64,7 +64,9 @@ Current User Returns Payload When Logged In
 
 Logout Requires Authentication
     [Setup]    Create API Session
-    ${resp}=    POST On Session    api    /api/auth/logout/    expected_status=any
+    ${token}=    Get CSRF Token
+    ${headers}=    Create Dictionary    X-CSRFToken=${token}
+    ${resp}=    POST On Session    api    /api/auth/logout/    headers=${headers}    expected_status=any
     Should Be Equal As Integers    ${resp.status_code}    403
 
 Logout Succeeds When Authenticated
@@ -93,6 +95,8 @@ Register GET Returns 405
     ${resp}=    GET On Session    api    /api/auth/register/    expected_status=any
     Should Be Equal As Integers    ${resp.status_code}    405
     Should Be Equal    ${resp.json()["detail"]}    Method not allowed.
+    ${allow}=    Get From Dictionary    ${resp.headers}    Allow
+    Should Contain    ${allow}    POST
 
 Tags DELETE Without Slug Returns 405
     Login As Moderator
@@ -100,3 +104,6 @@ Tags DELETE Without Slug Returns 405
     ${headers}=    Create Dictionary    X-CSRFToken=${token}
     ${resp}=    DELETE On Session    api    /api/tags/    headers=${headers}    expected_status=any
     Should Be Equal As Integers    ${resp.status_code}    405
+    ${allow}=    Get From Dictionary    ${resp.headers}    Allow
+    Should Contain    ${allow}    GET
+    Should Contain    ${allow}    POST
