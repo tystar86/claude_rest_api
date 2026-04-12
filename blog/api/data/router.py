@@ -469,7 +469,10 @@ def update_tag(request: HttpRequest, slug: str):
 
     tag.name = name
     tag.slug = build_unique_slug(Tag, name, instance_id=tag.id)
-    tag.save()
+    try:
+        tag.save()
+    except IntegrityError:
+        return json_compat_response({"detail": "Tag name already exists."}, status=400)
     return json_compat_response(dict(TagSerializer(tag).data))
 
 
@@ -529,6 +532,7 @@ def user_detail(request: HttpRequest, username: str):
 
     posts_qs = (
         Post.objects.filter(author=user, status=Post.Status.PUBLISHED)
+        .select_related("author")
         .prefetch_related("tags")
         .order_by("-created_at")
     )

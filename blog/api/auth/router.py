@@ -315,7 +315,13 @@ def update_profile(request: HttpRequest):
     if errors:
         return json_compat_response(errors, status=400)
 
-    user.save()
+    try:
+        user.save()
+    except IntegrityError:
+        return json_compat_response(
+            {"username": "Username already taken."},
+            status=400,
+        )
     if password_changed:
         update_session_auth_hash(request, user)
 
