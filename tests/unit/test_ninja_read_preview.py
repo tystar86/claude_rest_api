@@ -3,8 +3,7 @@
 import json
 
 import pytest
-from rest_framework.test import APIClient
-from rest_framework import status
+from django.test import Client
 
 from blog.models import Comment, Post
 
@@ -15,32 +14,34 @@ class TestNinjaReadPreview:
 
     def test_openapi_json_is_available(self, api_client):
         resp = api_client.get("/api/_ninja/read/openapi.json")
-        assert resp.status_code == status.HTTP_200_OK
+        assert resp.status_code == 200
         assert json.loads(resp.content)["openapi"] == "3.1.0"
 
     def test_dashboard_returns_expected_sections(self, api_client):
         resp = api_client.get("/api/_ninja/read/dashboard/")
-        assert resp.status_code == status.HTTP_200_OK
-        assert "stats" in resp.data
-        assert "latest_posts" in resp.data
-        assert "most_used_tags" in resp.data
+        data = resp.json()
+        assert resp.status_code == 200
+        assert "stats" in data
+        assert "latest_posts" in data
+        assert "most_used_tags" in data
 
     def test_post_list_is_paginated(self, api_client, post):
         resp = api_client.get("/api/_ninja/read/posts/")
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["count"] >= 1
-        assert "results" in resp.data
+        data = resp.json()
+        assert resp.status_code == 200
+        assert data["count"] >= 1
+        assert "results" in data
 
     def test_post_detail_honors_draft_visibility(self, api_client, user, draft_post):
-        owner_client = APIClient()
-        owner_client.force_authenticate(user=user)
+        owner_client = Client()
+        owner_client.force_login(user)
 
         anon = api_client.get(f"/api/_ninja/read/posts/{draft_post.slug}/")
         owner = owner_client.get(f"/api/_ninja/read/posts/{draft_post.slug}/")
 
-        assert anon.status_code == status.HTTP_404_NOT_FOUND
-        assert owner.status_code == status.HTTP_200_OK
-        assert owner.data["slug"] == draft_post.slug
+        assert anon.status_code == 404
+        assert owner.status_code == 200
+        assert owner.json()["slug"] == draft_post.slug
 
     def test_comment_list_excludes_draft_post_comments(self, api_client, user):
         draft = Post.objects.create(
@@ -71,8 +72,9 @@ class TestNinjaReadPreview:
         )
 
         resp = api_client.get("/api/_ninja/read/comments/")
-        assert resp.status_code == status.HTTP_200_OK
-        slugs = [item["post_slug"] for item in resp.data["results"]]
+        results = resp.json()["results"]
+        assert resp.status_code == 200
+        slugs = [item["post_slug"] for item in results]
         assert published.slug in slugs, "approved comment on published post must appear"
         assert draft.slug not in slugs, "comment on draft post must be excluded"
 
@@ -83,17 +85,18 @@ class TestNinjaReadPreview:
             f"/api/_ninja/read/users/{post.author.username}/comments/"
         )
 
-        assert list_resp.status_code == status.HTTP_200_OK
-        assert detail_resp.status_code == status.HTTP_200_OK
-        assert comments_resp.status_code == status.HTTP_200_OK
-        assert detail_resp.data["user"]["username"] == post.author.username
+        assert list_resp.status_code == 200
+        assert detail_resp.status_code == 200
+        assert comments_resp.status_code == 200
+        assert detail_resp.json()["user"]["username"] == post.author.username
         assert all(
-            item["author"] == str(post.author) for item in comments_resp.data["results"]
+            item["author"] == str(post.author)
+            for item in comments_resp.json()["results"]
         )
 
     def test_missing_user_routes_return_404(self, api_client):
         detail_resp = api_client.get("/api/_ninja/read/users/no-such-user/")
         comments_resp = api_client.get("/api/_ninja/read/users/no-such-user/comments/")
 
-        assert detail_resp.status_code == status.HTTP_404_NOT_FOUND
-        assert comments_resp.status_code == status.HTTP_404_NOT_FOUND
+        assert detail_resp.status_code == 404
+        assert comments_resp.status_code == 404

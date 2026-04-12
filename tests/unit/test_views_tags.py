@@ -2,7 +2,6 @@
 
 import pytest
 from django.contrib.auth.models import User
-from rest_framework import status
 
 from accounts.models import Profile
 from blog.models import Post, Tag
@@ -18,61 +17,75 @@ class TestTagList:
     def test_list_tags_returns_200_for_anonymous(self, api_client, tag):
         """Anyone can list tags."""
         resp = api_client.get("/api/tags/")
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["count"] >= 1
+        assert resp.status_code == 200
+        assert resp.json()["count"] >= 1
 
     def test_list_response_is_paginated(self, api_client):
         """Response contains pagination metadata."""
-        resp = api_client.get("/api/tags/")
-        assert "count" in resp.data
-        assert "total_pages" in resp.data
-        assert "results" in resp.data
+        data = api_client.get("/api/tags/").json()
+        assert "count" in data
+        assert "total_pages" in data
+        assert "results" in data
 
     def test_moderator_can_create_tag(self, mod_client):
         """A moderator can create a new tag."""
-        resp = mod_client.post("/api/tags/", {"name": "Django"}, format="json")
-        assert resp.status_code == status.HTTP_201_CREATED
-        assert resp.data["name"] == "django"
+        resp = mod_client.post(
+            "/api/tags/", {"name": "Django"}, content_type="application/json"
+        )
+        assert resp.status_code == 201
+        assert resp.json()["name"] == "django"
 
     def test_admin_can_create_tag(self, admin_client):
         """An admin can create a new tag."""
-        resp = admin_client.post("/api/tags/", {"name": "Flask"}, format="json")
-        assert resp.status_code == status.HTTP_201_CREATED
+        resp = admin_client.post(
+            "/api/tags/", {"name": "Flask"}, content_type="application/json"
+        )
+        assert resp.status_code == 201
 
     def test_regular_user_cannot_create_tag(self, auth_client):
         """A regular user is forbidden from creating tags."""
-        resp = auth_client.post("/api/tags/", {"name": "Python"}, format="json")
-        assert resp.status_code == status.HTTP_403_FORBIDDEN
+        resp = auth_client.post(
+            "/api/tags/", {"name": "Python"}, content_type="application/json"
+        )
+        assert resp.status_code == 403
 
     def test_unauthenticated_cannot_create_tag(self, api_client):
         """An anonymous user must authenticate before creating tags."""
-        resp = api_client.post("/api/tags/", {"name": "Django"}, format="json")
-        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+        resp = api_client.post(
+            "/api/tags/", {"name": "Django"}, content_type="application/json"
+        )
+        assert resp.status_code == 401
 
     def test_duplicate_tag_name_returns_400(self, mod_client, db):
         """Creating a tag with a name that already exists returns 400."""
         Tag.objects.create(name="django", slug="django")
-        resp = mod_client.post("/api/tags/", {"name": "Django"}, format="json")
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        assert resp.data["detail"] == "Tag name already exists."
+        resp = mod_client.post(
+            "/api/tags/", {"name": "Django"}, content_type="application/json"
+        )
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Tag name already exists."
 
     def test_empty_name_returns_400(self, mod_client):
         """An empty tag name is rejected."""
-        resp = mod_client.post("/api/tags/", {"name": ""}, format="json")
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        resp = mod_client.post(
+            "/api/tags/", {"name": ""}, content_type="application/json"
+        )
+        assert resp.status_code == 400
 
     def test_non_string_name_returns_400(self, mod_client):
         """Structured payloads are rejected cleanly."""
-        resp = mod_client.post("/api/tags/", {"name": {"$ne": ""}}, format="json")
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        resp = mod_client.post(
+            "/api/tags/", {"name": {"$ne": ""}}, content_type="application/json"
+        )
+        assert resp.status_code == 400
 
     def test_create_generates_slug(self, mod_client):
         """A created tag receives an auto-generated slug."""
         resp = mod_client.post(
-            "/api/tags/", {"name": "Machine Learning"}, format="json"
+            "/api/tags/", {"name": "Machine Learning"}, content_type="application/json"
         )
-        assert resp.status_code == status.HTTP_201_CREATED
-        assert resp.data["slug"] == "machine-learning"
+        assert resp.status_code == 201
+        assert resp.json()["slug"] == "machine-learning"
 
 
 # ── Tag Detail ─────────────────────────────────────────────────────────────────
@@ -85,13 +98,13 @@ class TestTagDetail:
     def test_get_tag_returns_200(self, api_client, tag):
         """Anyone can retrieve a tag by slug."""
         resp = api_client.get(f"/api/tags/{tag.slug}/")
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["tag"]["slug"] == tag.slug
+        assert resp.status_code == 200
+        assert resp.json()["tag"]["slug"] == tag.slug
 
     def test_get_tag_includes_posts(self, api_client, tag):
         """Tag detail response includes a posts list."""
         resp = api_client.get(f"/api/tags/{tag.slug}/")
-        assert "results" in resp.data
+        assert "results" in resp.json()
 
     def test_tag_detail_post_count_only_counts_published_posts(
         self, api_client, tag, user
@@ -115,47 +128,53 @@ class TestTagDetail:
         draft_post.tags.add(tag)
 
         resp = api_client.get(f"/api/tags/{tag.slug}/")
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["tag"]["post_count"] == 1
+        assert resp.status_code == 200
+        assert resp.json()["tag"]["post_count"] == 1
 
     def test_get_nonexistent_tag_returns_404(self, api_client):
         """A missing tag slug returns 404."""
         resp = api_client.get("/api/tags/no-such-tag/")
-        assert resp.status_code == status.HTTP_404_NOT_FOUND
+        assert resp.status_code == 404
 
     def test_moderator_can_update_tag(self, mod_client, tag):
         """A moderator can rename a tag."""
         resp = mod_client.patch(
-            f"/api/tags/{tag.slug}/", {"name": "updated python"}, format="json"
+            f"/api/tags/{tag.slug}/",
+            {"name": "updated python"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["name"] == "updated python"
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "updated python"
 
     def test_regular_user_cannot_update_tag(self, auth_client, tag):
         """A regular user is forbidden from updating tags."""
         resp = auth_client.patch(
-            f"/api/tags/{tag.slug}/", {"name": "Hack"}, format="json"
+            f"/api/tags/{tag.slug}/",
+            {"name": "Hack"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_403_FORBIDDEN
+        assert resp.status_code == 403
 
     def test_update_duplicate_name_returns_400(self, mod_client, tag, db):
         """Renaming a tag to an existing name is rejected."""
         Tag.objects.create(name="django", slug="django")
         resp = mod_client.patch(
-            f"/api/tags/{tag.slug}/", {"name": "Django"}, format="json"
+            f"/api/tags/{tag.slug}/",
+            {"name": "Django"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.status_code == 400
 
     def test_moderator_can_delete_tag(self, mod_client, tag):
         """A moderator can delete a tag."""
         resp = mod_client.delete(f"/api/tags/{tag.slug}/")
-        assert resp.status_code == status.HTTP_204_NO_CONTENT
+        assert resp.status_code == 204
         assert not Tag.objects.filter(slug=tag.slug).exists()
 
     def test_regular_user_cannot_delete_tag(self, auth_client, tag):
         """A regular user is forbidden from deleting tags."""
         resp = auth_client.delete(f"/api/tags/{tag.slug}/")
-        assert resp.status_code == status.HTTP_403_FORBIDDEN
+        assert resp.status_code == 403
 
 
 # ── Tag lowercase normalisation ────────────────────────────────────────────────
@@ -167,59 +186,75 @@ class TestTagLowercaseNormalisation:
 
     def test_uppercase_input_stored_as_lowercase_on_create(self, mod_client):
         """Uppercase name is normalised to lowercase when created."""
-        resp = mod_client.post("/api/tags/", {"name": "FASTAPI"}, format="json")
-        assert resp.status_code == status.HTTP_201_CREATED
-        assert resp.data["name"] == "fastapi"
+        resp = mod_client.post(
+            "/api/tags/", {"name": "FASTAPI"}, content_type="application/json"
+        )
+        assert resp.status_code == 201
+        assert resp.json()["name"] == "fastapi"
         assert Tag.objects.filter(name="fastapi").exists()
 
     def test_mixed_case_input_stored_as_lowercase_on_create(self, mod_client):
         """Mixed-case name is normalised to lowercase when created."""
-        resp = mod_client.post("/api/tags/", {"name": "CelEry"}, format="json")
-        assert resp.status_code == status.HTTP_201_CREATED
-        assert resp.data["name"] == "celery"
+        resp = mod_client.post(
+            "/api/tags/", {"name": "CelEry"}, content_type="application/json"
+        )
+        assert resp.status_code == 201
+        assert resp.json()["name"] == "celery"
 
     def test_already_lowercase_input_unchanged_on_create(self, mod_client):
         """Lowercase input passes through unchanged."""
-        resp = mod_client.post("/api/tags/", {"name": "redis"}, format="json")
-        assert resp.status_code == status.HTTP_201_CREATED
-        assert resp.data["name"] == "redis"
+        resp = mod_client.post(
+            "/api/tags/", {"name": "redis"}, content_type="application/json"
+        )
+        assert resp.status_code == 201
+        assert resp.json()["name"] == "redis"
 
     def test_uppercase_input_stored_as_lowercase_on_update(self, mod_client, tag):
         """Uppercase name is normalised to lowercase on update."""
         resp = mod_client.patch(
-            f"/api/tags/{tag.slug}/", {"name": "PYTHON"}, format="json"
+            f"/api/tags/{tag.slug}/",
+            {"name": "PYTHON"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["name"] == "python"
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "python"
 
     def test_mixed_case_input_stored_as_lowercase_on_update(self, mod_client, tag):
         """Mixed-case name is normalised to lowercase on update."""
         resp = mod_client.patch(
-            f"/api/tags/{tag.slug}/", {"name": "PyThOn TipS"}, format="json"
+            f"/api/tags/{tag.slug}/",
+            {"name": "PyThOn TipS"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["name"] == "python tips"
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "python tips"
 
     def test_duplicate_check_is_case_insensitive_on_create(self, mod_client, db):
         """Creating 'DJANGO' is rejected when 'django' already exists."""
         Tag.objects.create(name="django", slug="django")
-        resp = mod_client.post("/api/tags/", {"name": "DJANGO"}, format="json")
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        assert resp.data["detail"] == "Tag name already exists."
+        resp = mod_client.post(
+            "/api/tags/", {"name": "DJANGO"}, content_type="application/json"
+        )
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Tag name already exists."
 
     def test_duplicate_check_is_case_insensitive_on_update(self, mod_client, tag, db):
         """Renaming to 'DJANGO' is rejected when 'django' already exists."""
         Tag.objects.create(name="django", slug="django")
         resp = mod_client.patch(
-            f"/api/tags/{tag.slug}/", {"name": "DJANGO"}, format="json"
+            f"/api/tags/{tag.slug}/",
+            {"name": "DJANGO"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.status_code == 400
 
     def test_whitespace_is_stripped_before_normalisation(self, mod_client):
         """Leading/trailing whitespace is stripped before lowercasing."""
-        resp = mod_client.post("/api/tags/", {"name": "  Pytest  "}, format="json")
-        assert resp.status_code == status.HTTP_201_CREATED
-        assert resp.data["name"] == "pytest"
+        resp = mod_client.post(
+            "/api/tags/", {"name": "  Pytest  "}, content_type="application/json"
+        )
+        assert resp.status_code == 201
+        assert resp.json()["name"] == "pytest"
 
 
 # ── can_manage_tags in user serializer ────────────────────────────────────────
@@ -232,7 +267,7 @@ class TestCanManageTagsSerializerField:
     def _get_user_data(self, client):
         resp = client.get("/api/auth/user/")
         assert resp.status_code == 200
-        return resp.data
+        return resp.json()
 
     def test_regular_user_cannot_manage_tags(self, auth_client):
         """Regular user has can_manage_tags=False."""
@@ -257,7 +292,7 @@ class TestCanManageTagsSerializerField:
             password="pass",  # noqa: S106
         )
         Profile.objects.get_or_create(user=su)
-        api_client.force_authenticate(user=su)
+        api_client.force_login(su)
         data = self._get_user_data(api_client)
         assert data["can_manage_tags"] is True
 
@@ -270,6 +305,6 @@ class TestCanManageTagsSerializerField:
             is_staff=True,
         )
         Profile.objects.get_or_create(user=staff)
-        api_client.force_authenticate(user=staff)
+        api_client.force_login(staff)
         data = self._get_user_data(api_client)
         assert data["can_manage_tags"] is True
