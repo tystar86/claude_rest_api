@@ -7,17 +7,6 @@ const api = axios.create({
   withCredentials: true,
 });
 
-/** Django host (no `/api`) for django-allauth `/accounts/...` links */
-function backendOrigin() {
-  try {
-    return new URL(apiBaseURL).origin;
-  } catch {
-    return "http://localhost:8000";
-  }
-}
-
-export const GOOGLE_LOGIN_URL = `${backendOrigin()}/accounts/google/login/`;
-
 function getCookie(name) {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
@@ -70,8 +59,6 @@ export const updateComment = (commentId, body) =>
   api.patch(`/comments/${commentId}/`, { body }).then((r) => r.data);
 export const deleteComment = (commentId) =>
   api.delete(`/comments/${commentId}/`).then((r) => r.data);
-
-export const resendVerification = (email) => api.post("/auth/resend-verification/", { email }).then((r) => r.data);
 
 export const fetchCsrf = () => api.get("/auth/csrf/").then((r) => r.data);
 

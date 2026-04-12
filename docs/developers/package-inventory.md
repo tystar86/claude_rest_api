@@ -14,7 +14,6 @@ Observed usage levels:
 | --- | --- | --- | --- |
 | `dj-database-url` | Builds Django DB settings from environment variables | `config/settings.py` | Active |
 | `django` | Core backend framework | `manage.py`, `config/`, `blog/`, `accounts/`, tests | Active |
-| `django-allauth[socialaccount]` | Session auth helpers, email verification, and Google OAuth | `config/settings.py`, `config/urls.py`, `blog/api_views.py`, `blog/management/commands/backfill_email_verification.py`, `accounts/migrations/0003_enforce_sites_dependency.py` | Active |
 | `django-anymail` | Mailgun-backed production email sending | `config/settings.py`, `.env.production.example` | Active |
 | `django-cors-headers` | CORS middleware and settings | `config/settings.py` | Active |
 | `djangorestframework` | API views, serializers, authentication, permissions, throttling, test client | `blog/api_views.py`, `blog/serializers.py`, `blog/throttles.py`, `conftest.py`, `tests/unit/` | Active |
@@ -74,11 +73,6 @@ Observed usage levels:
 Removed from direct dependencies during cleanup:
 
 - `pillow`
-- `pyjwt`
-- `cryptography`
-
-Still present transitively through `django-allauth[socialaccount]` in the lockfile:
-
 - `pyjwt`
 - `cryptography`
 

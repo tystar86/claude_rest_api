@@ -125,11 +125,7 @@ class TestNinjaWrite:
     def test_login_route_rate_limits_with_low_scope_rate(self):
         assert main_api.urls_namespace == "blog_api"
         base_rates = dict(settings.API_THROTTLE_RATES)
-        low_rates = {
-            **base_rates,
-            "login": "1/min",
-            "resend_verification": "1/min",
-        }
+        low_rates = {**base_rates, "login": "1/min"}
 
         with override_settings(
             API_THROTTLE_RATES=low_rates,
@@ -161,40 +157,4 @@ class TestNinjaWrite:
             cache.clear()
 
         assert first.status_code == 400
-        assert second.status_code == 429
-
-    def test_resend_route_rate_limits_with_low_scope_rate(self, user):
-        assert main_api.urls_namespace == "blog_api"
-        base_rates = dict(settings.API_THROTTLE_RATES)
-        low_rates = {
-            **base_rates,
-            "login": "1/min",
-            "resend_verification": "1/min",
-        }
-
-        with override_settings(
-            API_THROTTLE_RATES=low_rates,
-            NINJA_DEFAULT_THROTTLE_RATES=low_rates,
-            EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
-            CACHES={
-                "default": {
-                    "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-                    "LOCATION": "test-ninja-write-resend-throttle",
-                }
-            },
-        ):
-            assert settings.API_THROTTLE_RATES["resend_verification"] == "1/min"
-            cache.clear()
-            throttle = api_throttling.RESEND_VERIFICATION_THROTTLES[0]
-            with _temporary_throttle_rate(
-                throttle,
-                settings.API_THROTTLE_RATES["resend_verification"],
-            ):
-                client = Client()
-                client.force_login(user)
-                first = client.post("/api/auth/resend-verification/")
-                second = client.post("/api/auth/resend-verification/")
-            cache.clear()
-
-        assert first.status_code == 200
         assert second.status_code == 429

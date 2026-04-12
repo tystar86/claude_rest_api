@@ -1,16 +1,12 @@
 """Unit tests for authentication API endpoints."""
 
 import io
-import smtplib
 from unittest.mock import patch
 
 import pytest
-from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
 from django.db import IntegrityError, connection
-from django.test import Client, override_settings
-
-GENERIC_RESEND_DETAIL = "Verification email sent. Please check your inbox."
+from django.test import Client
 
 
 # ── CSRF ───────────────────────────────────────────────────────────────────────
@@ -233,142 +229,6 @@ class TestLoginView:
         assert resp.status_code == 200
         assert resp.json()["username"] == "testuser"
 
-    @override_settings(
-        ACCOUNT_EMAIL_VERIFICATION="mandatory",
-        FEATURE_EMAIL_VERIFICATION_ROLLOUT=True,
-    )
-    def test_unverified_login_returns_403_when_verification_is_mandatory(
-        self, api_client, user
-    ):
-        """Unverified users are blocked when the rollout is active."""
-        resp = api_client.post(
-            "/api/auth/login/",
-            {"email": "test@example.com", "password": "testpass123"},
-            content_type="application/json",
-        )
-        assert resp.status_code == 403
-        assert resp.json()["code"] == "email_not_verified"
-
-    @override_settings(
-        ACCOUNT_EMAIL_VERIFICATION="mandatory",
-        FEATURE_EMAIL_VERIFICATION_ROLLOUT=False,
-    )
-    def test_unverified_login_allowed_when_rollout_is_disabled(self, api_client, user):
-        """Existing users can still log in while rollout is disabled."""
-        resp = api_client.post(
-            "/api/auth/login/",
-            {"email": "test@example.com", "password": "testpass123"},
-            content_type="application/json",
-        )
-        assert resp.status_code == 200
-        assert resp.json()["username"] == "testuser"
-
-
-@pytest.mark.django_db
-class TestEmailVerificationFlow:
-    """Tests for mandatory verification-specific auth behavior."""
-
-    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
-    def test_registration_returns_verification_message_when_mandatory(self, api_client):
-        """Mandatory verification registration should not return authenticated user data."""
-        resp = api_client.post(
-            "/api/auth/register/",
-            {
-                "email": "verify@example.com",
-                "username": "verifyuser",
-                "password": "newpass123",
-            },
-            content_type="application/json",
-        )
-        assert resp.status_code == 201
-        assert "detail" in resp.json()
-        assert "username" not in resp.json()
-        assert resp.json()["code"] == "verification_pending"
-
-    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
-    def test_resend_verification_anonymous_without_email_returns_200(self, api_client):
-        """Anonymous resend without email returns 200 (no user enumeration)."""
-        resp = api_client.post(
-            "/api/auth/resend-verification/", content_type="application/json"
-        )
-        assert resp.status_code == 200
-        assert "verification email sent" in resp.json()["detail"].lower()
-
-    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
-    def test_resend_verification_anonymous_with_unknown_email_returns_200(
-        self, api_client
-    ):
-        """Anonymous resend with unknown email returns 200 (no enumeration)."""
-        resp = api_client.post(
-            "/api/auth/resend-verification/",
-            {"email": "nobody@example.com"},
-            content_type="application/json",
-        )
-        assert resp.status_code == 200
-        assert resp.json()["detail"] == GENERIC_RESEND_DETAIL
-
-    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
-    def test_resend_verification_anonymous_with_valid_email_returns_200(
-        self, api_client, user
-    ):
-        """Anonymous resend with valid unverified email sends verification."""
-        resp = api_client.post(
-            "/api/auth/resend-verification/",
-            {"email": user.email},
-            content_type="application/json",
-        )
-        assert resp.status_code == 200
-        assert "verification email sent" in resp.json()["detail"].lower()
-
-    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
-    def test_resend_verification_anonymous_with_non_string_email_returns_200(
-        self, api_client
-    ):
-        """Non-string email payloads do not hit ORM and still return uniform 200."""
-        resp = api_client.post(
-            "/api/auth/resend-verification/",
-            {"email": [1]},
-            content_type="application/json",
-        )
-        assert resp.status_code == 200
-        assert "verification email sent" in resp.json()["detail"].lower()
-
-    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
-    def test_resend_verification_returns_200_for_verified_user(self, auth_client, user):
-        """Already-verified users get the same 200 response (no enumeration)."""
-        EmailAddress.objects.create(
-            user=user,
-            email=user.email,
-            verified=True,
-            primary=True,
-        )
-        resp = auth_client.post("/api/auth/resend-verification/")
-        assert resp.status_code == 200
-        assert resp.json()["detail"] == GENERIC_RESEND_DETAIL
-
-    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
-    def test_resend_verification_succeeds_for_unverified_user(self, auth_client):
-        """Authenticated unverified users can request another verification email."""
-        resp = auth_client.post("/api/auth/resend-verification/")
-        assert resp.status_code == 200
-
-    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
-    def test_resend_verification_hides_smtp_failure_for_anonymous_known_email(
-        self, api_client, user
-    ):
-        """SMTP failures still return 200 to avoid leaking valid unverified accounts."""
-        with patch(
-            "blog.api.auth.router.send_verification_email_for_user",
-            side_effect=smtplib.SMTPException("mail transport unavailable"),
-        ):
-            resp = api_client.post(
-                "/api/auth/resend-verification/",
-                {"email": user.email},
-                content_type="application/json",
-            )
-        assert resp.status_code == 200
-        assert "verification email sent" in resp.json()["detail"].lower()
-
 
 # ── Logout ─────────────────────────────────────────────────────────────────────
 
@@ -497,111 +357,46 @@ class TestUpdateProfileView:
         assert resp.json()["new_password"] == "Password must be a string."
 
 
-# ── Google OAuth ────────────────────────────────────────────────────────────────
-
-
-def _make_social_request():
-    """Build a minimal request with session for use with complete_social_login."""
-    from importlib import import_module
-
-    from django.contrib.auth.models import AnonymousUser
-    from django.conf import settings
-    from django.test import RequestFactory
-
-    factory = RequestFactory()
-    request = factory.get("/accounts/google/login/callback/")
-    SessionStore = import_module(settings.SESSION_ENGINE).SessionStore
-    request.session = SessionStore()
-    request.session.save()
-    request.user = AnonymousUser()
-    return request
+# ── User profile signal + session auth ─────────────────────────────────────────
 
 
 @pytest.mark.django_db
-class TestGoogleOAuth:
-    """Tests for Google OAuth login flow and social account integration."""
+class TestUserProfileAndSessionAuth:
+    """Regression tests formerly grouped with OAuth-specific cases."""
 
-    # ── Redirect ────────────────────────────────────────────────────────────
-
-    def test_google_login_endpoint_redirects(self, client):
-        """POST /accounts/google/login/ triggers the OAuth redirect flow (302).
-        SOCIALACCOUNT_LOGIN_ON_GET=False means GET returns a confirmation form (200);
-        a POST is required to initiate the redirect.
-        """
-        resp = client.post("/accounts/google/login/")
-        assert resp.status_code == 302
-
-    def test_google_login_redirect_targets_google(self, client):
-        """The POST redirect URL points to accounts.google.com."""
-        resp = client.post("/accounts/google/login/")
-        location = resp.headers.get("Location", "")
-        assert "accounts.google.com" in location
-
-    # ── User & Profile creation ─────────────────────────────────────────────
-
-    def test_social_user_gets_profile_via_signal(self, db):
-        """A user created in any way (including via social login) auto-receives a Profile from signals."""
+    def test_new_user_gets_profile_via_signal(self, db):
+        """Saving a new User creates a Profile via accounts.signals."""
         from accounts.models import Profile
 
-        u = User.objects.create_user(username="g_newuser", email="g_new@example.com")
+        u = User.objects.create_user(
+            username="prof_user",
+            email="prof@example.com",
+            password="pass12345",
+        )
         assert Profile.objects.filter(user=u).exists()
 
-    def test_social_account_is_linked_to_user(self, db):
-        """A SocialAccount ties a Google uid to a specific User."""
-        from allauth.socialaccount.models import SocialAccount
-
-        u = User.objects.create_user(username="g_linked", email="g_linked@example.com")
-        sa = SocialAccount.objects.create(
-            user=u,
-            provider="google",
-            uid="google-uid-002",
-            extra_data={"sub": "google-uid-002", "email": "g_linked@example.com"},
-        )
-        assert SocialAccount.objects.filter(
-            user=u, provider="google", uid="google-uid-002"
-        ).exists()
-        assert sa.user == u
-
-    def test_social_account_uid_is_unique_per_provider(self, db):
-        """The same Google uid cannot be assigned to two different users."""
-        from allauth.socialaccount.models import SocialAccount
-
-        u1 = User.objects.create_user(username="g_user1", email="g1@example.com")
-        u2 = User.objects.create_user(username="g_user2", email="g2@example.com")
-        SocialAccount.objects.create(
-            user=u1, provider="google", uid="google-uid-003", extra_data={}
-        )
-        with pytest.raises(IntegrityError):
-            SocialAccount.objects.create(
-                user=u2, provider="google", uid="google-uid-003", extra_data={}
-            )
-
-    # ── API access for social users ─────────────────────────────────────────
-
-    def test_social_user_can_access_current_user_endpoint(self, db):
-        """A user created via social login can access /api/auth/user/ when authenticated."""
+    def test_force_login_user_can_access_current_user_endpoint(self, db):
+        """An authenticated user can read GET /api/auth/user/."""
         from accounts.models import Profile
 
-        social_user = User.objects.create_user(
-            username="g_apiuser",
-            email="g_api@example.com",
-            password=None,
+        u = User.objects.create_user(
+            username="api_user",
+            email="api@example.com",
+            password="pass12345",
         )
-        Profile.objects.get_or_create(user=social_user)
+        Profile.objects.get_or_create(user=u)
 
         client = Client()
-        client.force_login(social_user)
+        client.force_login(u)
         resp = client.get("/api/auth/user/")
         assert resp.status_code == 200
-        assert resp.json()["email"] == "g_api@example.com"
+        assert resp.json()["email"] == "api@example.com"
 
-    def test_social_user_without_auth_cannot_access_user_endpoint(self, db):
-        """An unauthenticated request is still rejected even for OAuth-created accounts."""
+    def test_unauthenticated_cannot_access_user_endpoint(self, db):
+        """GET /api/auth/user/ without a session returns 403."""
         client = Client()
         resp = client.get("/api/auth/user/")
         assert resp.status_code == 403
-
-    # ── ensure_sites_migrations command ────────────────────────────────────
 
     @pytest.mark.skipif(
         connection.vendor != "postgresql",

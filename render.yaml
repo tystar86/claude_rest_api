@@ -31,11 +31,6 @@ services:
         value: "https://claude-rest-api.vercel.app"
       - key: CSRF_TRUSTED_ORIGINS
         value: "https://claude-rest-api.vercel.app"
-      - key: LOGIN_REDIRECT_URL
-        value: "https://claude-rest-api.vercel.app/dashboard"
-      - key: LOGOUT_REDIRECT_URL
-        value: "https://claude-rest-api.vercel.app/dashboard"
-
       # Security
       - key: SECURE_SSL_REDIRECT
         value: "True"
@@ -50,16 +45,6 @@ services:
       - key: CSRF_COOKIE_SECURE
         value: "True"
 
-      - key: ACCOUNT_DEFAULT_HTTP_PROTOCOL
-        value: "https"
-      - key: SITE_DOMAIN
-        value: "claude-rest-api.onrender.com"
-
-      # Google OAuth (optional)
-      - key: GOOGLE_CLIENT_ID
-        sync: false
-      - key: GOOGLE_CLIENT_SECRET
-        sync: false
       - key: SESSION_COOKIE_SAMESITE
         value: None
       - key: CSRF_COOKIE_SAMESITE
