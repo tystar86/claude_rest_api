@@ -49,6 +49,19 @@ _MAIL_SEND_ERRORS = (
 )
 
 
+def _try_send_verification_email(request: HttpRequest, user: User) -> bool:
+    """Send verification email; log and return False on SMTP-level failures."""
+    try:
+        send_verification_email_for_user(request, user)
+    except _MAIL_SEND_ERRORS:
+        api_views.security_log.exception(
+            "Failed to resend verification email for user_id=%s",
+            user.pk,
+        )
+        return False
+    return True
+
+
 # ── Public auth (GET /csrf/ sets cookie; POST login/register require CSRF) ────
 
 
@@ -143,7 +156,8 @@ def register(request: HttpRequest):
 
     try:
         with transaction.atomic():
-            validate_password(password, user=None)
+            candidate_user = User(username=username, email=email)
+            validate_password(password, candidate_user)
             user = User.objects.create_user(
                 username=username,
                 email=email,
@@ -208,29 +222,13 @@ def resend_verification(request: HttpRequest):
         return success_response
 
     setup_user_email(request, user, [])
-    if is_anonymous_request:
-        try:
-            send_verification_email_for_user(request, user)
-        except _MAIL_SEND_ERRORS:
-            api_views.security_log.exception(
-                "Failed to resend verification email for user_id=%s",
-                user.pk,
-            )
+    if not _try_send_verification_email(request, user):
+        if is_anonymous_request:
             return success_response
-    else:
-        try:
-            send_verification_email_for_user(request, user)
-        except _MAIL_SEND_ERRORS:
-            api_views.security_log.exception(
-                "Failed to resend verification email for user_id=%s",
-                user.pk,
-            )
-            return json_compat_response(
-                {
-                    "detail": "Failed to send verification email. Please try again later."
-                },
-                status=500,
-            )
+        return json_compat_response(
+            {"detail": "Failed to send verification email. Please try again later."},
+            status=500,
+        )
 
     return success_response
 

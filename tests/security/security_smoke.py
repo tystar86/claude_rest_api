@@ -128,7 +128,7 @@ def check_oversized_payload_rejected(base_url: str) -> CheckResult:
         if csrf_r.status_code == 200:
             try:
                 token = csrf_r.json().get("csrfToken", "")
-            except Exception:
+            except json.JSONDecodeError:
                 token = ""
             if token:
                 csrf_headers["X-CSRFToken"] = token
