@@ -275,7 +275,7 @@ export default function PostDetail() {
         setAllTags(results);
       })
       .catch(() => setTagsError("Failed to load tags."));
-  }, [editingPost]);
+  }, [editingPost, allTags.length]);
 
   useEffect(() => {
     if (!post) return;

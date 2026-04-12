@@ -7,12 +7,14 @@
  * that causes side-effects in the jsdom test environment.
  */
 import { readFileSync } from "fs";
-import { resolve } from "path";
+import { dirname, resolve } from "path";
+import { fileURLToPath } from "url";
 import { describe, expect, it } from "vitest";
 import * as mockClient from "./mocks/client";
 
+const thisDir = dirname(fileURLToPath(import.meta.url));
 const clientSource = readFileSync(
-  resolve(__dirname, "../api/client.js"),
+  resolve(thisDir, "../api/client.js"),
   "utf-8",
 );
 
