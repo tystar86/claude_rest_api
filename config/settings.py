@@ -38,9 +38,7 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.sites",
     "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
-    "rest_framework",
     "corsheaders",
-    "anymail",
     # "silk",  # Uncomment to enable django-silk query profiler (dev only)
     # local
     "blog",
@@ -212,9 +210,7 @@ API_THROTTLE_RATES: dict[str, str] = {
 # Django Ninja reads this alias via ninja.conf.settings.DEFAULT_THROTTLE_RATES
 NINJA_DEFAULT_THROTTLE_RATES: dict[str, str | None] = API_THROTTLE_RATES
 
-# `rest_framework` stays in INSTALLED_APPS for `blog/serializers.py` (ModelSerializer).
 # HTTP APIs are Django Ninja; throttling is configured via NINJA_DEFAULT_THROTTLE_RATES above.
-REST_FRAMEWORK: dict[str, Any] = {}
 
 # CORS
 CORS_ALLOWED_ORIGINS: list[str] = [
@@ -272,11 +268,10 @@ LOGGING: dict[str, Any] = {
     },
 }
 
-
-# Email — console backend locally, Mailgun via anymail in production
-EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@yourdomain.com")
-ANYMAIL: dict[str, Any] = {
-    "MAILGUN_API_KEY": os.environ.get("MAILGUN_API_KEY", ""),
-    "MAILGUN_SENDER_DOMAIN": os.environ.get("MAILGUN_DOMAIN", ""),
-}
+# Email — console by default; set EMAIL_BACKEND in the environment for production SMTP
+# if needed. Skip these defaults in testing so the dummy backend above is not overwritten.
+if DJANGO_ENV != "testing":
+    EMAIL_BACKEND = os.environ.get(
+        "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+    )
+    DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@example.com")

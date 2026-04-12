@@ -1,15 +1,11 @@
-"""Ninja API package: routers, app instance, and shared API constants."""
-
-# Error detail string for Ninja AuthenticationError and manual 401 JSON bodies.
-# Defined before submodule imports so `from blog.api import …` / relative imports
-# work without circular import (routers are loaded from this package).
-AUTHENTICATION_REQUIRED_DETAIL = "Authentication credentials were not provided."
+"""Ninja API package: routers and app instance."""
 
 from django.http import JsonResponse
 from ninja import NinjaAPI
 from ninja.errors import AuthenticationError
 
 from .auth import router as auth_router
+from .constants import AUTHENTICATION_REQUIRED_DETAIL
 from .data import router as data_router
 
 api = NinjaAPI(

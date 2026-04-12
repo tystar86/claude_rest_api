@@ -20,13 +20,13 @@ from blog.serializers import (
     CommentSerializer,
     PostDetailSerializer,
     PostSerializer,
-    PostWriteSerializer,
     TagSerializer,
     UserSerializer,
 )
+from blog.services import PostService
 from blog.utils import build_unique_slug
 
-from .. import AUTHENTICATION_REQUIRED_DETAIL
+from ..constants import AUTHENTICATION_REQUIRED_DETAIL
 from ..throttling import READ_THROTTLES, WRITE_THROTTLES
 from ..utils import request_data_or_error as _request_data_or_error
 from .schemas import (
@@ -52,8 +52,7 @@ def _not_found_response() -> JsonResponse:
 
 
 def _unauthorized_response() -> JsonResponse:
-    detail = "Authentication required."
-    return JsonResponse({"detail": detail}, status=401)
+    return JsonResponse({"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=401)
 
 
 def _serialize(serializer_class, obj, *, request=None, many=False):
@@ -100,11 +99,9 @@ def create_post(request: HttpRequest):
     data, error = _request_data_or_error(request)
     if error is not None:
         return error
-    serializer = PostWriteSerializer(data=data, context={"request": request})
-    if not serializer.is_valid():
-        return JsonResponse(dict(serializer.errors), status=400)
-
-    post = serializer.save()
+    post, errors = PostService.create(author=request.user, data=data)
+    if errors:
+        return JsonResponse(dict(errors), status=400)
     post = _post_detail_queryset().get(pk=post.pk)
     payload = PostDetailSerializer(post, context={"request": request}).data
     return JsonResponse(payload, status=201)
@@ -147,11 +144,9 @@ def update_post(request: HttpRequest, slug: str):
     data, error = _request_data_or_error(request)
     if error is not None:
         return error
-    serializer = PostWriteSerializer(post, data=data, partial=True, context={"request": request})
-    if not serializer.is_valid():
-        return JsonResponse(dict(serializer.errors), status=400)
-
-    serializer.save()
+    _, errors = PostService.update(instance=post, data=data)
+    if errors:
+        return JsonResponse(dict(errors), status=400)
     post = _post_detail_queryset().get(pk=post.pk)
     payload = PostDetailSerializer(post, context={"request": request}).data
     return JsonResponse(payload, status=200)

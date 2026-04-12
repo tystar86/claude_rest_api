@@ -1,6 +1,6 @@
 """Verify Ninja response schemas stay aligned with serializer output.
 
-Each test serializes a model instance through the shared ModelSerializer then
+Each test serializes a model instance through the shared blog serializers then
 validates the result against the corresponding Ninja Pydantic schema.  A
 failure means the two layers have drifted and the API contract is at risk.
 """

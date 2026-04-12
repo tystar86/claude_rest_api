@@ -11,11 +11,11 @@ from blog.serializers import (
     CurrentUserSerializer,
     PostDetailSerializer,
     PostSerializer,
-    PostWriteSerializer,
     ProfileSerializer,
     TagSerializer,
     UserSerializer,
 )
+from blog.services import PostService
 
 
 # ── ProfileSerializer ──────────────────────────────────────────────────────────
@@ -205,84 +205,78 @@ class TestCommentSerializer:
         assert data["user_vote"] is None
 
 
-# ── PostWriteSerializer — validate_tag_ids ────────────────────────────────────
+# ── PostService — tag_ids validation on create ─────────────────────────────────
 
 
 @pytest.mark.django_db
-class TestPostWriteSerializerTagValidation:
-    """Tests for PostWriteSerializer.validate_tag_ids."""
-
-    def _make_context(self, user):
-        factory = RequestFactory()
-        request = factory.post("/")
-        request.user = user
-        return {"request": request}
+class TestPostServiceTagValidation:
+    """Tests for PostService.create tag_ids handling."""
 
     def test_valid_tag_ids_accepted(self, user, tag):
-        """Existing tag IDs pass validation."""
-        ctx = self._make_context(user)
-        ser = PostWriteSerializer(
+        """Existing tag IDs pass validation and are linked."""
+        post, errors = PostService.create(
+            author=user,
             data={"title": "T", "body": "B", "tag_ids": [tag.id]},
-            context=ctx,
         )
-        assert ser.is_valid(), ser.errors
-        assert ser.validated_data["tag_ids"] == [tag.id]
+        assert not errors, errors
+        assert post is not None
+        assert set(post.tags.values_list("id", flat=True)) == {tag.id}
 
     def test_nonexistent_tag_id_rejected(self, user):
         """A tag ID that doesn't exist causes a validation error."""
-        ctx = self._make_context(user)
-        ser = PostWriteSerializer(
+        post, errors = PostService.create(
+            author=user,
             data={"title": "T", "body": "B", "tag_ids": [99999]},
-            context=ctx,
         )
-        assert not ser.is_valid()
-        assert "tag_ids" in ser.errors
+        assert post is None
+        assert "tag_ids" in errors
 
     def test_mix_of_valid_and_invalid_tag_ids_rejected(self, user, tag):
         """If any tag ID is invalid, the whole field fails validation."""
-        ctx = self._make_context(user)
-        ser = PostWriteSerializer(
+        post, errors = PostService.create(
+            author=user,
             data={"title": "T", "body": "B", "tag_ids": [tag.id, 99999]},
-            context=ctx,
         )
-        assert not ser.is_valid()
-        assert "tag_ids" in ser.errors
+        assert post is None
+        assert "tag_ids" in errors
 
     def test_null_tag_ids_accepted(self, user):
         """null tag_ids is allowed (field has allow_null=True)."""
-        ctx = self._make_context(user)
-        ser = PostWriteSerializer(
+        post, errors = PostService.create(
+            author=user,
             data={"title": "T", "body": "B", "tag_ids": None},
-            context=ctx,
         )
-        assert ser.is_valid(), ser.errors
+        assert not errors, errors
+        assert post is not None
+        assert post.tags.count() == 0
 
     def test_omitted_tag_ids_accepted(self, user):
         """Omitting tag_ids entirely is valid (field is not required)."""
-        ctx = self._make_context(user)
-        ser = PostWriteSerializer(
+        post, errors = PostService.create(
+            author=user,
             data={"title": "T", "body": "B"},
-            context=ctx,
         )
-        assert ser.is_valid(), ser.errors
+        assert not errors, errors
+        assert post is not None
+        assert post.tags.count() == 0
 
     def test_empty_tag_ids_accepted(self, user):
         """An empty list is valid."""
-        ctx = self._make_context(user)
-        ser = PostWriteSerializer(
+        post, errors = PostService.create(
+            author=user,
             data={"title": "T", "body": "B", "tag_ids": []},
-            context=ctx,
         )
-        assert ser.is_valid(), ser.errors
+        assert not errors, errors
+        assert post is not None
+        assert post.tags.count() == 0
 
     def test_error_message_lists_missing_ids(self, user, tag):
         """The validation error message includes the specific missing IDs."""
-        ctx = self._make_context(user)
-        ser = PostWriteSerializer(
+        post, errors = PostService.create(
+            author=user,
             data={"title": "T", "body": "B", "tag_ids": [tag.id, 77777, 88888]},
-            context=ctx,
         )
-        assert not ser.is_valid()
-        error_msg = ser.errors["tag_ids"][0]
+        assert post is None
+        error_msg = errors["tag_ids"][0]
         assert "77777" in str(error_msg)
         assert "88888" in str(error_msg)

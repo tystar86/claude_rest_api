@@ -20,7 +20,7 @@ from blog.serializers import CurrentUserSerializer
 from ninja import Router
 from ninja.security import SessionAuth
 
-from .. import AUTHENTICATION_REQUIRED_DETAIL
+from ..constants import AUTHENTICATION_REQUIRED_DETAIL
 from .schemas import CsrfTokenResponse, CurrentUserResponse, DetailResponse
 from ..throttling import LOGIN_THROTTLES, WRITE_THROTTLES
 from ..utils import request_data_or_error as _request_data_or_error

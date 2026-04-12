@@ -5,7 +5,7 @@
 - Python 3.14
 - Django 6.0
 - Django Ninja (`blog/api/`) for HTTP routing, validation, and OpenAPI
-- `djangorestframework` for `ModelSerializer` classes in `blog/serializers.py` (no DRF view layer)
+- Plain Python serializers in `blog/serializers.py` for read JSON shapes; `blog/services/` for writes (e.g. `PostService`)
 - Session-based login and registration via `blog/api/auth/router.py`
 - PostgreSQL in real deployments
 
@@ -15,7 +15,7 @@
 
 This is the Django project package:
 
-- `settings.py`: environment loading, installed apps, middleware, DB config, auth, security, Ninja/DRF packages, CORS, email
+- `settings.py`: environment loading, installed apps, middleware, DB config, auth, security, Ninja, CORS, email
 - `urls.py`: mounts Django admin and API routes
 - `wsgi.py` / `asgi.py`: deployment entrypoints
 
@@ -24,7 +24,7 @@ This is the Django project package:
 This is the main application:
 
 - `models.py`: `Tag`, `Post`, `Comment`, `CommentVote`
-- `serializers.py`: shared `ModelSerializer` output used by Ninja routes
+- `serializers.py`: read serializers used by Ninja routes; `services/` for create/update persistence
 - `api_views.py`: shared pagination, dashboard payload, and permission helpers for Ninja
 - `api_urls.py`: mounts the Ninja API (`blog.api.api`)
 - `api/`: Ninja routers (`auth/`, `data/`), Pydantic schemas, throttling, CSRF helpers
@@ -157,7 +157,7 @@ Default behavior:
 
 - Local default: console email backend
 - Testing: dummy email backend
-- Production template: Mailgun via django-anymail
+- Production: optional `EMAIL_BACKEND` / `DEFAULT_FROM_EMAIL` via environment (defaults to console)
 
 ## Management Commands
 
