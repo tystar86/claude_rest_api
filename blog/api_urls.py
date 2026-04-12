@@ -24,8 +24,14 @@ urlpatterns = [
     path("auth/", public_auth_api.urls),
     path("_ninja/auth/", preview_auth_api.urls),
     path("_ninja/read/", preview_read_api.urls),
-    path("dashboard/", public_read_callbacks["dashboard"]),
-    path("comments/", public_read_callbacks["comment_list"]),
+    path(
+        "dashboard/",
+        _get_or_drf(public_read_callbacks["dashboard"], api_views.dashboard),
+    ),
+    path(
+        "comments/",
+        _get_or_drf(public_read_callbacks["comment_list"], api_views.comment_list),
+    ),
     path("posts/<slug:slug>/comments/", api_views.comment_create),
     path(
         "posts/", _get_or_drf(public_read_callbacks["post_list"], api_views.post_list)
@@ -39,9 +45,15 @@ urlpatterns = [
         "tags/<slug:slug>/",
         _get_or_drf(public_read_callbacks["tag_detail"], api_views.tag_detail),
     ),
-    path("users/", public_read_callbacks["user_list"]),
-    path("users/<str:username>/comments/", public_read_callbacks["user_comments"]),
-    path("users/<str:username>/", public_read_callbacks["user_detail"]),
+    path("users/", _get_or_drf(public_read_callbacks["user_list"], api_views.user_list)),
+    path(
+        "users/<str:username>/comments/",
+        _get_or_drf(public_read_callbacks["user_comments"], api_views.user_comments),
+    ),
+    path(
+        "users/<str:username>/",
+        _get_or_drf(public_read_callbacks["user_detail"], api_views.user_detail),
+    ),
     path("auth/login/", api_views.login_view),
     path("auth/register/", api_views.register_view),
     path("auth/resend-verification/", api_views.resend_verification_view),
