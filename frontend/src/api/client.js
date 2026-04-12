@@ -69,7 +69,7 @@ export const createComment = (slug, body, parentId = null) =>
 export const updateComment = (commentId, body) =>
   api.patch(`/comments/${commentId}/`, { body }).then((r) => r.data);
 export const deleteComment = (commentId) =>
-  api.delete(`/comments/${commentId}/delete/`).then((r) => r.data);
+  api.delete(`/comments/${commentId}/`).then((r) => r.data);
 
 export const fetchCsrf = () => api.get("/auth/csrf/").then((r) => r.data);
 

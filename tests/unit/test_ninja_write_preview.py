@@ -95,7 +95,7 @@ class TestNinjaWritePreview:
             format="json",
         )
 
-        assert anon.status_code == status.HTTP_403_FORBIDDEN
+        assert anon.status_code == status.HTTP_401_UNAUTHORIZED
         assert authed.status_code == status.HTTP_200_OK
         assert authed.data["likes"] == 1
 

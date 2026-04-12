@@ -47,6 +47,22 @@ class TestCommentList:
         assert resp.status_code == status.HTTP_200_OK
         assert all(item["post_slug"] != "hidden-draft" for item in resp.data["results"])
 
+    def test_post_comments_list_returns_paginated_response(
+        self, api_client, post, comment
+    ):
+        """GET /api/posts/<slug>/comments/ returns paginated comments for the post."""
+        resp = api_client.get(f"/api/posts/{post.slug}/comments/")
+        assert resp.status_code == status.HTTP_200_OK
+        assert "count" in resp.data
+        assert "total_pages" in resp.data
+        assert "results" in resp.data
+        assert all(item["post_slug"] == post.slug for item in resp.data["results"])
+
+    def test_post_comments_list_nonexistent_post_returns_404(self, api_client):
+        """GET /api/posts/<slug>/comments/ returns 404 for missing posts."""
+        resp = api_client.get("/api/posts/no-such-post/comments/")
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
 
 # ── Comment Create ─────────────────────────────────────────────────────────────
 
@@ -72,7 +88,7 @@ class TestCommentCreate:
             {"body": "Hey"},
             format="json",
         )
-        assert resp.status_code == status.HTTP_403_FORBIDDEN
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_empty_body_returns_400(self, auth_client, post):
         """An empty comment body is rejected."""
@@ -163,7 +179,7 @@ class TestCommentUpdate:
         resp = api_client.patch(
             f"/api/comments/{comment.id}/", {"body": "Hacked"}, format="json"
         )
-        assert resp.status_code == status.HTTP_403_FORBIDDEN
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
 
     def test_empty_body_returns_400(self, auth_client, comment):
         """Setting comment body to empty is rejected."""
@@ -185,11 +201,11 @@ class TestCommentUpdate:
 
 @pytest.mark.django_db
 class TestCommentDelete:
-    """Tests for DELETE /api/comments/<id>/delete/."""
+    """Tests for DELETE /api/comments/<id>/."""
 
     def test_author_can_delete_own_comment(self, auth_client, comment):
         """A comment author can delete their comment."""
-        resp = auth_client.delete(f"/api/comments/{comment.id}/delete/")
+        resp = auth_client.delete(f"/api/comments/{comment.id}/")
         assert resp.status_code == status.HTTP_204_NO_CONTENT
         assert not Comment.objects.filter(id=comment.id).exists()
 
@@ -199,12 +215,12 @@ class TestCommentDelete:
             username="other2", email="o2@x.com", password="p"
         )
         api_client.force_authenticate(user=other)
-        resp = api_client.delete(f"/api/comments/{comment.id}/delete/")
-        assert resp.status_code == status.HTTP_403_FORBIDDEN
+        resp = api_client.delete(f"/api/comments/{comment.id}/")
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
 
     def test_nonexistent_comment_returns_404(self, auth_client):
         """Deleting a non-existent comment returns 404."""
-        resp = auth_client.delete("/api/comments/99999/delete/")
+        resp = auth_client.delete("/api/comments/99999/")
         assert resp.status_code == status.HTTP_404_NOT_FOUND
 
 
@@ -261,12 +277,12 @@ class TestCommentVote:
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_unauthenticated_vote_returns_403(self, api_client, comment):
+    def test_unauthenticated_vote_returns_401(self, api_client, comment):
         """Unauthenticated users cannot vote."""
         resp = api_client.post(
             f"/api/comments/{comment.id}/vote/", {"vote": "like"}, format="json"
         )
-        assert resp.status_code == status.HTTP_403_FORBIDDEN
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_vote_on_nonexistent_comment_returns_404(self, auth_client):
         """Voting on a non-existent comment returns 404."""

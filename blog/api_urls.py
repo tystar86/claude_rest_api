@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.decorators.csrf import csrf_exempt
 
 from .api import (
     preview_auth_api,
@@ -46,7 +47,10 @@ urlpatterns = [
     path("comments/", public_read_callbacks["comment_list"]),
     path(
         "posts/<slug:slug>/comments/",
-        _dispatch_by_method(POST=public_write_callbacks["comment_create"]),
+        _dispatch_by_method(
+            GET=public_read_callbacks["comment_list_by_post"],
+            POST=public_write_callbacks["comment_create"],
+        ),
     ),
     path(
         "posts/",
@@ -81,9 +85,13 @@ urlpatterns = [
     path("users/", public_read_callbacks["user_list"]),
     path("users/<str:username>/comments/", public_read_callbacks["user_comments"]),
     path("users/<str:username>/", public_read_callbacks["user_detail"]),
-    path("auth/login/", _dispatch_by_method(POST=public_write_callbacks["login"])),
     path(
-        "auth/register/", _dispatch_by_method(POST=public_write_callbacks["register"])
+        "auth/login/",
+        csrf_exempt(_dispatch_by_method(POST=public_write_callbacks["login"])),
+    ),
+    path(
+        "auth/register/",
+        csrf_exempt(_dispatch_by_method(POST=public_write_callbacks["register"])),
     ),
     path(
         "auth/resend-verification/",
@@ -99,10 +107,9 @@ urlpatterns = [
     ),
     path(
         "comments/<int:comment_id>/",
-        _dispatch_by_method(PATCH=public_write_callbacks["comment_update"]),
-    ),
-    path(
-        "comments/<int:comment_id>/delete/",
-        _dispatch_by_method(DELETE=public_write_callbacks["comment_delete"]),
+        _dispatch_by_method(
+            PATCH=public_write_callbacks["comment_update"],
+            DELETE=public_write_callbacks["comment_delete"],
+        ),
     ),
 ]

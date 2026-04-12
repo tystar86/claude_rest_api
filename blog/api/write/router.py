@@ -38,6 +38,7 @@ from blog.utils import build_unique_slug
 from ..auth.services import (
     AUTHENTICATION_REQUIRED_DETAIL,
     attach_forced_user,
+    empty_compat_response,
     json_compat_response,
     serialize_current_user,
 )
@@ -55,8 +56,8 @@ def _request_data(request: HttpRequest) -> dict:
         return {}
     try:
         data = json.loads(raw_body)
-    except json.JSONDecodeError:
-        raise ValueError("Malformed JSON body.")
+    except json.JSONDecodeError as exc:
+        raise ValueError("Malformed JSON body.") from exc
     if isinstance(data, dict):
         return data
     raise ValueError("JSON body must be an object.")
@@ -227,7 +228,7 @@ def update_profile(request: HttpRequest):
     if not request.user.is_authenticated:
         return json_compat_response(
             {"detail": AUTHENTICATION_REQUIRED_DETAIL},
-            status=403,
+            status=401,
         )
 
     user = request.user
@@ -323,7 +324,7 @@ def update_post(request: HttpRequest, slug: str):
     try:
         post = _post_detail_queryset().get(slug=slug)
     except Post.DoesNotExist:
-        return HttpResponse(status=404)
+        return empty_compat_response(status=404)
 
     if not api_views.can_view_unpublished_post(request.user, post):
         return json_compat_response(
@@ -361,7 +362,7 @@ def delete_post(request: HttpRequest, slug: str):
     try:
         post = _post_detail_queryset().get(slug=slug)
     except Post.DoesNotExist:
-        return HttpResponse(status=404)
+        return empty_compat_response(status=404)
 
     if not api_views.can_view_unpublished_post(request.user, post):
         return json_compat_response(
@@ -378,7 +379,7 @@ def comment_create(request: HttpRequest, slug: str):
     attach_forced_user(request)
     if not request.user.is_authenticated:
         return json_compat_response(
-            {"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=403
+            {"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=401
         )
 
     data, error = _request_data_or_error(request)
@@ -396,11 +397,11 @@ def comment_create(request: HttpRequest, slug: str):
     try:
         post = Post.objects.get(slug=slug)
     except Post.DoesNotExist:
-        return HttpResponse(status=404)
+        return empty_compat_response(status=404)
     if post.status != Post.Status.PUBLISHED and not api_views.can_view_unpublished_post(
         request.user, post
     ):
-        return HttpResponse(status=404)
+        return empty_compat_response(status=404)
 
     parent_id = data.get("parent_id")
     parent = None
@@ -432,6 +433,11 @@ def comment_create(request: HttpRequest, slug: str):
 @router.post("/tags/")
 def create_tag(request: HttpRequest):
     attach_forced_user(request)
+    if not request.user.is_authenticated:
+        return json_compat_response(
+            {"detail": AUTHENTICATION_REQUIRED_DETAIL},
+            status=401,
+        )
     if not api_views.can_manage_tags(request.user):
         return json_compat_response(
             {"detail": "Only moderators/admins can create tags."},
@@ -461,18 +467,23 @@ def create_tag(request: HttpRequest):
 @router.patch("/tags/{slug}/")
 def update_tag(request: HttpRequest, slug: str):
     attach_forced_user(request)
-    try:
-        tag = Tag.objects.annotate(
-            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
-        ).get(slug=slug)
-    except Tag.DoesNotExist:
-        return HttpResponse(status=404)
-
+    if not request.user.is_authenticated:
+        return json_compat_response(
+            {"detail": AUTHENTICATION_REQUIRED_DETAIL},
+            status=401,
+        )
     if not api_views.can_manage_tags(request.user):
         return json_compat_response(
             {"detail": "Only moderators/admins can manage tags."},
             status=403,
         )
+
+    try:
+        tag = Tag.objects.annotate(
+            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+        ).get(slug=slug)
+    except Tag.DoesNotExist:
+        return empty_compat_response(status=404)
 
     data, error = _request_data_or_error(request)
     if error is not None:
@@ -495,18 +506,23 @@ def update_tag(request: HttpRequest, slug: str):
 @router.delete("/tags/{slug}/")
 def delete_tag(request: HttpRequest, slug: str):
     attach_forced_user(request)
-    try:
-        tag = Tag.objects.annotate(
-            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
-        ).get(slug=slug)
-    except Tag.DoesNotExist:
-        return HttpResponse(status=404)
-
+    if not request.user.is_authenticated:
+        return json_compat_response(
+            {"detail": AUTHENTICATION_REQUIRED_DETAIL},
+            status=401,
+        )
     if not api_views.can_manage_tags(request.user):
         return json_compat_response(
             {"detail": "Only moderators/admins can manage tags."},
             status=403,
         )
+
+    try:
+        tag = Tag.objects.annotate(
+            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+        ).get(slug=slug)
+    except Tag.DoesNotExist:
+        return empty_compat_response(status=404)
 
     tag.delete()
     return HttpResponse(status=204)
@@ -517,7 +533,7 @@ def comment_vote(request: HttpRequest, comment_id: int):
     attach_forced_user(request)
     if not request.user.is_authenticated:
         return json_compat_response(
-            {"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=403
+            {"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=401
         )
 
     data, error = _request_data_or_error(request)
@@ -533,9 +549,9 @@ def comment_vote(request: HttpRequest, comment_id: int):
     try:
         comment = Comment.objects.select_related("post", "author").get(id=comment_id)
     except Comment.DoesNotExist:
-        return HttpResponse(status=404)
+        return empty_compat_response(status=404)
     if not api_views.can_access_comment(request.user, comment):
-        return HttpResponse(status=404)
+        return empty_compat_response(status=404)
 
     existing = CommentVote.objects.filter(comment=comment, user=request.user).first()
     if existing:
@@ -557,19 +573,13 @@ def comment_update(request: HttpRequest, comment_id: int):
     attach_forced_user(request)
     if not request.user.is_authenticated:
         return json_compat_response(
-            {"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=403
+            {"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=401
         )
 
     try:
-        comment = Comment.objects.get(id=comment_id)
+        comment = Comment.objects.get(id=comment_id, author_id=request.user.id)
     except Comment.DoesNotExist:
-        return HttpResponse(status=404)
-
-    if comment.author_id != request.user.id:
-        return json_compat_response(
-            {"detail": "You can edit only your own comments."},
-            status=403,
-        )
+        return empty_compat_response(status=404)
 
     data, error = _request_data_or_error(request)
     if error is not None:
@@ -590,24 +600,18 @@ def comment_update(request: HttpRequest, comment_id: int):
     return json_compat_response(payload)
 
 
-@router.delete("/comments/{comment_id}/delete/")
+@router.delete("/comments/{comment_id}/")
 def comment_delete(request: HttpRequest, comment_id: int):
     attach_forced_user(request)
     if not request.user.is_authenticated:
         return json_compat_response(
-            {"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=403
+            {"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=401
         )
 
     try:
-        comment = Comment.objects.get(id=comment_id)
+        comment = Comment.objects.get(id=comment_id, author_id=request.user.id)
     except Comment.DoesNotExist:
-        return HttpResponse(status=404)
-
-    if comment.author_id != request.user.id:
-        return json_compat_response(
-            {"detail": "You can delete only your own comments."},
-            status=403,
-        )
+        return empty_compat_response(status=404)
 
     comment.delete()
     return HttpResponse(status=204)
