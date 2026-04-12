@@ -5,6 +5,10 @@ from datetime import datetime
 from ninja import Schema
 
 
+class NotFoundResponse(Schema):
+    detail: str
+
+
 class ProfileResponse(Schema):
     role: str
     bio: str

@@ -61,7 +61,11 @@ def paginate(qs, request, serializer_class):
         page = 1
     total = qs.count()
     start = (page - 1) * PAGE_SIZE
-    items = serializer_class(qs[start : start + PAGE_SIZE], many=True).data
+    items = serializer_class(
+        qs[start : start + PAGE_SIZE],
+        many=True,
+        context={"request": request},
+    ).data
     return {
         "count": total,
         "total_pages": max(1, -(-total // PAGE_SIZE)),

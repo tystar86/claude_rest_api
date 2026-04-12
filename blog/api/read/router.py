@@ -22,6 +22,7 @@ from ..auth.services import (
 )
 from .schemas import (
     DashboardResponse,
+    NotFoundResponse,
     PaginatedCommentsResponse,
     PaginatedPostsResponse,
     PaginatedTagsResponse,
@@ -42,8 +43,7 @@ def _serialize(
     request: HttpRequest | None = None,
     many: bool = False,
 ):
-    context = {"request": request} if request is not None else None
-    serializer = serializer_class(obj, many=many, context=context)
+    serializer = serializer_class(obj, many=many, context={"request": request})
     return serializer.data
 
 
@@ -127,7 +127,7 @@ def post_list(request: HttpRequest):
     return json_compat_response(api_views.paginate(qs, request, PostSerializer))
 
 
-@router.get("/posts/{slug}/", response={200: PostDetailResponse, 404: None})
+@router.get("/posts/{slug}/", response={200: PostDetailResponse, 404: NotFoundResponse})
 def post_detail(request: HttpRequest, slug: str):
     attach_forced_user(request)
     try:
@@ -162,7 +162,7 @@ def tag_list(request: HttpRequest):
     return json_compat_response(api_views.paginate(qs, request, TagSerializer))
 
 
-@router.get("/tags/{slug}/", response={200: TagDetailResponse, 404: None})
+@router.get("/tags/{slug}/", response={200: TagDetailResponse, 404: NotFoundResponse})
 def tag_detail(request: HttpRequest, slug: str):
     try:
         tag = Tag.objects.annotate(
@@ -178,7 +178,7 @@ def tag_detail(request: HttpRequest, slug: str):
         .order_by("-created_at")
     )
     payload = {
-        "tag": _serialize(TagSerializer, tag),
+        "tag": _serialize(TagSerializer, tag, request=request),
         **api_views.paginate(posts_qs, request, PostSerializer),
     }
     return json_compat_response(payload)
@@ -196,7 +196,9 @@ def user_list(request: HttpRequest):
     return json_compat_response(api_views.paginate(qs, request, UserSerializer))
 
 
-@router.get("/users/{username}/", response={200: UserDetailResponse, 404: None})
+@router.get(
+    "/users/{username}/", response={200: UserDetailResponse, 404: NotFoundResponse}
+)
 def user_detail(request: HttpRequest, username: str):
     try:
         user = (
@@ -215,14 +217,15 @@ def user_detail(request: HttpRequest, username: str):
         .order_by("-created_at")
     )
     payload = {
-        "user": _serialize(UserSerializer, user),
+        "user": _serialize(UserSerializer, user, request=request),
         **api_views.paginate(posts_qs, request, PostSerializer),
     }
     return json_compat_response(payload)
 
 
 @router.get(
-    "/users/{username}/comments/", response={200: PaginatedCommentsResponse, 404: None}
+    "/users/{username}/comments/",
+    response={200: PaginatedCommentsResponse, 404: NotFoundResponse},
 )
 def user_comments(request: HttpRequest, username: str):
     try:
