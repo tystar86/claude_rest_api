@@ -8,7 +8,7 @@ AUTHENTICATION_REQUIRED_DETAIL = "Authentication credentials were not provided."
 
 
 class CompatSessionAuth(SessionAuth):
-    """Honor Django sessions in production and DRF force_authenticate in tests."""
+    """Honor Django sessions and support test-level force_login."""
 
     def authenticate(self, request, key):
         user = super().authenticate(request, key)

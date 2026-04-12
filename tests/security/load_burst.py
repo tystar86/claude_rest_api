@@ -45,7 +45,7 @@ def run(url: str, requests_count: int, concurrency: int, timeout: float) -> int:
     print(
         "No 429 observed. The default anon throttle is 120/min. "
         "Run with --requests 250 --concurrency 50 to reliably exceed it, "
-        "or temporarily lower DRF_THROTTLE_ANON in .env to confirm throttling is active."
+        "or temporarily lower the anon throttle rate in .env to confirm throttling is active."
     )
     return 1
 

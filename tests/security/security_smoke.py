@@ -45,7 +45,7 @@ def check_cors_rejects_unknown_origin(base_url: str) -> CheckResult:
 
 def check_csrf_cookie_issued(base_url: str) -> CheckResult:
     # GET /api/auth/csrf/ must set the csrftoken cookie and return the token in JSON.
-    # DRF enforces CSRF via SessionAuthentication.enforce_csrf(), which only fires when a
+    # CSRF is enforced via Django middleware and Ninja's csrf_protect; it only fires when a
     # session exists. Full CSRF-bypass testing therefore requires an authenticated session
     # and is outside the scope of this unauthenticated smoke suite.
     r = requests.get(f"{base_url}/api/auth/csrf/", timeout=10)
