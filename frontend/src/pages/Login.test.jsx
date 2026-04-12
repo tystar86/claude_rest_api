@@ -209,6 +209,36 @@ describe('Login page', () => {
     expect(resendVerification).toHaveBeenCalledWith('unverified@example.com');
   });
 
+  it('resends verification for the captured failed email even after input changes', async () => {
+    const err = {
+      response: { status: 403, data: { detail: 'Email address is not verified.', code: 'email_not_verified' } },
+    };
+    vi.mocked(loginUser).mockRejectedValue(err);
+    vi.mocked(resendVerification).mockResolvedValue({
+      detail: 'Verification email sent. Please check your inbox.',
+    });
+    const user = userEvent.setup();
+
+    render(<Login />);
+
+    await user.type(screen.getByLabelText(/email/i), 'unverified@example.com');
+    await user.type(screen.getByLabelText(/password/i), 'password');
+    await user.click(screen.getByRole('button', { name: /login/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /resend verification email/i })).toBeInTheDocument()
+    );
+
+    await user.clear(screen.getByLabelText(/email/i));
+    await user.type(screen.getByLabelText(/email/i), 'changed@example.com');
+    await user.click(screen.getByRole('button', { name: /resend verification email/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText('Verification email sent. Please check your inbox.')).toBeInTheDocument()
+    );
+    expect(resendVerification).toHaveBeenCalledWith('unverified@example.com');
+  });
+
   it('shows resend failure in a danger alert', async () => {
     const loginErr = {
       response: { status: 403, data: { detail: 'Not verified.', code: 'email_not_verified' } },

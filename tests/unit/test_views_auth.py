@@ -1,6 +1,8 @@
 """Unit tests for authentication API endpoints."""
 
 import io
+import smtplib
+from unittest.mock import patch
 
 import pytest
 from allauth.account.models import EmailAddress
@@ -9,6 +11,8 @@ from django.db import connection
 from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
+
+GENERIC_RESEND_DETAIL = "Verification email sent. Please check your inbox."
 
 
 # ── CSRF ───────────────────────────────────────────────────────────────────────
@@ -301,6 +305,7 @@ class TestEmailVerificationFlow:
             format="json",
         )
         assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["detail"] == GENERIC_RESEND_DETAIL
 
     @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
     def test_resend_verification_anonymous_with_valid_email_returns_200(
@@ -310,6 +315,19 @@ class TestEmailVerificationFlow:
         resp = api_client.post(
             "/api/auth/resend-verification/",
             {"email": user.email},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_200_OK
+        assert "verification email sent" in resp.data["detail"].lower()
+
+    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
+    def test_resend_verification_anonymous_with_non_string_email_returns_200(
+        self, api_client
+    ):
+        """Non-string email payloads do not hit ORM and still return uniform 200."""
+        resp = api_client.post(
+            "/api/auth/resend-verification/",
+            {"email": [1]},
             format="json",
         )
         assert resp.status_code == status.HTTP_200_OK
@@ -326,12 +344,30 @@ class TestEmailVerificationFlow:
         )
         resp = auth_client.post("/api/auth/resend-verification/")
         assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["detail"] == GENERIC_RESEND_DETAIL
 
     @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
     def test_resend_verification_succeeds_for_unverified_user(self, auth_client):
         """Authenticated unverified users can request another verification email."""
         resp = auth_client.post("/api/auth/resend-verification/")
         assert resp.status_code == status.HTTP_200_OK
+
+    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
+    def test_resend_verification_hides_smtp_failure_for_anonymous_known_email(
+        self, api_client, user
+    ):
+        """SMTP failures still return 200 to avoid leaking valid unverified accounts."""
+        with patch(
+            "blog.api.write.router.send_verification_email_for_user",
+            side_effect=smtplib.SMTPException("mail transport unavailable"),
+        ):
+            resp = api_client.post(
+                "/api/auth/resend-verification/",
+                {"email": user.email},
+                format="json",
+            )
+        assert resp.status_code == status.HTTP_200_OK
+        assert "verification email sent" in resp.data["detail"].lower()
 
 
 # ── Logout ─────────────────────────────────────────────────────────────────────

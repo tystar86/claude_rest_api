@@ -198,17 +198,23 @@ def register(request: HttpRequest):
 @router.post("/auth/resend-verification/", throttle=WRITE_RESEND_VERIFICATION_THROTTLES)
 def resend_verification(request: HttpRequest):
     attach_forced_user(request)
+    success_response = json_compat_response(
+        {"detail": "Verification email sent. Please check your inbox."}
+    )
+    is_anonymous_request = not request.user.is_authenticated
 
     user = None
-    if request.user.is_authenticated:
+    if not is_anonymous_request:
         user = request.user
     else:
         data, error = _request_data_or_error(request)
         if error is not None:
             return error
         email = data.get("email", "")
-        if isinstance(email, str):
-            email = email.strip().lower()
+        if not isinstance(email, str):
+            # Keep responses uniform for anonymous callers and avoid ORM type errors.
+            return success_response
+        email = email.strip().lower()
         if email:
             try:
                 user = User.objects.get(email=email)
@@ -216,31 +222,38 @@ def resend_verification(request: HttpRequest):
                 pass
 
     if user is None:
-        return json_compat_response(
-            {"detail": "Verification email sent. Please check your inbox."}
-        )
+        return success_response
 
     if has_verified_email(user):
-        return json_compat_response(
-            {"detail": "Verification email sent. Please check your inbox."}
-        )
+        return success_response
 
     setup_user_email(request, user, [])
-    try:
-        send_verification_email_for_user(request, user)
-    except (smtplib.SMTPException, BadHeaderError, socket.timeout, TimeoutError):
-        api_views.security_log.exception(
-            "Failed to resend verification email for user_id=%s",
-            user.pk,
-        )
-        return json_compat_response(
-            {"detail": "Failed to send verification email. Please try again later."},
-            status=500,
-        )
+    if is_anonymous_request:
+        try:
+            send_verification_email_for_user(request, user)
+        except Exception:
+            # Preserve anti-enumeration behavior during mail transport outages.
+            api_views.security_log.exception(
+                "Failed to resend verification email for user_id=%s",
+                user.pk,
+            )
+            return success_response
+    else:
+        try:
+            send_verification_email_for_user(request, user)
+        except (smtplib.SMTPException, BadHeaderError, socket.timeout, TimeoutError):
+            api_views.security_log.exception(
+                "Failed to resend verification email for user_id=%s",
+                user.pk,
+            )
+            return json_compat_response(
+                {
+                    "detail": "Failed to send verification email. Please try again later."
+                },
+                status=500,
+            )
 
-    return json_compat_response(
-        {"detail": "Verification email sent. Please check your inbox."}
-    )
+    return success_response
 
 
 @router.patch("/auth/profile/")

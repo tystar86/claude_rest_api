@@ -195,6 +195,27 @@ describe('Register page', () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
+  it('shows fallback verification message and resend button when detail is missing', async () => {
+    vi.mocked(registerUser).mockResolvedValue({ code: 'verification_pending' });
+    const user = userEvent.setup();
+
+    render(<Register />);
+
+    await user.type(screen.getByLabelText(/email/i), 'verify@example.com');
+    await user.type(screen.getByLabelText(/username/i), 'verifyuser');
+    await user.type(screen.getByLabelText(/password/i), 'securepass');
+    await user.click(screen.getByRole('button', { name: /register/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Registration successful. Please check your email to verify your account.')
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /resend verification email/i })).toBeInTheDocument();
+    });
+    expect(mockSetUser).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
   it('does not show resend button for non-verification success without username', async () => {
     vi.mocked(registerUser).mockResolvedValue({ detail: 'Welcome aboard.' });
     const user = userEvent.setup();

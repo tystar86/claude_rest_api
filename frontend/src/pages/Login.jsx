@@ -11,6 +11,7 @@ export default function Login() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [needsVerification, setNeedsVerification] = useState(false);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState("");
   const { resendMessage, resendIsError, resending, handleResend, clearResend } =
     useResendVerification();
 
@@ -18,17 +19,21 @@ export default function Login() {
 
   const submit = async (e) => {
     e.preventDefault();
+    const submittedEmail = form.email;
     setError(null);
     setNeedsVerification(false);
+    setPendingVerificationEmail("");
     clearResend();
     setLoading(true);
     try {
-      const user = await loginUser(form.email, form.password);
+      const user = await loginUser(submittedEmail, form.password);
       setUser(user);
       navigate("/dashboard");
     } catch (err) {
+      const needsEmailVerification = err.response?.data?.code === "email_not_verified";
       const detail = err.response?.data?.detail ?? "Login failed.";
-      setNeedsVerification(err.response?.data?.code === "email_not_verified");
+      setNeedsVerification(needsEmailVerification);
+      setPendingVerificationEmail(needsEmailVerification ? submittedEmail : "");
       setError(detail);
     } finally {
       setLoading(false);
@@ -49,8 +54,8 @@ export default function Login() {
                     type="button"
                     className="nb-btn nb-btn-secondary mt-3"
                     style={{ display: "block", width: "100%", fontSize: "12px" }}
-                    onClick={() => handleResend(form.email)}
-                    disabled={resending}
+                    onClick={() => handleResend(pendingVerificationEmail)}
+                    disabled={resending || !pendingVerificationEmail}
                   >
                     {resending ? (
                       <span className="spinner-border spinner-border-sm me-2" />
