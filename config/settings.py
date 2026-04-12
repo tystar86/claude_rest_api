@@ -44,11 +44,6 @@ INSTALLED_APPS: list[str] = [
     "corsheaders",
     "anymail",
     # "silk",  # Uncomment to enable django-silk query profiler (dev only)
-    # allauth
-    "allauth",
-    "allauth.account",
-    "allauth.socialaccount",
-    "allauth.socialaccount.providers.google",
     # local
     "blog",
     "accounts",
@@ -65,7 +60,6 @@ MIDDLEWARE: list[str | None] = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "allauth.account.middleware.AccountMiddleware",
     "blog.api.csrf.JsonMethodNotAllowedMiddleware",
 ]
 
@@ -88,42 +82,9 @@ TEMPLATES: list[dict[str, Any]] = [
 
 AUTHENTICATION_BACKENDS: list[str | None] = [
     "django.contrib.auth.backends.ModelBackend",
-    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 SITE_ID: int = 1
-
-# django-allauth
-ACCOUNT_LOGIN_METHODS: set[str] = {"email"}
-ACCOUNT_SIGNUP_FIELDS: list[str] = ["email*", "username*", "password1*", "password2*"]
-ACCOUNT_EMAIL_VERIFICATION: str = os.environ.get(
-    "ACCOUNT_EMAIL_VERIFICATION", "mandatory"
-)
-# When False, login_view skips the mandatory-verification gate so existing
-# users aren't locked out before a backfill has run.  Default True (enforce).
-FEATURE_EMAIL_VERIFICATION_ROLLOUT: bool = (
-    os.environ.get("FEATURE_EMAIL_VERIFICATION_ROLLOUT", "true").lower() == "true"
-)
-LOGIN_REDIRECT_URL: str = os.environ.get(
-    "LOGIN_REDIRECT_URL", "http://localhost:5173/dashboard"
-)
-LOGOUT_REDIRECT_URL: str = os.environ.get(
-    "LOGOUT_REDIRECT_URL", "http://localhost:5173/dashboard"
-)
-ACCOUNT_DEFAULT_HTTP_PROTOCOL: str = os.environ.get(
-    "ACCOUNT_DEFAULT_HTTP_PROTOCOL", "http"
-)
-SOCIALACCOUNT_LOGIN_ON_GET: bool = False
-SOCIALACCOUNT_PROVIDERS: dict[str, Any] = {
-    "google": {
-        "APP": {
-            "client_id": os.environ.get("GOOGLE_CLIENT_ID", ""),
-            "secret": os.environ.get("GOOGLE_CLIENT_SECRET", ""),
-        },
-        "SCOPE": ["profile", "email"],
-        "AUTH_PARAMS": {"access_type": "online"},
-    }
-}
 
 WSGI_APPLICATION: str = "config.wsgi.application"
 
@@ -250,9 +211,6 @@ API_THROTTLE_RATES: dict[str, str] = {
     "endpoint_actor": os.environ.get("DRF_THROTTLE_ENDPOINT_ACTOR") or "60/min",
     "api_global": os.environ.get("DRF_THROTTLE_API_GLOBAL") or "1000/min",
     "login": os.environ.get("DRF_THROTTLE_LOGIN") or "5/min",
-    "resend_verification": (
-        os.environ.get("DRF_THROTTLE_RESEND_VERIFICATION") or "5/hour"
-    ),
 }
 
 # Django Ninja reads this alias via ninja.conf.settings.DEFAULT_THROTTLE_RATES
@@ -293,8 +251,6 @@ if DJANGO_ENV == "testing":
             "BACKEND": "django.core.cache.backends.dummy.DummyCache",
         }
     }
-    ACCOUNT_EMAIL_VERIFICATION = "none"
-    FEATURE_EMAIL_VERIFICATION_ROLLOUT = False
     EMAIL_BACKEND = "django.core.mail.backends.dummy.EmailBackend"
     DEFAULT_FROM_EMAIL = "noreply@example.com"
 

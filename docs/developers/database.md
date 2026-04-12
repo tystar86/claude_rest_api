@@ -134,7 +134,7 @@ There is also a repo-specific migration repair mechanism:
 - `accounts/migrations/0003_enforce_sites_dependency.py`
 - `blog/management/commands/ensure_sites_migrations.py`
 
-Those exist because django-allauth plus Django Sites has had migration-ordering issues in deployed environments.
+Those exist because `django.contrib.sites` has occasionally shown split migration state in deployed environments.
 
 ## Fixtures and Seed Data
 
@@ -167,12 +167,6 @@ Use this when you need:
 Important limitation:
 
 - the generated users are not a clean source of ready-to-use human login accounts for onboarding
-
-### Email verification backfill
-
-- `python manage.py backfill_email_verification`
-
-This is not data seeding in the product sense, but it is a DB maintenance command that creates missing allauth email records for existing users.
 
 ## Database Environment Variables
 
@@ -215,7 +209,7 @@ Generate a large demo dataset:
 python manage.py seed_large
 ```
 
-Repair sites/allauth migration state before or during deploy troubleshooting:
+Repair sites migration state before or during deploy troubleshooting:
 
 ```bash
 python manage.py ensure_sites_migrations
@@ -227,5 +221,5 @@ python manage.py migrate
 - SQLite test behavior is convenient but not identical to PostgreSQL
 - The deploy path assumes PostgreSQL and includes extra migration safety logic
 - Data visibility is shaped by both post publication status and comment approval state
-- If you are debugging auth-related data, inspect both Django auth tables and allauth email/social tables, not only the repo-owned models
+- If you are debugging auth-related data, inspect Django `auth_user` and `accounts_profile`, not only content tables
 - If you need a privileged human test account, `createsuperuser` plus an explicit `Profile.role` update is more reliable than relying on fixtures or bulk seed data

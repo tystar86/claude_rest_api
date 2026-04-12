@@ -1,7 +1,5 @@
 import { vi } from 'vitest';
 
-export const GOOGLE_LOGIN_URL = 'http://localhost:8000/accounts/google/login/';
-
 export const fetchDashboard = vi.fn();
 export const fetchComments = vi.fn();
 
@@ -30,8 +28,6 @@ export const voteComment = vi.fn();
 export const createComment = vi.fn();
 export const updateComment = vi.fn();
 export const deleteComment = vi.fn();
-
-export const resendVerification = vi.fn();
 
 export const fetchCsrf = vi.fn();
 

@@ -78,18 +78,6 @@ class LoginThrottle(SimpleRateThrottle):
         }
 
 
-class ResendVerificationThrottle(SimpleRateThrottle):
-    scope = "resend_verification"
-
-    def get_cache_key(self, request: HttpRequest) -> str:
-        user = getattr(request, "user", None)
-        if user is not None and user.is_authenticated:
-            ident = f"user:{user.pk}"
-        else:
-            ident = f"ip:{self.get_ident(request)}"
-        return self.cache_format % {"scope": self.scope, "ident": ident}
-
-
 # Pre-built throttle lists referenced by routers.
 READ_THROTTLES = [AnonThrottle(), EndpointActorThrottle(), GlobalAPIThrottle()]
 
@@ -101,8 +89,3 @@ WRITE_THROTTLES = [
 ]
 
 LOGIN_THROTTLES = [LoginThrottle(), *WRITE_THROTTLES]
-
-RESEND_VERIFICATION_THROTTLES = [
-    ResendVerificationThrottle(),
-    *WRITE_THROTTLES,
-]

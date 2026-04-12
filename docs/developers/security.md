@@ -16,24 +16,7 @@ This project uses:
 ### Primary auth path
 
 - Session-based auth through Django and DRF `SessionAuthentication`
-- Login, register, logout, current-user, and profile update endpoints are implemented in `blog/api_views.py`
-
-### Social auth
-
-- Google OAuth is handled by django-allauth
-- The login flow starts at `/accounts/google/login/`
-- Frontend code builds this URL from the backend origin via `GOOGLE_LOGIN_URL`
-
-### Email verification
-
-Email verification behavior is configurable:
-
-- `ACCOUNT_EMAIL_VERIFICATION`
-- `FEATURE_EMAIL_VERIFICATION_ROLLOUT`
-
-The repo includes a backfill command for older users:
-
-- `python manage.py backfill_email_verification`
+- Login, register, logout, current-user, and profile update endpoints are implemented in `blog/api/auth/router.py` (Django Ninja)
 
 ## Authorization
 
@@ -197,4 +180,4 @@ This is a controlled burst tool for local/staging verification, not an aggressiv
 - Do not broaden CORS to `*` when credentials are enabled
 - Keep login throttling stricter than general API throttles
 - Review `tests/security/SECURITY_CHECKLIST.md` before release
-- When changing auth or cookie behavior, test both normal login and Google OAuth flows
+- When changing auth or cookie behavior, test login, registration, and logout flows end-to-end

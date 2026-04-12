@@ -5,7 +5,7 @@
 - Python 3.14
 - Django 6.0
 - Django REST Framework
-- django-allauth with Google social login
+- Session-based login and registration via Django Ninja (`blog/api/`)
 - PostgreSQL in real deployments
 
 ## App Layout
@@ -15,7 +15,7 @@
 This is the Django project package:
 
 - `settings.py`: environment loading, installed apps, middleware, DB config, auth, security, DRF, CORS, email
-- `urls.py`: mounts Django admin, allauth routes, and API routes
+- `urls.py`: mounts Django admin and API routes
 - `wsgi.py` / `asgi.py`: deployment entrypoints
 
 ### `blog/`
@@ -78,7 +78,6 @@ That is the established backend style for this repo.
 - `GET /api/auth/csrf/`
 - `POST /api/auth/login/`
 - `POST /api/auth/register/`
-- `POST /api/auth/resend-verification/`
 - `POST /api/auth/logout/`
 - `GET /api/auth/user/`
 - `PATCH /api/auth/profile/`
@@ -101,8 +100,6 @@ That is the established backend style for this repo.
 - API auth is session-based
 - DRF uses `SessionAuthentication`
 - Login/logout are handled through custom API endpoints
-- Google OAuth flows still come from django-allauth under `/accounts/google/login/`
-
 ### Roles
 
 Roles live on `accounts.Profile.role`:
@@ -175,21 +172,9 @@ Default behavior:
 
 Purpose:
 
-- Repairs split migration state for `django_site` and allauth socialaccount join tables
+- Repairs split migration state for the `django_site` table (`django.contrib.sites`)
 - Safe to run repeatedly
 - Called automatically in `start.sh`
-
-Why it matters:
-
-- This repo has explicit operational logic to avoid deploy failures caused by Django Sites / allauth migration ordering
-
-### `backfill_email_verification`
-
-Purpose:
-
-- Creates missing allauth `EmailAddress` records for older users
-- Can dry-run
-- Can optionally send verification emails
 
 ### `seed_large`
 

@@ -1,7 +1,7 @@
 """
 Empty migration whose sole purpose is to declare an explicit dependency on
 django.contrib.sites so that fresh database installs always apply sites
-migrations before allauth/socialaccount migrations.
+migrations in a predictable order alongside accounts.
 
 This prevents InconsistentMigrationHistory on new environments without
 requiring any manual intervention.

@@ -1,6 +1,6 @@
 # TheBlog
 
-A full-stack blog platform with a Django REST Framework API backend and a React frontend. Features role-based access control, threaded comments with voting, tag management, and Google OAuth login.
+A full-stack blog platform with a Django REST Framework API backend and a React frontend. Features role-based access control, threaded comments with voting, tag management, and session-based email/password auth.
 
 ---
 
@@ -28,7 +28,7 @@ New contributors should start with [`docs/developers/START_HERE.md`](docs/develo
 | Language | Python 3.14 |
 | Framework | Django 6.0 + Django REST Framework |
 | Database | PostgreSQL 16 (Neon) |
-| Auth | Session-based · django-allauth · Google OAuth 2.0 |
+| Auth | Session-based email/password (Django Ninja `/api/auth/`) |
 | Rate limiting | DRF throttling (per-user, per-endpoint, global) |
 | Server | Gunicorn (Render) |
 
@@ -60,7 +60,7 @@ New contributors should start with [`docs/developers/START_HERE.md`](docs/develo
 - **Tags** — tag posts and browse posts by tag
 - **Users** — public profiles, per-user comment history
 - **Dashboard** — aggregated stats (post count, authors, active tags, average word depth, most commented posts)
-- **Auth** — email/password registration and login, Google OAuth one-click login/signup
+- **Auth** — email/password registration and login
 - **Roles** — `user` · `moderator` · `admin` with enforced permission layers
 
 ---
@@ -112,8 +112,6 @@ npm run dev
 | `DB_NAME / DB_USER / DB_PASSWORD / DB_HOST / DB_PORT` | PostgreSQL connection |
 | `CORS_ALLOWED_ORIGINS` | Frontend origin |
 | `CSRF_TRUSTED_ORIGINS` | CSRF whitelist |
-| `GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET` | Google OAuth credentials (optional) |
-
 Files: `.env.local` (dev) · `.env.testing` (tests) · `.env.production` (prod template)
 
 Never commit real secrets. Keep only placeholder/template values in tracked env files and load live credentials from your local shell, CI secrets, or deployment platform secret store.
@@ -148,8 +146,6 @@ GET  /api/users/:username/      User profile + posts
 GET  /api/users/:username/comments/ User's comments
 
 GET  /api/dashboard/            Aggregated site stats
-
-GET  /accounts/google/login/    Initiate Google OAuth
 ```
 
 All list endpoints are paginated (default page size: 10). All write endpoints are rate-limited.

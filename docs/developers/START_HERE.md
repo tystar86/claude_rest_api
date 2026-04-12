@@ -9,7 +9,7 @@ This is the onboarding file for a new developer joining `claude_rest_api`.
 - A Django 6 + Django REST Framework backend in `blog/`, `accounts/`, and `config/`
 - A React 19 + Vite frontend in `frontend/`
 - PostgreSQL in local Docker and production
-- Session-based auth with Django sessions, CSRF protection, and optional Google OAuth via django-allauth
+- Session-based auth with Django sessions, CSRF protection, and email/password via `/api/auth/`
 
 The quickest way to understand the product is:
 
@@ -218,8 +218,7 @@ uv run python tests/security/load_burst.py --url http://localhost:8000/api/dashb
 
 - Test DB mode is different from dev DB mode. Pytest defaults to in-memory SQLite unless `TEST_USE_POSTGRES=true`.
 - Standalone local Postgres defaults to host port `5432`, while Docker exposes Postgres on host port `5433`.
-- Google OAuth depends on django-allauth under `/accounts/...`, not `/api/auth/...`.
 - CSRF is required for session-authenticated write requests. The frontend handles this in `frontend/src/api/client.js`.
 - Fixture and large-seed users are useful for data shape and load testing, but they are not a clean source of login-ready accounts.
 - A Django `is_staff` or `is_superuser` account is privileged on the backend even if its `Profile.role` still says `user`, so UI role badges can look misleading until the profile is updated.
-- Production deploys run `ensure_sites_migrations` before `migrate` because the app has had ordering issues around Django Sites and allauth socialaccount tables.
+- Production deploys run `ensure_sites_migrations` before `migrate` to repair rare split state for `django.contrib.sites` (`django_site`) before normal migrations run.

@@ -1,18 +1,7 @@
 """
-Resolves split migration state where tables are missing despite their
-migration records existing (or vice versa), caused by deployment ordering
-issues with django.contrib.sites and allauth.socialaccount.
-
-Handles:
-  - django_site table (sites app)
-  - socialaccount_socialapp_sites M2M table (socialaccount app)
-
-Each is fixed independently using the same strategy:
-  0. Brand-new DB — django_migrations doesn't exist yet → no-op.
-  1. Clean        — table exists                        → no-op.
-  2. Stale        — records present BUT table missing   → drop stale records,
-                    create table, re-record.
-  3. Ordering bug — no records AND table missing        → create table, record.
+Resolves split migration state where django_site is missing despite migration
+records existing (or vice versa), caused by deployment ordering issues with
+django.contrib.sites.
 
 Safe to run on every deployment (idempotent).
 
@@ -27,14 +16,6 @@ from django.db import connection
 from django.utils.timezone import now
 
 SITES_MIGRATIONS = ["0001_initial", "0002_alter_domain_unique"]
-SOCIALACCOUNT_MIGRATIONS = [
-    "0001_initial",
-    "0002_token_max_lengths",
-    "0003_extra_data_default_dict",
-    "0004_app_provider_id_settings",
-    "0005_socialtoken_nullable_app",
-    "0006_alter_socialaccount_extra_data",
-]
 
 
 def _migrations_table_exists():
@@ -108,46 +89,10 @@ def _fix_sites(stdout, style):
     stdout.write(style.SUCCESS("  django_site — created and recorded."))
 
 
-def _fix_socialapp_sites(stdout, style):
-    """Ensure socialaccount_socialapp_sites M2M table exists and migrations are recorded."""
-    if _table_exists("socialaccount_socialapp_sites"):
-        stdout.write("  socialaccount_socialapp_sites — OK")
-        return
-
-    # Import here so this command can run even without allauth installed.
-    try:
-        from allauth.socialaccount.models import SocialApp
-    except ImportError:
-        stdout.write(
-            "  socialaccount_socialapp_sites — allauth not installed, skipping."
-        )
-        return
-
-    recorded = _recorded_migrations("socialaccount")
-    if recorded:
-        stdout.write(
-            style.WARNING(
-                "  socialaccount_socialapp_sites — stale records found, removing…"
-            )
-        )
-        _remove_stale_records("socialaccount")
-
-    stdout.write(
-        style.WARNING("  socialaccount_socialapp_sites — missing, creating M2M table…")
-    )
-    through = SocialApp.sites.through
-    with connection.schema_editor() as editor:
-        editor.create_model(through)
-    _record_migrations("socialaccount", SOCIALACCOUNT_MIGRATIONS)
-    stdout.write(
-        style.SUCCESS("  socialaccount_socialapp_sites — created and recorded.")
-    )
-
-
 class Command(BaseCommand):
     help = (
-        "Ensures django_site and socialaccount_socialapp_sites tables exist "
-        "and their migrations are recorded correctly before `migrate` runs."
+        "Ensures django_site exists and sites migrations are recorded correctly "
+        "before `migrate` runs."
     )
 
     def handle(self, *args, **options):
@@ -156,4 +101,3 @@ class Command(BaseCommand):
             return
 
         _fix_sites(self.stdout, self.style)
-        _fix_socialapp_sites(self.stdout, self.style)

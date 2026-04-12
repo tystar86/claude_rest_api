@@ -57,7 +57,6 @@ It handles:
 - `withCredentials: true` for Django session cookies
 - CSRF token bootstrap from `/api/auth/csrf/`
 - Automatic `X-CSRFToken` injection on write requests
-- `GOOGLE_LOGIN_URL` generation for django-allauth routes outside `/api`
 
 `frontend/src/context/AuthContext.jsx` then:
 
@@ -76,7 +75,7 @@ Examples:
 - `PostDetail.jsx`: post detail, edit flow, comment tree, voting, and replies
 - `TagList.jsx`: tag CRUD for users with tag-management privileges
 - `UserProfile.jsx`: profile updates and password changes
-- `Login.jsx` and `Register.jsx`: email/password auth plus Google OAuth link-out
+- `Login.jsx` and `Register.jsx`: email/password registration and login
 
 Important note:
 
@@ -130,10 +129,6 @@ The frontend defaults to:
 
 - Vercel uses `frontend/vercel.json`
 - The production frontend expects `VITE_API_URL` to include `/api`
-- Google OAuth links are derived from the backend origin, not from the frontend host
-
-That backend-origin derivation is intentional, because django-allauth routes are served from Django under `/accounts/...`.
-
 ## Frontend Tests
 
 Current test setup:
