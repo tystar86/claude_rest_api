@@ -1,4 +1,4 @@
-"""Unit tests for DRF serializers."""
+"""Unit tests for blog serializers."""
 
 import pytest
 from django.contrib.auth.models import AnonymousUser

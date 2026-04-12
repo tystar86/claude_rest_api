@@ -3,7 +3,7 @@ Django Ninja rate limits for the write API.
 
 Uses ``ninja.throttling`` only. Limits come from Django setting
 ``NINJA_DEFAULT_THROTTLE_RATES`` (see ``config.settings.API_THROTTLE_RATES``).
-The stack mirrors DRF defaults used by the legacy write handlers.
+The stack mirrors the rate-limit tiers used by the original write handlers.
 """
 
 from typing import Optional
