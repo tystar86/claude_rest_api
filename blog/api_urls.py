@@ -4,18 +4,19 @@ from django.views.decorators.csrf import csrf_exempt
 from .api import (
     preview_auth_api,
     preview_read_api,
+    preview_write_api,
     public_auth_api,
     public_read_callbacks,
+    public_write_callbacks,
 )
-from . import api_views
 
 
-def _get_or_drf(get_view, fallback_view):
+def _read_or_write(read_view, write_view):
     @csrf_exempt
     def view(request, *args, **kwargs):
         if request.method == "GET":
-            return get_view(request, *args, **kwargs)
-        return fallback_view(request, *args, **kwargs)
+            return read_view(request, *args, **kwargs)
+        return write_view(request, *args, **kwargs)
 
     return view
 
@@ -24,29 +25,42 @@ urlpatterns = [
     path("auth/", public_auth_api.urls),
     path("_ninja/auth/", preview_auth_api.urls),
     path("_ninja/read/", preview_read_api.urls),
+    path("_ninja/write/", preview_write_api.urls),
     path("dashboard/", public_read_callbacks["dashboard"]),
     path("comments/", public_read_callbacks["comment_list"]),
-    path("posts/<slug:slug>/comments/", api_views.comment_create),
+    path("posts/<slug:slug>/comments/", public_write_callbacks["comment_create"]),
     path(
-        "posts/", _get_or_drf(public_read_callbacks["post_list"], api_views.post_list)
+        "posts/",
+        _read_or_write(
+            public_read_callbacks["post_list"], public_write_callbacks["create_post"]
+        ),
     ),
     path(
         "posts/<slug:slug>/",
-        _get_or_drf(public_read_callbacks["post_detail"], api_views.post_detail),
+        _read_or_write(
+            public_read_callbacks["post_detail"], public_write_callbacks["update_post"]
+        ),
     ),
-    path("tags/", _get_or_drf(public_read_callbacks["tag_list"], api_views.tag_list)),
+    path(
+        "tags/",
+        _read_or_write(
+            public_read_callbacks["tag_list"], public_write_callbacks["create_tag"]
+        ),
+    ),
     path(
         "tags/<slug:slug>/",
-        _get_or_drf(public_read_callbacks["tag_detail"], api_views.tag_detail),
+        _read_or_write(
+            public_read_callbacks["tag_detail"], public_write_callbacks["update_tag"]
+        ),
     ),
     path("users/", public_read_callbacks["user_list"]),
     path("users/<str:username>/comments/", public_read_callbacks["user_comments"]),
     path("users/<str:username>/", public_read_callbacks["user_detail"]),
-    path("auth/login/", api_views.login_view),
-    path("auth/register/", api_views.register_view),
-    path("auth/resend-verification/", api_views.resend_verification_view),
-    path("auth/profile/", api_views.update_profile),
-    path("comments/<int:comment_id>/vote/", api_views.comment_vote),
-    path("comments/<int:comment_id>/", api_views.comment_update),
-    path("comments/<int:comment_id>/delete/", api_views.comment_delete),
+    path("auth/login/", public_write_callbacks["login"]),
+    path("auth/register/", public_write_callbacks["register"]),
+    path("auth/resend-verification/", public_write_callbacks["resend_verification"]),
+    path("auth/profile/", public_write_callbacks["update_profile"]),
+    path("comments/<int:comment_id>/vote/", public_write_callbacks["comment_vote"]),
+    path("comments/<int:comment_id>/", public_write_callbacks["comment_update"]),
+    path("comments/<int:comment_id>/delete/", public_write_callbacks["comment_delete"]),
 ]
