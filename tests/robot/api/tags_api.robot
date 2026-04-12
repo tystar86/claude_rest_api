@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation    API smoke tests for tag endpoints.
 Resource         ../resources/api.resource
-Suite Setup      Run Keywords    Create API Session    AND    Cleanup API Test Tags
+Suite Setup      Run Keywords    Create API Session    AND    Ensure Moderator User    AND    Cleanup API Test Tags
 Test Setup       Register Test User
 
 *** Test Cases ***
@@ -41,7 +41,7 @@ Anonymous User Cannot Create Tag
     ...    json=${payload}
     ...    headers=${headers}
     ...    expected_status=any
-    Should Be Equal As Integers    ${resp.status_code}    403
+    Should Be Equal As Integers    ${resp.status_code}    401
 
 Regular User Cannot Create Tag
     Login Test User

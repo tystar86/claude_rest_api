@@ -90,7 +90,7 @@ That is the established backend style for this repo.
 - `DELETE /api/posts/<slug>/`
 - `POST /api/posts/<slug>/comments/`
 - `PATCH /api/comments/<id>/`
-- `DELETE /api/comments/<id>/delete/`
+- `DELETE /api/comments/<id>/`
 - `POST /api/comments/<id>/vote/`
 - `POST/PATCH/DELETE /api/tags/...`
 

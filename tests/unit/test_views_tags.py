@@ -45,9 +45,9 @@ class TestTagList:
         assert resp.status_code == status.HTTP_403_FORBIDDEN
 
     def test_unauthenticated_cannot_create_tag(self, api_client):
-        """An anonymous user is forbidden from creating tags."""
+        """An anonymous user must authenticate before creating tags."""
         resp = api_client.post("/api/tags/", {"name": "Django"}, format="json")
-        assert resp.status_code == status.HTTP_403_FORBIDDEN
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_duplicate_tag_name_returns_400(self, mod_client, db):
         """Creating a tag with a name that already exists returns 400."""

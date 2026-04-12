@@ -79,6 +79,16 @@ class TestRegisterView:
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_non_string_required_fields_return_400(self, api_client):
+        """Non-string required fields are rejected with the standard missing-fields detail."""
+        resp = api_client.post(
+            "/api/auth/register/",
+            {"email": ["bad"], "username": {"bad": "type"}, "password": 123},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.data["detail"] == "email, username and password are required."
+
     def test_duplicate_email_returns_400(self, api_client, user):
         """Registering with an already-used email returns 400."""
         resp = api_client.post(
@@ -188,6 +198,13 @@ class TestLoginView:
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
         assert resp.data["detail"] == "Invalid credentials."
+
+    def test_get_login_returns_json_405(self, api_client):
+        """Unsupported methods return a JSON 405 payload with Allow header."""
+        resp = api_client.get("/api/auth/login/")
+        assert resp.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+        assert resp.data["detail"] == "Method not allowed."
+        assert "POST" in resp.headers.get("Allow", "")
 
     def test_duplicate_email_lookup_returns_400(self, api_client, monkeypatch):
         """MultipleObjectsReturned during email lookup is treated as auth failure."""
@@ -384,6 +401,21 @@ class TestUpdateProfileView:
         """Submitting an empty string for username is rejected."""
         resp = auth_client.patch("/api/auth/profile/", {"username": ""}, format="json")
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_non_string_profile_fields_return_400(self, auth_client):
+        """Non-string profile update fields return explicit validation errors."""
+        resp = auth_client.patch(
+            "/api/auth/profile/",
+            {
+                "username": {"$ne": ""},
+                "current_password": {"$ne": ""},
+                "new_password": ["bad"],
+            },
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.data["username"] == "Username must be a string."
+        assert resp.data["new_password"] == "Password must be a string."
 
 
 # ── Google OAuth ────────────────────────────────────────────────────────────────

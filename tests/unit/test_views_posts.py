@@ -169,6 +169,17 @@ class TestPostDetail:
         )
         assert resp.status_code == status.HTTP_401_UNAUTHORIZED
 
+    def test_update_unauthenticated_nonexistent_slug_still_returns_401(
+        self, api_client
+    ):
+        """Auth checks happen before slug lookup to avoid existence leaks."""
+        resp = api_client.patch(
+            "/api/posts/no-such-post/",
+            {"title": "Anon"},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+
     def test_update_empty_title_returns_400(self, auth_client, post):
         """Setting title to an empty string is rejected."""
         resp = auth_client.patch(
@@ -182,6 +193,17 @@ class TestPostDetail:
             f"/api/posts/{post.slug}/", {"body": ""}, format="json"
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_update_malformed_json_returns_400(self, auth_client, post):
+        """Malformed JSON is rejected instead of being treated as an empty PATCH."""
+        resp = auth_client.generic(
+            "PATCH",
+            f"/api/posts/{post.slug}/",
+            "{not-json",
+            content_type="application/json",
+        )
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.data["detail"] == "Malformed JSON body."
 
     def test_update_rejects_non_string_title(self, auth_client, post):
         """Structured payloads do not crash post updates."""
@@ -199,6 +221,13 @@ class TestPostDetail:
     def test_delete_unauthenticated_returns_401(self, api_client, post):
         """Unauthenticated DELETE requests are rejected."""
         resp = api_client.delete(f"/api/posts/{post.slug}/")
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_delete_unauthenticated_nonexistent_slug_still_returns_401(
+        self, api_client
+    ):
+        """Delete checks auth before slug lookup to reduce oracle surface."""
+        resp = api_client.delete("/api/posts/no-such-post/")
         assert resp.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_delete_other_user_post_returns_403(self, api_client, post, db):

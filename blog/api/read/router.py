@@ -66,6 +66,31 @@ def comment_list(request: HttpRequest):
     return json_compat_response(api_views.paginate(qs, request, CommentListSerializer))
 
 
+@router.get(
+    "/posts/{slug}/comments/",
+    response={200: PaginatedCommentsResponse, 404: NotFoundResponse},
+)
+def comment_list_by_post(request: HttpRequest, slug: str):
+    attach_forced_user(request)
+    try:
+        post = Post.objects.select_related("author").get(slug=slug)
+    except Post.DoesNotExist:
+        return empty_compat_response(status=404)
+
+    if post.status != Post.Status.PUBLISHED and not api_views.can_view_unpublished_post(
+        request.user, post
+    ):
+        return empty_compat_response(status=404)
+
+    qs = (
+        Comment.objects.filter(post=post, is_approved=True)
+        .select_related("author", "post")
+        .prefetch_related("votes")
+        .order_by("-created_at")
+    )
+    return json_compat_response(api_views.paginate(qs, request, CommentListSerializer))
+
+
 @router.get("/posts/", response=PaginatedPostsResponse)
 def post_list(request: HttpRequest):
     qs = api_views._published_posts_list_qs().order_by("-created_at")

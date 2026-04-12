@@ -4,18 +4,36 @@ from django.views.decorators.csrf import csrf_exempt
 from .api import (
     preview_auth_api,
     preview_read_api,
+    preview_write_api,
     public_auth_api,
     public_read_callbacks,
+    public_write_callbacks,
 )
-from . import api_views
+from .api.auth.services import json_compat_response
 
 
-def _get_or_drf(get_view, fallback_view):
-    @csrf_exempt
+def _dispatch_by_method(**method_views):
     def view(request, *args, **kwargs):
-        if request.method == "GET":
-            return get_view(request, *args, **kwargs)
-        return fallback_view(request, *args, **kwargs)
+        is_head_fallback = request.method == "HEAD" and "HEAD" not in method_views
+        lookup_method = "GET" if is_head_fallback else request.method
+        handler = method_views.get(lookup_method)
+        if handler is None:
+            allowed_methods = sorted(set(method_views.keys()))
+            if "GET" in allowed_methods and "HEAD" not in allowed_methods:
+                allowed_methods.append("HEAD")
+            response = json_compat_response(
+                {"detail": "Method not allowed."}, status=405
+            )
+            response["Allow"] = ", ".join(allowed_methods)
+            return response
+        if is_head_fallback:
+            original_method = request.method
+            request.method = "GET"
+            try:
+                return handler(request, *args, **kwargs)
+            finally:
+                request.method = original_method
+        return handler(request, *args, **kwargs)
 
     return view
 
@@ -24,29 +42,74 @@ urlpatterns = [
     path("auth/", public_auth_api.urls),
     path("_ninja/auth/", preview_auth_api.urls),
     path("_ninja/read/", preview_read_api.urls),
+    path("_ninja/write/", preview_write_api.urls),
     path("dashboard/", public_read_callbacks["dashboard"]),
     path("comments/", public_read_callbacks["comment_list"]),
-    path("posts/<slug:slug>/comments/", api_views.comment_create),
     path(
-        "posts/", _get_or_drf(public_read_callbacks["post_list"], api_views.post_list)
+        "posts/<slug:slug>/comments/",
+        _dispatch_by_method(
+            GET=public_read_callbacks["comment_list_by_post"],
+            POST=public_write_callbacks["comment_create"],
+        ),
+    ),
+    path(
+        "posts/",
+        _dispatch_by_method(
+            GET=public_read_callbacks["post_list"],
+            POST=public_write_callbacks["create_post"],
+        ),
     ),
     path(
         "posts/<slug:slug>/",
-        _get_or_drf(public_read_callbacks["post_detail"], api_views.post_detail),
+        _dispatch_by_method(
+            GET=public_read_callbacks["post_detail"],
+            PATCH=public_write_callbacks["update_post"],
+            DELETE=public_write_callbacks["delete_post"],
+        ),
     ),
-    path("tags/", _get_or_drf(public_read_callbacks["tag_list"], api_views.tag_list)),
+    path(
+        "tags/",
+        _dispatch_by_method(
+            GET=public_read_callbacks["tag_list"],
+            POST=public_write_callbacks["create_tag"],
+        ),
+    ),
     path(
         "tags/<slug:slug>/",
-        _get_or_drf(public_read_callbacks["tag_detail"], api_views.tag_detail),
+        _dispatch_by_method(
+            GET=public_read_callbacks["tag_detail"],
+            PATCH=public_write_callbacks["update_tag"],
+            DELETE=public_write_callbacks["delete_tag"],
+        ),
     ),
     path("users/", public_read_callbacks["user_list"]),
     path("users/<str:username>/comments/", public_read_callbacks["user_comments"]),
     path("users/<str:username>/", public_read_callbacks["user_detail"]),
-    path("auth/login/", api_views.login_view),
-    path("auth/register/", api_views.register_view),
-    path("auth/resend-verification/", api_views.resend_verification_view),
-    path("auth/profile/", api_views.update_profile),
-    path("comments/<int:comment_id>/vote/", api_views.comment_vote),
-    path("comments/<int:comment_id>/", api_views.comment_update),
-    path("comments/<int:comment_id>/delete/", api_views.comment_delete),
+    path(
+        "auth/login/",
+        csrf_exempt(_dispatch_by_method(POST=public_write_callbacks["login"])),
+    ),
+    path(
+        "auth/register/",
+        csrf_exempt(_dispatch_by_method(POST=public_write_callbacks["register"])),
+    ),
+    path(
+        "auth/resend-verification/",
+        _dispatch_by_method(POST=public_write_callbacks["resend_verification"]),
+    ),
+    path(
+        "auth/profile/",
+        _dispatch_by_method(PATCH=public_write_callbacks["update_profile"]),
+    ),
+    path(
+        "comments/<int:comment_id>/vote/",
+        _dispatch_by_method(POST=public_write_callbacks["comment_vote"]),
+    ),
+    path(
+        "comments/<int:comment_id>/",
+        _dispatch_by_method(
+            PATCH=public_write_callbacks["comment_update"],
+            DELETE=public_write_callbacks["comment_delete"],
+        ),
+    ),
 ]
