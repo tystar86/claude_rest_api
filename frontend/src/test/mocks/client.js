@@ -31,6 +31,8 @@ export const createComment = vi.fn();
 export const updateComment = vi.fn();
 export const deleteComment = vi.fn();
 
+export const resendVerification = vi.fn();
+
 export const fetchCsrf = vi.fn();
 
 export default { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() };

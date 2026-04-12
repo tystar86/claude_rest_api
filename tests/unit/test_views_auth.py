@@ -245,6 +245,7 @@ class TestLoginView:
             format="json",
         )
         assert resp.status_code == status.HTTP_403_FORBIDDEN
+        assert resp.data["code"] == "email_not_verified"
 
     @override_settings(
         ACCOUNT_EMAIL_VERIFICATION="mandatory",
@@ -280,16 +281,43 @@ class TestEmailVerificationFlow:
         assert resp.status_code == status.HTTP_201_CREATED
         assert "detail" in resp.data
         assert "username" not in resp.data
+        assert resp.data["code"] == "verification_pending"
 
     @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
-    def test_resend_verification_requires_authentication(self, api_client):
-        """Anonymous resend requests are rejected."""
+    def test_resend_verification_anonymous_without_email_returns_200(self, api_client):
+        """Anonymous resend without email returns 200 (no user enumeration)."""
         resp = api_client.post("/api/auth/resend-verification/")
-        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+        assert resp.status_code == status.HTTP_200_OK
+        assert "verification email sent" in resp.data["detail"].lower()
 
     @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
-    def test_resend_verification_returns_400_for_verified_user(self, auth_client, user):
-        """Already-verified users do not get another verification email."""
+    def test_resend_verification_anonymous_with_unknown_email_returns_200(
+        self, api_client
+    ):
+        """Anonymous resend with unknown email returns 200 (no enumeration)."""
+        resp = api_client.post(
+            "/api/auth/resend-verification/",
+            {"email": "nobody@example.com"},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_200_OK
+
+    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
+    def test_resend_verification_anonymous_with_valid_email_returns_200(
+        self, api_client, user
+    ):
+        """Anonymous resend with valid unverified email sends verification."""
+        resp = api_client.post(
+            "/api/auth/resend-verification/",
+            {"email": user.email},
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_200_OK
+        assert "verification email sent" in resp.data["detail"].lower()
+
+    @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
+    def test_resend_verification_returns_200_for_verified_user(self, auth_client, user):
+        """Already-verified users get the same 200 response (no enumeration)."""
         EmailAddress.objects.create(
             user=user,
             email=user.email,
@@ -297,7 +325,7 @@ class TestEmailVerificationFlow:
             primary=True,
         )
         resp = auth_client.post("/api/auth/resend-verification/")
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.status_code == status.HTTP_200_OK
 
     @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
     def test_resend_verification_succeeds_for_unverified_user(self, auth_client):

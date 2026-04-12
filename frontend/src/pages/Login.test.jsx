@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { GOOGLE_LOGIN_URL, loginUser } from '../api/client';
+import { resendVerification } from '../api/client';
 
 vi.mock('../api/client', () => import('../test/mocks/client.js'));
 vi.mock('react-router-dom', () => ({
@@ -136,6 +137,174 @@ describe('Login page', () => {
     await waitFor(() => expect(screen.getByText('Invalid credentials.')).toBeInTheDocument());
 
     await user.click(screen.getByRole('button', { name: /login/i }));
-    await waitFor(() => expect(screen.queryByText('Invalid credentials.')).toBeNull());
+    await waitFor(() => expect(screen.queryByText('Invalid credentials.')).not.toBeInTheDocument());
+  });
+
+  // ── Email verification flow ───────────────────────────────────────────
+
+  it('shows a resend button when login fails with code email_not_verified', async () => {
+    const err = {
+      response: { status: 403, data: { detail: 'Email address is not verified.', code: 'email_not_verified' } },
+    };
+    vi.mocked(loginUser).mockRejectedValue(err);
+    const user = userEvent.setup();
+
+    render(<Login />);
+
+    await user.type(screen.getByLabelText(/email/i), 'unverified@example.com');
+    await user.type(screen.getByLabelText(/password/i), 'password');
+    await user.click(screen.getByRole('button', { name: /login/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Email address is not verified.')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /resend verification email/i })).toBeInTheDocument();
+    });
+  });
+
+  it('does not show resend button for non-verification 403 errors', async () => {
+    const err = {
+      response: { status: 403, data: { detail: 'Permission denied.' } },
+    };
+    vi.mocked(loginUser).mockRejectedValue(err);
+    const user = userEvent.setup();
+
+    render(<Login />);
+
+    await user.type(screen.getByLabelText(/email/i), 'a@a.com');
+    await user.type(screen.getByLabelText(/password/i), 'pass');
+    await user.click(screen.getByRole('button', { name: /login/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Permission denied.')).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /resend verification email/i })).not.toBeInTheDocument();
+  });
+
+  it('calls resendVerification with the entered email and shows success in a success alert', async () => {
+    const err = {
+      response: { status: 403, data: { detail: 'Email address is not verified.', code: 'email_not_verified' } },
+    };
+    vi.mocked(loginUser).mockRejectedValue(err);
+    vi.mocked(resendVerification).mockResolvedValue({
+      detail: 'Verification email sent. Please check your inbox.',
+    });
+    const user = userEvent.setup();
+
+    render(<Login />);
+
+    await user.type(screen.getByLabelText(/email/i), 'unverified@example.com');
+    await user.type(screen.getByLabelText(/password/i), 'password');
+    await user.click(screen.getByRole('button', { name: /login/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /resend verification email/i })).toBeInTheDocument()
+    );
+    await user.click(screen.getByRole('button', { name: /resend verification email/i }));
+
+    await waitFor(() => {
+      const alert = screen.getByText('Verification email sent. Please check your inbox.');
+      expect(alert).toBeInTheDocument();
+      expect(alert.closest('.alert')).toHaveClass('alert-success');
+    });
+    expect(resendVerification).toHaveBeenCalledWith('unverified@example.com');
+  });
+
+  it('shows resend failure in a danger alert', async () => {
+    const loginErr = {
+      response: { status: 403, data: { detail: 'Not verified.', code: 'email_not_verified' } },
+    };
+    vi.mocked(loginUser).mockRejectedValue(loginErr);
+    vi.mocked(resendVerification).mockRejectedValue({
+      response: { data: { detail: 'Too many requests.' } },
+    });
+    const user = userEvent.setup();
+
+    render(<Login />);
+
+    await user.type(screen.getByLabelText(/email/i), 'unverified@example.com');
+    await user.type(screen.getByLabelText(/password/i), 'password');
+    await user.click(screen.getByRole('button', { name: /login/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /resend verification email/i })).toBeInTheDocument()
+    );
+    await user.click(screen.getByRole('button', { name: /resend verification email/i }));
+
+    await waitFor(() => {
+      const alert = screen.getByText('Too many requests.');
+      expect(alert).toBeInTheDocument();
+      expect(alert.closest('.alert')).toHaveClass('alert-danger');
+    });
+  });
+
+  it('falls back to generic message when resend fails without a detail field', async () => {
+    const loginErr = {
+      response: { status: 403, data: { detail: 'Not verified.', code: 'email_not_verified' } },
+    };
+    vi.mocked(loginUser).mockRejectedValue(loginErr);
+    vi.mocked(resendVerification).mockRejectedValue(new Error('network'));
+    const user = userEvent.setup();
+
+    render(<Login />);
+
+    await user.type(screen.getByLabelText(/email/i), 'unverified@example.com');
+    await user.type(screen.getByLabelText(/password/i), 'password');
+    await user.click(screen.getByRole('button', { name: /login/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /resend verification email/i })).toBeInTheDocument()
+    );
+    await user.click(screen.getByRole('button', { name: /resend verification email/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText('Failed to resend verification email.')).toBeInTheDocument()
+    );
+  });
+
+  it('disables the resend button and shows spinner while resending', async () => {
+    const loginErr = {
+      response: { status: 403, data: { detail: 'Not verified.', code: 'email_not_verified' } },
+    };
+    vi.mocked(loginUser).mockRejectedValue(loginErr);
+    vi.mocked(resendVerification).mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+
+    render(<Login />);
+
+    await user.type(screen.getByLabelText(/email/i), 'unverified@example.com');
+    await user.type(screen.getByLabelText(/password/i), 'password');
+    await user.click(screen.getByRole('button', { name: /login/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /resend verification email/i })).toBeInTheDocument()
+    );
+    await user.click(screen.getByRole('button', { name: /resend verification email/i }));
+
+    expect(screen.getByRole('button', { name: /resend verification email/i })).toBeDisabled();
+    expect(document.querySelectorAll('.spinner-border').length).toBeGreaterThan(0);
+  });
+
+  it('uses fallback success message when resend response has no detail', async () => {
+    const loginErr = {
+      response: { status: 403, data: { detail: 'Not verified.', code: 'email_not_verified' } },
+    };
+    vi.mocked(loginUser).mockRejectedValue(loginErr);
+    vi.mocked(resendVerification).mockResolvedValue({});
+    const user = userEvent.setup();
+
+    render(<Login />);
+
+    await user.type(screen.getByLabelText(/email/i), 'unverified@example.com');
+    await user.type(screen.getByLabelText(/password/i), 'password');
+    await user.click(screen.getByRole('button', { name: /login/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /resend verification email/i })).toBeInTheDocument()
+    );
+    await user.click(screen.getByRole('button', { name: /resend verification email/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText('Verification email sent. Please check your inbox.')).toBeInTheDocument()
+    );
   });
 });
