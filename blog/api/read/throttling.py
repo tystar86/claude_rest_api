@@ -42,7 +42,8 @@ class ReadEndpointActorThrottle(SimpleRateThrottle):
             actor = f"ip:{self.get_ident(request)}"
 
         resolver = getattr(request, "resolver_match", None)
-        endpoint = resolver.view_name if resolver is not None else request.path
+        view_name = resolver.view_name if resolver is not None else None
+        endpoint = view_name if view_name else request.path
         ident = f"{endpoint}:{actor}"
         return self.cache_format % {"scope": self.scope, "ident": ident}
 

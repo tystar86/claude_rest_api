@@ -168,7 +168,9 @@ def build_dashboard_payload():
         "most_used_tags": TagSerializer(
             Tag.objects.annotate(
                 post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
-            ).order_by("-post_count")[:10],
+            )
+            .filter(post_count__gt=0)
+            .order_by("-post_count")[:10],
             many=True,
         ).data,
         "top_authors": UserSerializer(
