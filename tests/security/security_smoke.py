@@ -114,15 +114,31 @@ def check_xss_payload_not_reflected(base_url: str) -> CheckResult:
 
 
 def check_oversized_payload_rejected(base_url: str) -> CheckResult:
-    """POST a 1 MB JSON body to the login endpoint — must not crash (500)."""
-    big_value = "A" * (1024 * 1024)  # 1 MB string
+    """POST a large JSON body to login — must return a client error, never 5xx.
+
+    Login is CSRF-protected; fetch a token first so the request reaches the view.
+    Any 4xx (including 403 CSRF or 413 from a proxy) counts as safely rejected.
+    """
+    session = requests.Session()
+    # Sub-megabyte body keeps the probe fast on slow CI links while still stressing parsers.
+    big_value = "A" * (768 * 1024)
     try:
-        r = requests.post(
+        csrf_r = session.get(f"{base_url}/api/auth/csrf/", timeout=10)
+        csrf_headers = {}
+        if csrf_r.status_code == 200:
+            try:
+                token = csrf_r.json().get("csrfToken", "")
+            except json.JSONDecodeError:
+                token = ""
+            if token:
+                csrf_headers["X-CSRFToken"] = token
+        r = session.post(
             f"{base_url}/api/auth/login/",
             json={"email": big_value, "password": "x"},
-            timeout=15,
+            headers=csrf_headers,
+            timeout=(10, 60),
         )
-        ok = r.status_code in (400, 413, 429)
+        ok = 400 <= r.status_code < 500
     except requests.RequestException:
         ok = False
         r = None

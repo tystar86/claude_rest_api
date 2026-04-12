@@ -1,7 +1,10 @@
 """Unit tests for tag API endpoints."""
 
+from unittest.mock import patch
+
 import pytest
 from django.contrib.auth.models import User
+from django.db import IntegrityError
 
 from accounts.models import Profile
 from blog.models import Post, Tag
@@ -164,6 +167,17 @@ class TestTagDetail:
             content_type="application/json",
         )
         assert resp.status_code == 400
+
+    def test_update_tag_integrity_error_on_save_returns_400(self, mod_client, tag):
+        """A unique violation at save time returns the same 400 as the duplicate-name pre-check."""
+        with patch.object(Tag, "save", side_effect=IntegrityError()):
+            resp = mod_client.patch(
+                f"/api/tags/{tag.slug}/",
+                {"name": "graphql"},
+                content_type="application/json",
+            )
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Tag name already exists."
 
     def test_moderator_can_delete_tag(self, mod_client, tag):
         """A moderator can delete a tag."""

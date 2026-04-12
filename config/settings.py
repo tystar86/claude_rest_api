@@ -66,6 +66,7 @@ MIDDLEWARE: list[str | None] = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "blog.api.csrf.JsonMethodNotAllowedMiddleware",
 ]
 
 ROOT_URLCONF: str = "config.urls"
@@ -182,6 +183,7 @@ STORAGES: dict[str, Any] = {
 DEFAULT_AUTO_FIELD: str = "django.db.models.BigAutoField"
 
 # Security
+CSRF_FAILURE_VIEW: str = "blog.api.csrf.csrf_failure_view"
 X_FRAME_OPTIONS: str = os.environ.get("X_FRAME_OPTIONS", "DENY")
 SECURE_CONTENT_TYPE_NOSNIFF: bool = True
 SECURE_SSL_REDIRECT: bool = os.environ.get("SECURE_SSL_REDIRECT", "False") == "True"

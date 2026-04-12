@@ -4,10 +4,27 @@ import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
 
+from blog.api.utils import request_data
 from blog.api_views import can_manage_tags, paginate
 from blog.utils import build_unique_slug
 from blog.models import Tag
 from blog.serializers import TagSerializer
+
+
+# ── request_data (Ninja API JSON body) ─────────────────────────────────────────
+
+
+class TestRequestData:
+    """Tests for blog.api.utils.request_data."""
+
+    def test_invalid_utf8_body_raises_malformed_json_value_error(self):
+        """Bytes that are not valid UTF-8 for JSON decoding map to the same 400 path as bad JSON."""
+        factory = RequestFactory()
+        req = factory.post(
+            "/", data=b'\xff\x00{"a": 1}', content_type="application/json"
+        )
+        with pytest.raises(ValueError, match="Malformed JSON body"):
+            request_data(req)
 
 
 # ── build_unique_slug ──────────────────────────────────────────────────────────

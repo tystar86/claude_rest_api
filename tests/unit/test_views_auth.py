@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
-from django.db import connection
+from django.db import IntegrityError, connection
 from django.test import Client, override_settings
 
 GENERIC_RESEND_DETAIL = "Verification email sent. Please check your inbox."
@@ -358,7 +358,7 @@ class TestEmailVerificationFlow:
     ):
         """SMTP failures still return 200 to avoid leaking valid unverified accounts."""
         with patch(
-            "blog.api.write.router.send_verification_email_for_user",
+            "blog.api.auth.router.send_verification_email_for_user",
             side_effect=smtplib.SMTPException("mail transport unavailable"),
         ):
             resp = api_client.post(
@@ -463,6 +463,17 @@ class TestUpdateProfileView:
         assert resp.status_code == 400
         assert "username" in resp.json()
 
+    def test_username_integrity_error_on_save_returns_400(self, auth_client):
+        """A username unique violation at save time maps to the same 400 as the pre-check."""
+        with patch.object(User, "save", side_effect=IntegrityError()):
+            resp = auth_client.patch(
+                "/api/auth/profile/",
+                {"username": "unusedunique99"},
+                content_type="application/json",
+            )
+        assert resp.status_code == 400
+        assert resp.json()["username"] == "Username already taken."
+
     def test_empty_username_returns_400(self, auth_client):
         """Submitting an empty string for username is rejected."""
         resp = auth_client.patch(
@@ -553,8 +564,6 @@ class TestGoogleOAuth:
 
     def test_social_account_uid_is_unique_per_provider(self, db):
         """The same Google uid cannot be assigned to two different users."""
-        from django.db import IntegrityError
-
         from allauth.socialaccount.models import SocialAccount
 
         u1 = User.objects.create_user(username="g_user1", email="g1@example.com")

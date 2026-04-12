@@ -1,6 +1,5 @@
-"""Preview tests for write-oriented Ninja migration routes."""
+"""Tests for write-oriented Ninja routes."""
 
-import json
 from contextlib import contextmanager
 
 import pytest
@@ -8,8 +7,8 @@ from django.conf import settings
 from django.core.cache import cache
 from django.test import Client, override_settings
 
-from blog.api import preview_write_api
-from blog.api.write import throttling as write_throttling
+from blog.api import api as main_api
+from blog.api import throttling as api_throttling
 from blog.models import Post
 
 
@@ -29,13 +28,8 @@ def _temporary_throttle_rate(throttle, rate: str):
 
 
 @pytest.mark.django_db
-class TestNinjaWritePreview:
-    """Smoke coverage for the preview write Ninja surface."""
-
-    def test_openapi_json_is_available(self, api_client):
-        resp = api_client.get("/api/_ninja/write/openapi.json")
-        assert resp.status_code == 200
-        assert json.loads(resp.content)["openapi"] == "3.1.0"
+class TestNinjaWrite:
+    """Coverage for the write Ninja surface."""
 
     def test_posts_create_preserves_auth_requirements(self, user):
         anon_client = Client()
@@ -43,19 +37,19 @@ class TestNinjaWritePreview:
         auth_client.force_login(user)
 
         anon = anon_client.post(
-            "/api/_ninja/write/posts/",
-            {"title": "Preview Post", "body": "body"},
+            "/api/posts/",
+            {"title": "Write Post", "body": "body"},
             content_type="application/json",
         )
         authed = auth_client.post(
-            "/api/_ninja/write/posts/",
-            {"title": "Preview Post", "body": "body"},
+            "/api/posts/",
+            {"title": "Write Post", "body": "body"},
             content_type="application/json",
         )
 
         assert anon.status_code == 401
         assert authed.status_code == 201
-        assert authed.json()["title"] == "Preview Post"
+        assert authed.json()["title"] == "Write Post"
 
     def test_tag_create_respects_moderator_permissions(self, user, moderator):
         user_client = Client()
@@ -64,12 +58,12 @@ class TestNinjaWritePreview:
         mod_client.force_login(moderator)
 
         user_resp = user_client.post(
-            "/api/_ninja/write/tags/",
+            "/api/tags/",
             {"name": "not-allowed"},
             content_type="application/json",
         )
         mod_resp = mod_client.post(
-            "/api/_ninja/write/tags/",
+            "/api/tags/",
             {"name": "allowed-tag"},
             content_type="application/json",
         )
@@ -83,12 +77,12 @@ class TestNinjaWritePreview:
         auth_client.force_login(user)
 
         anon = anon_client.post(
-            f"/api/_ninja/write/comments/{comment.id}/vote/",
+            f"/api/comments/{comment.id}/vote/",
             {"vote": "like"},
             content_type="application/json",
         )
         authed = auth_client.post(
-            f"/api/_ninja/write/comments/{comment.id}/vote/",
+            f"/api/comments/{comment.id}/vote/",
             {"vote": "like"},
             content_type="application/json",
         )
@@ -101,7 +95,7 @@ class TestNinjaWritePreview:
         client = Client()
         client.force_login(user)
         resp = client.post(
-            f"/api/_ninja/write/posts/{post.slug}/comments/",
+            f"/api/posts/{post.slug}/comments/",
             {"body": "reply", "parent_id": {"bad": "value"}},
             content_type="application/json",
         )
@@ -129,7 +123,7 @@ class TestNinjaWritePreview:
         assert get_resp.status_code == 200
 
     def test_login_route_rate_limits_with_low_scope_rate(self):
-        assert preview_write_api.urls_namespace == "blog_ninja_write_preview"
+        assert main_api.urls_namespace == "blog_api"
         base_rates = dict(settings.API_THROTTLE_RATES)
         low_rates = {
             **base_rates,
@@ -143,24 +137,24 @@ class TestNinjaWritePreview:
             CACHES={
                 "default": {
                     "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-                    "LOCATION": "test-ninja-write-preview-login-throttle",
+                    "LOCATION": "test-ninja-write-login-throttle",
                 }
             },
         ):
             assert settings.API_THROTTLE_RATES["login"] == "1/min"
             cache.clear()
-            throttle = write_throttling.WRITE_LOGIN_THROTTLES[0]
+            throttle = api_throttling.LOGIN_THROTTLES[0]
             with _temporary_throttle_rate(
                 throttle, settings.API_THROTTLE_RATES["login"]
             ):
                 client = Client()
                 first = client.post(
-                    "/api/_ninja/write/auth/login/",
+                    "/api/auth/login/",
                     {"email": "missing@example.com", "password": "wrongpass"},
                     content_type="application/json",
                 )
                 second = client.post(
-                    "/api/_ninja/write/auth/login/",
+                    "/api/auth/login/",
                     {"email": "missing@example.com", "password": "wrongpass"},
                     content_type="application/json",
                 )
@@ -170,7 +164,7 @@ class TestNinjaWritePreview:
         assert second.status_code == 429
 
     def test_resend_route_rate_limits_with_low_scope_rate(self, user):
-        assert preview_write_api.urls_namespace == "blog_ninja_write_preview"
+        assert main_api.urls_namespace == "blog_api"
         base_rates = dict(settings.API_THROTTLE_RATES)
         low_rates = {
             **base_rates,
@@ -185,21 +179,21 @@ class TestNinjaWritePreview:
             CACHES={
                 "default": {
                     "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-                    "LOCATION": "test-ninja-write-preview-resend-throttle",
+                    "LOCATION": "test-ninja-write-resend-throttle",
                 }
             },
         ):
             assert settings.API_THROTTLE_RATES["resend_verification"] == "1/min"
             cache.clear()
-            throttle = write_throttling.WRITE_RESEND_VERIFICATION_THROTTLES[0]
+            throttle = api_throttling.RESEND_VERIFICATION_THROTTLES[0]
             with _temporary_throttle_rate(
                 throttle,
                 settings.API_THROTTLE_RATES["resend_verification"],
             ):
                 client = Client()
                 client.force_login(user)
-                first = client.post("/api/_ninja/write/auth/resend-verification/")
-                second = client.post("/api/_ninja/write/auth/resend-verification/")
+                first = client.post("/api/auth/resend-verification/")
+                second = client.post("/api/auth/resend-verification/")
             cache.clear()
 
         assert first.status_code == 200
