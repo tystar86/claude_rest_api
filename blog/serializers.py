@@ -179,6 +179,8 @@ class CommentListSerializer(_ReadSerializer):
 class PostSerializer(_ReadSerializer):
     def to_representation(self, obj: Post) -> dict:
         comment_count = getattr(obj, "comment_count", None)
+        if comment_count is None:
+            comment_count = obj.comments.count()
         return {
             "id": obj.id,
             "title": obj.title,
