@@ -83,8 +83,8 @@ HEAD On Post List Mirrors GET Status
     ${head}=    HEAD On Session    api    /api/posts/
     Should Be Equal As Integers    ${head.status_code}    200
 
-HEAD On Dashboard Mirrors GET Status
-    ${head}=    HEAD On Session    api    /api/dashboard/
+HEAD On Tag List Mirrors GET Status
+    ${head}=    HEAD On Session    api    /api/tags/
     Should Be Equal As Integers    ${head.status_code}    200
 
 # ── 405 Method Not Allowed ────────────────────────────────────────────────────
