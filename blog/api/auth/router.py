@@ -23,7 +23,6 @@ from django.http import HttpRequest
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 
-from accounts.models import Profile
 from blog import api_views
 
 from ninja import Router
@@ -41,8 +40,16 @@ from ..utils import request_data_or_error as _request_data_or_error
 
 router = Router(tags=["Auth"])
 
+_USER_LOOKUP_BY_EMAIL_ERRORS = (User.DoesNotExist, User.MultipleObjectsReturned)
+_MAIL_SEND_ERRORS = (
+    smtplib.SMTPException,
+    BadHeaderError,
+    socket.timeout,
+    TimeoutError,
+)
 
-# ── Public (no CSRF, no auth) ─────────────────────────────────────────────────
+
+# ── Public auth (GET /csrf/ sets cookie; POST login/register require CSRF) ────
 
 
 @router.api_operation(["GET", "HEAD"], "/csrf/", response=CsrfTokenResponse)
@@ -52,6 +59,7 @@ def csrf_token(request: HttpRequest):
 
 
 @router.post("/login/", throttle=LOGIN_THROTTLES)
+@csrf_protect
 def login(request: HttpRequest):
     attach_forced_user(request)
     data, error = _request_data_or_error(request)
@@ -66,7 +74,7 @@ def login(request: HttpRequest):
     try:
         db_user = User.objects.get(email=email)
         username = db_user.username
-    except (User.DoesNotExist, User.MultipleObjectsReturned):
+    except _USER_LOOKUP_BY_EMAIL_ERRORS:
         check_password(password, api_views._DUMMY_PASSWORD_HASH)
         email_fp = hashlib.sha256(email.lower().strip().encode()).hexdigest()[:16]
         api_views.security_log.warning(
@@ -102,6 +110,7 @@ def login(request: HttpRequest):
 
 
 @router.post("/register/", throttle=WRITE_THROTTLES)
+@csrf_protect
 def register(request: HttpRequest):
     attach_forced_user(request)
     data, error = _request_data_or_error(request)
@@ -140,7 +149,7 @@ def register(request: HttpRequest):
                 email=email,
                 password=password,
             )
-            Profile.objects.get_or_create(user=user)
+            # Profile is created by accounts.signals.create_profile on User post_save.
     except ValidationError as exc:
         return json_compat_response({"password": exc.messages}, status=400)
     except IntegrityError:
@@ -149,7 +158,7 @@ def register(request: HttpRequest):
         setup_user_email(request, user, [])
         try:
             send_verification_email_for_user(request, user)
-        except (smtplib.SMTPException, BadHeaderError, socket.timeout, TimeoutError):
+        except _MAIL_SEND_ERRORS:
             api_views.security_log.exception(
                 "Failed to send verification email for user_id=%s; account created, resend required",
                 user.pk,
@@ -189,7 +198,7 @@ def resend_verification(request: HttpRequest):
         if email:
             try:
                 user = User.objects.get(email=email)
-            except (User.DoesNotExist, User.MultipleObjectsReturned):
+            except _USER_LOOKUP_BY_EMAIL_ERRORS:
                 pass
 
     if user is None:
@@ -202,7 +211,7 @@ def resend_verification(request: HttpRequest):
     if is_anonymous_request:
         try:
             send_verification_email_for_user(request, user)
-        except Exception:
+        except _MAIL_SEND_ERRORS:
             api_views.security_log.exception(
                 "Failed to resend verification email for user_id=%s",
                 user.pk,
@@ -211,7 +220,7 @@ def resend_verification(request: HttpRequest):
     else:
         try:
             send_verification_email_for_user(request, user)
-        except (smtplib.SMTPException, BadHeaderError, socket.timeout, TimeoutError):
+        except _MAIL_SEND_ERRORS:
             api_views.security_log.exception(
                 "Failed to resend verification email for user_id=%s",
                 user.pk,
@@ -295,7 +304,6 @@ def update_profile(request: HttpRequest):
         elif not user.check_password(current_password):
             errors["current_password"] = "Current password is incorrect."
         else:
-            new_password = new_password.strip()
             try:
                 validate_password(new_password, user)
             except ValidationError as exc:

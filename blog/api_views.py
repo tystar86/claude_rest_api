@@ -71,7 +71,8 @@ def can_manage_tags(user):
     return role in ("moderator", "admin")
 
 
-def can_view_unpublished_post(user, post):
+def has_elevated_post_access(user, post):
+    """True if the user may view unpublished content or modify a post (author/staff/mod)."""
     if not user.is_authenticated:
         return False
     role = getattr(getattr(user, "profile", None), "role", "user")
@@ -90,7 +91,7 @@ def can_access_comment(user, comment):
         return False
     if comment.author_id == user.id:
         return True
-    return can_view_unpublished_post(user, comment.post)
+    return has_elevated_post_access(user, comment.post)
 
 
 # ── Dashboard ──────────────────────────────────────────────────────────────────

@@ -13,7 +13,7 @@ def request_data(request: HttpRequest) -> dict:
         return {}
     try:
         data = json.loads(raw_body)
-    except json.JSONDecodeError as exc:
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise ValueError("Malformed JSON body.") from exc
     if isinstance(data, dict):
         return data

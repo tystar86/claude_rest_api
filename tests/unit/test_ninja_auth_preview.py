@@ -52,3 +52,25 @@ class TestNinjaAuth:
 
         after = client.get("/api/auth/user/")
         assert after.status_code == 403
+
+    def test_login_rejects_missing_csrf_when_enforced(self, user):
+        client = Client(enforce_csrf_checks=True)
+        resp = client.post(
+            "/api/auth/login/",
+            {"email": "test@example.com", "password": "testpass123"},
+            content_type="application/json",
+        )
+        assert resp.status_code == 403
+
+    def test_login_succeeds_with_valid_csrf_when_enforced(self, user):
+        client = Client(enforce_csrf_checks=True)
+        csrf_resp = client.get("/api/auth/csrf/")
+        csrf_token = csrf_resp.cookies["csrftoken"].value
+        resp = client.post(
+            "/api/auth/login/",
+            {"email": "test@example.com", "password": "testpass123"},
+            content_type="application/json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["username"] == user.username

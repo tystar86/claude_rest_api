@@ -49,6 +49,8 @@ from .schemas import (
 
 router = Router(tags=["Data"], throttle=READ_THROTTLES)
 
+_PARENT_ID_COERCE_ERRORS = (TypeError, ValueError)
+
 
 def _serialize(serializer_class, obj, *, request=None, many=False):
     return serializer_class(obj, many=many, context={"request": request}).data
@@ -117,7 +119,7 @@ def post_detail(request: HttpRequest, slug: str):
     except Post.DoesNotExist:
         return empty_compat_response(status=404)
 
-    if post.status != Post.Status.PUBLISHED and not api_views.can_view_unpublished_post(
+    if post.status != Post.Status.PUBLISHED and not api_views.has_elevated_post_access(
         request.user, post
     ):
         return empty_compat_response(status=404)
@@ -138,7 +140,7 @@ def update_post(request: HttpRequest, slug: str):
     except Post.DoesNotExist:
         return empty_compat_response(status=404)
 
-    if not api_views.can_view_unpublished_post(request.user, post):
+    if not api_views.has_elevated_post_access(request.user, post):
         return json_compat_response(
             {"detail": "You can edit/delete only your own posts."}, status=403
         )
@@ -170,7 +172,7 @@ def delete_post(request: HttpRequest, slug: str):
     except Post.DoesNotExist:
         return empty_compat_response(status=404)
 
-    if not api_views.can_view_unpublished_post(request.user, post):
+    if not api_views.has_elevated_post_access(request.user, post):
         return json_compat_response(
             {"detail": "You can edit/delete only your own posts."}, status=403
         )
@@ -205,7 +207,7 @@ def comment_list_by_post(request: HttpRequest, slug: str):
     except Post.DoesNotExist:
         return empty_compat_response(status=404)
 
-    if post.status != Post.Status.PUBLISHED and not api_views.can_view_unpublished_post(
+    if post.status != Post.Status.PUBLISHED and not api_views.has_elevated_post_access(
         request.user, post
     ):
         return empty_compat_response(status=404)
@@ -244,7 +246,7 @@ def comment_create(request: HttpRequest, slug: str):
         post = Post.objects.get(slug=slug)
     except Post.DoesNotExist:
         return empty_compat_response(status=404)
-    if post.status != Post.Status.PUBLISHED and not api_views.can_view_unpublished_post(
+    if post.status != Post.Status.PUBLISHED and not api_views.has_elevated_post_access(
         request.user, post
     ):
         return empty_compat_response(status=404)
@@ -256,7 +258,7 @@ def comment_create(request: HttpRequest, slug: str):
             if isinstance(parent_id, bool):
                 raise TypeError
             parent_id = int(parent_id)
-        except (TypeError, ValueError):
+        except _PARENT_ID_COERCE_ERRORS:
             return json_compat_response({"detail": "Invalid parent_id."}, status=400)
         try:
             parent = Comment.objects.get(id=parent_id, post=post)
@@ -485,9 +487,7 @@ def delete_tag(request: HttpRequest, slug: str):
         )
 
     try:
-        tag = Tag.objects.annotate(
-            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
-        ).get(slug=slug)
+        tag = Tag.objects.get(slug=slug)
     except Tag.DoesNotExist:
         return empty_compat_response(status=404)
 
