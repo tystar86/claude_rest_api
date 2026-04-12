@@ -154,9 +154,7 @@ class TestPostDetail:
 
     def test_update_other_user_post_returns_403(self, api_client, post, db):
         """A user cannot edit another user's post."""
-        other = User.objects.create_user(
-            username="other", email="other@x.com", password="p"
-        )
+        other = User.objects.create_user(username="other", email="other@x.com", password="p")
         api_client.force_login(other)
         resp = api_client.patch(
             f"/api/posts/{post.slug}/",
@@ -183,9 +181,7 @@ class TestPostDetail:
         )
         assert resp.status_code == 401
 
-    def test_update_unauthenticated_nonexistent_slug_still_returns_401(
-        self, api_client
-    ):
+    def test_update_unauthenticated_nonexistent_slug_still_returns_401(self, api_client):
         """Auth checks happen before slug lookup to avoid existence leaks."""
         resp = api_client.patch(
             "/api/posts/no-such-post/",
@@ -243,18 +239,14 @@ class TestPostDetail:
         resp = api_client.delete(f"/api/posts/{post.slug}/")
         assert resp.status_code == 401
 
-    def test_delete_unauthenticated_nonexistent_slug_still_returns_401(
-        self, api_client
-    ):
+    def test_delete_unauthenticated_nonexistent_slug_still_returns_401(self, api_client):
         """Delete checks auth before slug lookup to reduce oracle surface."""
         resp = api_client.delete("/api/posts/no-such-post/")
         assert resp.status_code == 401
 
     def test_delete_other_user_post_returns_403(self, api_client, post, db):
         """A user cannot delete another user's post."""
-        other = User.objects.create_user(
-            username="other2", email="other2@x.com", password="p"
-        )
+        other = User.objects.create_user(username="other2", email="other2@x.com", password="p")
         api_client.force_login(other)
         resp = api_client.delete(f"/api/posts/{post.slug}/")
         assert resp.status_code == 403
@@ -274,9 +266,7 @@ class TestPostDetail:
         self, api_client, draft_post, db
     ):
         """A different authenticated user receives 404 for another user's draft."""
-        other = User.objects.create_user(
-            username="other3", email="other3@x.com", password="p"
-        )
+        other = User.objects.create_user(username="other3", email="other3@x.com", password="p")
         api_client.force_login(other)
         resp = api_client.get(f"/api/posts/{draft_post.slug}/")
         assert resp.status_code == 404

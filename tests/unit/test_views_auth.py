@@ -130,9 +130,7 @@ class TestRegisterView:
         assert resp_email.status_code == 400
         assert resp_username.status_code == 400
         assert (
-            resp_email.json()["detail"]
-            == resp_username.json()["detail"]
-            == "Registration failed."
+            resp_email.json()["detail"] == resp_username.json()["detail"] == "Registration failed."
         )
 
     def test_weak_password_returns_400(self, api_client):

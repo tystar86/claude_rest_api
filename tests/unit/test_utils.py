@@ -20,9 +20,7 @@ class TestRequestData:
     def test_invalid_utf8_body_raises_malformed_json_value_error(self):
         """Bytes that are not valid UTF-8 for JSON decoding map to the same 400 path as bad JSON."""
         factory = RequestFactory()
-        req = factory.post(
-            "/", data=b'\xff\x00{"a": 1}', content_type="application/json"
-        )
+        req = factory.post("/", data=b'\xff\x00{"a": 1}', content_type="application/json")
         with pytest.raises(ValueError, match="Malformed JSON body"):
             request_data(req)
 

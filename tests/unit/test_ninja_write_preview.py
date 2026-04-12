@@ -140,9 +140,7 @@ class TestNinjaWrite:
             assert settings.API_THROTTLE_RATES["login"] == "1/min"
             cache.clear()
             throttle = api_throttling.LOGIN_THROTTLES[0]
-            with _temporary_throttle_rate(
-                throttle, settings.API_THROTTLE_RATES["login"]
-            ):
+            with _temporary_throttle_rate(throttle, settings.API_THROTTLE_RATES["login"]):
                 client = Client()
                 first = client.post(
                     "/api/auth/login/",

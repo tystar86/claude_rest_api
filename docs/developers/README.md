@@ -5,7 +5,7 @@ This folder is the internal developer guide for `claude_rest_api`.
 Recommended reading order:
 
 1. [START_HERE.md](./START_HERE.md) for first-day setup and repo orientation.
-2. [backend.md](./backend.md) for Django and DRF structure.
+2. [backend.md](./backend.md) for Django, Ninja, and serializer layout.
 3. [frontend.md](./frontend.md) for React and Vite structure.
 4. [database.md](./database.md) for models, migrations, and local DB modes.
 5. [security.md](./security.md) for auth, CSRF, CORS, throttling, and release checks.
@@ -29,7 +29,7 @@ Recommended reading order:
 ## What Is Intentionally Separated
 
 - Production deploy runbooks are only summarized here. The source-of-truth deploy files are `render.yaml`, `Dockerfile.backend`, `frontend/vercel.json`, and `docker-compose.yml`.
-- Feature-by-feature API docs are not broken into a separate reference yet. The best source for endpoint behavior is `blog/api_urls.py` plus `blog/api_views.py`.
+- Feature-by-feature API docs are not broken into a separate reference yet. The best source for endpoint behavior is `blog/api_urls.py`, `blog/api/`, and shared helpers in `blog/api_views.py`.
 
 ## Known Documentation Notes
 

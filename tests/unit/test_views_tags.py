@@ -32,54 +32,40 @@ class TestTagList:
 
     def test_moderator_can_create_tag(self, mod_client):
         """A moderator can create a new tag."""
-        resp = mod_client.post(
-            "/api/tags/", {"name": "Django"}, content_type="application/json"
-        )
+        resp = mod_client.post("/api/tags/", {"name": "Django"}, content_type="application/json")
         assert resp.status_code == 201
         assert resp.json()["name"] == "django"
 
     def test_admin_can_create_tag(self, admin_client):
         """An admin can create a new tag."""
-        resp = admin_client.post(
-            "/api/tags/", {"name": "Flask"}, content_type="application/json"
-        )
+        resp = admin_client.post("/api/tags/", {"name": "Flask"}, content_type="application/json")
         assert resp.status_code == 201
 
     def test_regular_user_cannot_create_tag(self, auth_client):
         """A regular user is forbidden from creating tags."""
-        resp = auth_client.post(
-            "/api/tags/", {"name": "Python"}, content_type="application/json"
-        )
+        resp = auth_client.post("/api/tags/", {"name": "Python"}, content_type="application/json")
         assert resp.status_code == 403
 
     def test_unauthenticated_cannot_create_tag(self, api_client):
         """An anonymous user must authenticate before creating tags."""
-        resp = api_client.post(
-            "/api/tags/", {"name": "Django"}, content_type="application/json"
-        )
+        resp = api_client.post("/api/tags/", {"name": "Django"}, content_type="application/json")
         assert resp.status_code == 401
 
     def test_duplicate_tag_name_returns_400(self, mod_client, db):
         """Creating a tag with a name that already exists returns 400."""
         Tag.objects.create(name="django", slug="django")
-        resp = mod_client.post(
-            "/api/tags/", {"name": "Django"}, content_type="application/json"
-        )
+        resp = mod_client.post("/api/tags/", {"name": "Django"}, content_type="application/json")
         assert resp.status_code == 400
         assert resp.json()["detail"] == "Tag name already exists."
 
     def test_empty_name_returns_400(self, mod_client):
         """An empty tag name is rejected."""
-        resp = mod_client.post(
-            "/api/tags/", {"name": ""}, content_type="application/json"
-        )
+        resp = mod_client.post("/api/tags/", {"name": ""}, content_type="application/json")
         assert resp.status_code == 400
 
     def test_non_string_name_returns_400(self, mod_client):
         """Structured payloads are rejected cleanly."""
-        resp = mod_client.post(
-            "/api/tags/", {"name": {"$ne": ""}}, content_type="application/json"
-        )
+        resp = mod_client.post("/api/tags/", {"name": {"$ne": ""}}, content_type="application/json")
         assert resp.status_code == 400
 
     def test_create_generates_slug(self, mod_client):
@@ -109,9 +95,7 @@ class TestTagDetail:
         resp = api_client.get(f"/api/tags/{tag.slug}/")
         assert "results" in resp.json()
 
-    def test_tag_detail_post_count_only_counts_published_posts(
-        self, api_client, tag, user
-    ):
+    def test_tag_detail_post_count_only_counts_published_posts(self, api_client, tag, user):
         """Tag detail keeps published-only post_count semantics."""
         published_post = Post.objects.create(
             title="Published tagged",
@@ -200,26 +184,20 @@ class TestTagLowercaseNormalisation:
 
     def test_uppercase_input_stored_as_lowercase_on_create(self, mod_client):
         """Uppercase name is normalised to lowercase when created."""
-        resp = mod_client.post(
-            "/api/tags/", {"name": "FASTAPI"}, content_type="application/json"
-        )
+        resp = mod_client.post("/api/tags/", {"name": "FASTAPI"}, content_type="application/json")
         assert resp.status_code == 201
         assert resp.json()["name"] == "fastapi"
         assert Tag.objects.filter(name="fastapi").exists()
 
     def test_mixed_case_input_stored_as_lowercase_on_create(self, mod_client):
         """Mixed-case name is normalised to lowercase when created."""
-        resp = mod_client.post(
-            "/api/tags/", {"name": "CelEry"}, content_type="application/json"
-        )
+        resp = mod_client.post("/api/tags/", {"name": "CelEry"}, content_type="application/json")
         assert resp.status_code == 201
         assert resp.json()["name"] == "celery"
 
     def test_already_lowercase_input_unchanged_on_create(self, mod_client):
         """Lowercase input passes through unchanged."""
-        resp = mod_client.post(
-            "/api/tags/", {"name": "redis"}, content_type="application/json"
-        )
+        resp = mod_client.post("/api/tags/", {"name": "redis"}, content_type="application/json")
         assert resp.status_code == 201
         assert resp.json()["name"] == "redis"
 
@@ -246,9 +224,7 @@ class TestTagLowercaseNormalisation:
     def test_duplicate_check_is_case_insensitive_on_create(self, mod_client, db):
         """Creating 'DJANGO' is rejected when 'django' already exists."""
         Tag.objects.create(name="django", slug="django")
-        resp = mod_client.post(
-            "/api/tags/", {"name": "DJANGO"}, content_type="application/json"
-        )
+        resp = mod_client.post("/api/tags/", {"name": "DJANGO"}, content_type="application/json")
         assert resp.status_code == 400
         assert resp.json()["detail"] == "Tag name already exists."
 

@@ -6,15 +6,15 @@ This is the onboarding file for a new developer joining `claude_rest_api`.
 
 `claude_rest_api` is a full-stack blog platform with:
 
-- A Django 6 + Django REST Framework backend in `blog/`, `accounts/`, and `config/`
+- A Django 6 backend with Django Ninja HTTP APIs in `blog/api/`, plus `accounts/` and `config/`
 - A React 19 + Vite frontend in `frontend/`
 - PostgreSQL in local Docker and production
 - Session-based auth with Django sessions, CSRF protection, and email/password via `/api/auth/`
 
 The quickest way to understand the product is:
 
-1. Open `blog/api_urls.py` to see the public API surface.
-2. Open `blog/api_views.py` to see most backend behavior.
+1. Open `blog/api_urls.py` to see how the API is mounted.
+2. Open `blog/api/` (Ninja routers and schemas) for HTTP handlers; use `blog/api_views.py` for shared pagination and permission helpers.
 3. Open `frontend/src/App.jsx` to see the route map.
 4. Open `frontend/src/api/client.js` to see how the frontend talks to the backend.
 
@@ -131,14 +131,13 @@ Use `loaddata` only when you specifically want a smaller static demo dataset.
 ### Backend
 
 - `config/` holds Django settings, root URLs, ASGI, and WSGI
-- `blog/` holds almost all API behavior: models, serializers, throttles, API views, URLs, and management commands
-- `blog/api/` is the new Django Ninja migration foundation; preview migration routes can live under `/api/_ninja/...`
+- `blog/` holds models, serializers, shared API helpers, URLs, Ninja routers under `blog/api/`, and management commands
 - `accounts/` holds the `Profile` model and the signal that auto-creates a profile for each Django user
 
 Important onboarding note:
 
 - `accounts/views.py` is effectively unused
-- Most auth API behavior lives in `blog/api_views.py`, not in `accounts/`
+- Auth HTTP handlers live in `blog/api/auth/router.py`, not in `accounts/`
 
 ### Frontend
 
@@ -160,10 +159,10 @@ Important onboarding note:
 
 If you need to:
 
-- Add or change an API endpoint: start in `blog/api_urls.py` and `blog/api_views.py`
+- Add or change an API endpoint: edit `blog/api/` routers (and `blog/api_urls.py` if mount paths change); reuse helpers from `blog/api_views.py` when applicable
 - Change serialization: start in `blog/serializers.py`
 - Change data shape or relationships: start in `blog/models.py` or `accounts/models.py`
-- Change auth/profile behavior: inspect `blog/api_views.py`, `accounts/models.py`, and `accounts/signals.py`
+- Change auth/profile behavior: inspect `blog/api/auth/router.py`, `accounts/models.py`, and `accounts/signals.py`
 - Change page behavior: start in the matching file under `frontend/src/pages/`
 - Change API calls or CSRF behavior: start in `frontend/src/api/client.js`
 - Change shared navigation/auth bootstrap: inspect `frontend/src/components/Navbar.jsx` and `frontend/src/context/AuthContext.jsx`

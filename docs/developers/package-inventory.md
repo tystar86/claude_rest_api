@@ -14,9 +14,8 @@ Observed usage levels:
 | --- | --- | --- | --- |
 | `dj-database-url` | Builds Django DB settings from environment variables | `config/settings.py` | Active |
 | `django` | Core backend framework | `manage.py`, `config/`, `blog/`, `accounts/`, tests | Active |
-| `django-anymail` | Mailgun-backed production email sending | `config/settings.py`, `.env.production.example` | Active |
 | `django-cors-headers` | CORS middleware and settings | `config/settings.py` | Active |
-| `djangorestframework` | API views, serializers, authentication, permissions, throttling, test client | `blog/api_views.py`, `blog/serializers.py`, `blog/throttles.py`, `conftest.py`, `tests/unit/` | Active |
+| `django-ninja` | HTTP API routing, OpenAPI, request validation | `blog/api/`, `pyproject.toml` | Active |
 | `gunicorn` | Production WSGI server | `start.sh` | Active |
 | `psycopg` | PostgreSQL driver and DB readiness checks | `start.sh`, Django DB backend usage from `config/settings.py` | Active |
 | `python-dotenv` | Loads `.env.<DJANGO_ENV>` files in development and tests | `config/settings.py` | Active |

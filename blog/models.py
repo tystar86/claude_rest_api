@@ -31,9 +31,7 @@ class Post(models.Model):
         indexes = [
             models.Index(fields=["status", "published_at"]),
             models.Index(fields=["author"]),
-            models.Index(
-                fields=["status", "-created_at"], name="blog_post_status_created_idx"
-            ),
+            models.Index(fields=["status", "-created_at"], name="blog_post_status_created_idx"),
         ]
 
     def __str__(self):
@@ -55,9 +53,7 @@ class Comment(models.Model):
         ordering = ["created_at"]
         indexes = [
             models.Index(fields=["-created_at"], name="blog_comment_created_idx"),
-            models.Index(
-                fields=["post", "created_at"], name="blog_comment_post_created_idx"
-            ),
+            models.Index(fields=["post", "created_at"], name="blog_comment_post_created_idx"),
             models.Index(
                 fields=["post"],
                 condition=models.Q(is_approved=True),
@@ -75,17 +71,13 @@ class CommentVote(models.Model):
         DISLIKE = "dislike", "Dislike"
 
     comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name="votes")
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="comment_votes"
-    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="comment_votes")
     vote = models.CharField(max_length=10, choices=VoteType)
 
     class Meta:
         unique_together = [("comment", "user")]
         indexes = [
-            models.Index(
-                fields=["comment", "vote"], name="blog_cvote_comment_vote_idx"
-            ),
+            models.Index(fields=["comment", "vote"], name="blog_cvote_comment_vote_idx"),
         ]
 
     def __str__(self):

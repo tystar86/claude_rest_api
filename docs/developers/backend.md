@@ -4,8 +4,9 @@
 
 - Python 3.14
 - Django 6.0
-- Django REST Framework
-- Session-based login and registration via Django Ninja (`blog/api/`)
+- Django Ninja (`blog/api/`) for HTTP routing, validation, and OpenAPI
+- Plain Python serializers in `blog/serializers.py` for read JSON shapes; `blog/services/` for writes (e.g. `PostService`)
+- Session-based login and registration via `blog/api/auth/router.py`
 - PostgreSQL in real deployments
 
 ## App Layout
@@ -14,7 +15,7 @@
 
 This is the Django project package:
 
-- `settings.py`: environment loading, installed apps, middleware, DB config, auth, security, DRF, CORS, email
+- `settings.py`: environment loading, installed apps, middleware, DB config, auth, security, Ninja, CORS, email
 - `urls.py`: mounts Django admin and API routes
 - `wsgi.py` / `asgi.py`: deployment entrypoints
 
@@ -23,10 +24,10 @@ This is the Django project package:
 This is the main application:
 
 - `models.py`: `Tag`, `Post`, `Comment`, `CommentVote`
-- `serializers.py`: DRF serializers for users, tags, posts, and comments
-- `api_views.py`: the main API implementation
-- `api_urls.py`: route declarations
-- `throttles.py`: custom DRF throttle classes
+- `serializers.py`: read serializers used by Ninja routes; `services/` for create/update persistence
+- `api_views.py`: shared pagination, dashboard payload, and permission helpers for Ninja
+- `api_urls.py`: mounts the Ninja API (`blog.api.api`)
+- `api/`: Ninja routers (`auth/`, `data/`), Pydantic schemas, throttling, CSRF helpers
 - `management/commands/`: operational commands for seeding and migration repair
 
 ### `accounts/`
@@ -40,24 +41,16 @@ This app is smaller than the name suggests:
 Important note:
 
 - `accounts/views.py` is empty
-- API auth/profile behavior is implemented in `blog/api_views.py`
+- API auth/profile HTTP handlers live in `blog/api/auth/router.py`
 
 ## Request Flow
 
 Typical API flow:
 
 1. Route enters through `config/urls.py`
-2. `/api/...` routes are handed to `blog/api_urls.py`
-3. Views in `blog/api_views.py` apply permissions, throttles, validation, and queryset logic
-4. Responses are serialized by `blog/serializers.py`
-
-Most views use function-based DRF patterns:
-
-- `@api_view`
-- `@permission_classes`
-- `@throttle_classes`
-
-That is the established backend style for this repo.
+2. `/api/...` routes are handed to `blog/api_urls.py` and the Ninja `NinjaAPI` instance
+3. Ninja operation functions call helpers in `blog/api_views.py` for pagination, queryset filters, and permission checks
+4. JSON payloads are built with `blog/serializers.py` (and Pydantic schemas in `blog/api/**/schemas.py` for response typing)
 
 ## Endpoint Groups
 
@@ -97,9 +90,9 @@ That is the established backend style for this repo.
 
 ### Authentication
 
-- API auth is session-based
-- DRF uses `SessionAuthentication`
-- Login/logout are handled through custom API endpoints
+- API auth is session-based (Django sessions + `SessionAuth` in Ninja where applicable)
+- Login/logout are handled through `blog/api/auth/router.py`
+
 ### Roles
 
 Roles live on `accounts.Profile.role`:
@@ -113,7 +106,7 @@ Roles live on `accounts.Profile.role`:
 `blog/api_views.py` centralizes reusable checks:
 
 - `can_manage_tags(user)`
-- `can_view_unpublished_post(user, post)`
+- `has_elevated_post_access(user, post)`
 - `can_access_comment(user, comment)`
 
 Behavioral summary:
@@ -164,7 +157,7 @@ Default behavior:
 
 - Local default: console email backend
 - Testing: dummy email backend
-- Production template: Mailgun via django-anymail
+- Production: optional `EMAIL_BACKEND` / `DEFAULT_FROM_EMAIL` via environment (defaults to console)
 
 ## Management Commands
 
@@ -184,8 +177,9 @@ Purpose:
 
 ## Backend Conventions
 
-- Keep API routes in `blog/api_urls.py`
-- Keep API implementations in `blog/api_views.py`
+- Keep API routes mounted from `blog/api_urls.py`
+- Keep Ninja route handlers in `blog/api/`
+- Keep shared helpers in `blog/api_views.py`
 - Keep serializer changes in `blog/serializers.py`
 - Generate migrations with `python manage.py makemigrations`
 - Do not hand-edit migration files
@@ -195,9 +189,11 @@ Purpose:
 - `config/settings.py`
 - `config/urls.py`
 - `blog/api_urls.py`
+- `blog/api/__init__.py`
+- `blog/api/auth/router.py`
+- `blog/api/data/router.py`
 - `blog/api_views.py`
 - `blog/serializers.py`
 - `blog/models.py`
-- `blog/throttles.py`
 - `accounts/models.py`
 - `accounts/signals.py`

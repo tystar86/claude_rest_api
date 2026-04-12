@@ -1,8 +1,11 @@
+"""Ninja API package: routers and app instance."""
+
+from django.http import JsonResponse
 from ninja import NinjaAPI
 from ninja.errors import AuthenticationError
 
 from .auth import router as auth_router
-from .auth.services import AUTHENTICATION_REQUIRED_DETAIL, json_compat_response
+from .constants import AUTHENTICATION_REQUIRED_DETAIL
 from .data import router as data_router
 
 api = NinjaAPI(
@@ -14,10 +17,7 @@ api = NinjaAPI(
 
 @api.exception_handler(AuthenticationError)
 def authentication_error(request, exc):
-    return json_compat_response(
-        {"detail": AUTHENTICATION_REQUIRED_DETAIL},
-        status=403,
-    )
+    return JsonResponse({"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=403)
 
 
 api.add_router("/auth/", auth_router)

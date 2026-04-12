@@ -62,8 +62,7 @@ def _record_migrations(app, names):
     with connection.cursor() as cursor:
         for name in names:
             cursor.execute(
-                "INSERT INTO django_migrations (app, name, applied) "
-                "VALUES (%s, %s, %s)",
+                "INSERT INTO django_migrations (app, name, applied) VALUES (%s, %s, %s)",
                 [app, name, now()],
             )
 
@@ -82,9 +81,7 @@ def _fix_sites(stdout, style):
     stdout.write("  django_site — creating table…")
     with connection.schema_editor() as editor:
         editor.create_model(Site)
-    Site.objects.get_or_create(
-        id=1, defaults={"domain": "example.com", "name": "example.com"}
-    )
+    Site.objects.get_or_create(id=1, defaults={"domain": "example.com", "name": "example.com"})
     _record_migrations("sites", SITES_MIGRATIONS)
     stdout.write(style.SUCCESS("  django_site — created and recorded."))
 
