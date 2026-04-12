@@ -8,9 +8,7 @@ import pytest
 from allauth.account.models import EmailAddress
 from django.contrib.auth.models import User
 from django.db import connection
-from django.test import override_settings
-from rest_framework import status
-from rest_framework.test import APIClient
+from django.test import Client, override_settings
 
 GENERIC_RESEND_DETAIL = "Verification email sent. Please check your inbox."
 
@@ -25,9 +23,9 @@ class TestCsrfView:
     def test_returns_200_and_csrf_token(self, api_client):
         """Anonymous requests receive a CSRF token in the response body."""
         resp = api_client.get("/api/auth/csrf/")
-        assert resp.status_code == status.HTTP_200_OK
-        assert "csrfToken" in resp.data
-        assert resp.data["csrfToken"]
+        assert resp.status_code == 200
+        assert "csrfToken" in resp.json()
+        assert resp.json()["csrfToken"]
 
 
 # ── Register ───────────────────────────────────────────────────────────────────
@@ -46,17 +44,17 @@ class TestRegisterView:
                 "username": "newuser",
                 "password": "newpass123",
             },
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_201_CREATED
-        assert resp.data["username"] == "newuser"
+        assert resp.status_code == 201
+        assert resp.json()["username"] == "newuser"
 
     def test_creates_user_in_database(self, api_client):
         """Registration persists the new user to the database."""
         api_client.post(
             "/api/auth/register/",
             {"email": "db@example.com", "username": "dbuser", "password": "dbpass123"},
-            format="json",
+            content_type="application/json",
         )
         assert User.objects.filter(username="dbuser").exists()
 
@@ -69,7 +67,7 @@ class TestRegisterView:
                 "username": "mixedcaseuser",
                 "password": "newpass123",
             },
-            format="json",
+            content_type="application/json",
         )
         created_user = User.objects.get(username="mixedcaseuser")
         assert created_user.email == "mixedcase@example.com"
@@ -79,29 +77,29 @@ class TestRegisterView:
         resp = api_client.post(
             "/api/auth/register/",
             {"email": "incomplete@example.com"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.status_code == 400
 
     def test_non_string_required_fields_return_400(self, api_client):
         """Non-string required fields are rejected with the standard missing-fields detail."""
         resp = api_client.post(
             "/api/auth/register/",
             {"email": ["bad"], "username": {"bad": "type"}, "password": 123},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        assert resp.data["detail"] == "email, username and password are required."
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "email, username and password are required."
 
     def test_duplicate_email_returns_400(self, api_client, user):
         """Registering with an already-used email returns 400."""
         resp = api_client.post(
             "/api/auth/register/",
             {"email": "test@example.com", "username": "other", "password": "pass1234"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        assert resp.data["detail"] == "Registration failed."
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Registration failed."
 
     def test_duplicate_username_returns_400(self, api_client, user):
         """Registering with an already-taken username returns 400."""
@@ -112,17 +110,17 @@ class TestRegisterView:
                 "username": "testuser",
                 "password": "pass1234",
             },
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        assert resp.data["detail"] == "Registration failed."
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Registration failed."
 
     def test_duplicate_registration_error_is_generic(self, api_client, user):
         """Duplicate registrations always return the same generic message regardless of which field collides."""
         resp_email = api_client.post(
             "/api/auth/register/",
             {"email": "test@example.com", "username": "other", "password": "pass1234"},
-            format="json",
+            content_type="application/json",
         )
         resp_username = api_client.post(
             "/api/auth/register/",
@@ -131,13 +129,13 @@ class TestRegisterView:
                 "username": "testuser",
                 "password": "pass1234",
             },
-            format="json",
+            content_type="application/json",
         )
-        assert resp_email.status_code == status.HTTP_400_BAD_REQUEST
-        assert resp_username.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp_email.status_code == 400
+        assert resp_username.status_code == 400
         assert (
-            resp_email.data["detail"]
-            == resp_username.data["detail"]
+            resp_email.json()["detail"]
+            == resp_username.json()["detail"]
             == "Registration failed."
         )
 
@@ -150,11 +148,11 @@ class TestRegisterView:
                 "username": "weakuser",
                 "password": "123",
             },
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        assert "password" in resp.data
-        assert resp.data["password"]
+        assert resp.status_code == 400
+        assert "password" in resp.json()
+        assert resp.json()["password"]
 
 
 # ── Login ──────────────────────────────────────────────────────────────────────
@@ -169,45 +167,45 @@ class TestLoginView:
         resp = api_client.post(
             "/api/auth/login/",
             {"email": "test@example.com", "password": "testpass123"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["username"] == "testuser"
+        assert resp.status_code == 200
+        assert resp.json()["username"] == "testuser"
 
     def test_wrong_password_returns_400(self, api_client, user):
         """An incorrect password returns 400 with an 'Invalid credentials' message."""
         resp = api_client.post(
             "/api/auth/login/",
             {"email": "test@example.com", "password": "wrongpass"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        assert resp.data["detail"] == "Invalid credentials."
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Invalid credentials."
 
     def test_unknown_email_returns_400(self, api_client):
         """A non-existent email returns 400."""
         resp = api_client.post(
             "/api/auth/login/",
             {"email": "nobody@example.com", "password": "pass"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.status_code == 400
 
     def test_non_string_credentials_return_400(self, api_client):
         """NoSQL-style dict payloads must be rejected with 400, not cause a 500."""
         resp = api_client.post(
             "/api/auth/login/",
             {"email": {"$ne": ""}, "password": {"$ne": ""}},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        assert resp.data["detail"] == "Invalid credentials."
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Invalid credentials."
 
     def test_get_login_returns_json_405(self, api_client):
         """Unsupported methods return a JSON 405 payload with Allow header."""
         resp = api_client.get("/api/auth/login/")
-        assert resp.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
-        assert resp.data["detail"] == "Method not allowed."
+        assert resp.status_code == 405
+        assert resp.json()["detail"] == "Method not allowed."
         assert "POST" in resp.headers.get("Allow", "")
 
     def test_duplicate_email_lookup_returns_400(self, api_client, monkeypatch):
@@ -220,20 +218,20 @@ class TestLoginView:
         resp = api_client.post(
             "/api/auth/login/",
             {"email": "test@example.com", "password": "testpass123"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        assert resp.data["detail"] == "Invalid credentials."
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Invalid credentials."
 
     def test_login_normalizes_email_before_lookup(self, api_client, user):
         """Login accepts equivalent emails with surrounding whitespace/case differences."""
         resp = api_client.post(
             "/api/auth/login/",
             {"email": "  TEST@EXAMPLE.COM  ", "password": "testpass123"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["username"] == "testuser"
+        assert resp.status_code == 200
+        assert resp.json()["username"] == "testuser"
 
     @override_settings(
         ACCOUNT_EMAIL_VERIFICATION="mandatory",
@@ -246,10 +244,10 @@ class TestLoginView:
         resp = api_client.post(
             "/api/auth/login/",
             {"email": "test@example.com", "password": "testpass123"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_403_FORBIDDEN
-        assert resp.data["code"] == "email_not_verified"
+        assert resp.status_code == 403
+        assert resp.json()["code"] == "email_not_verified"
 
     @override_settings(
         ACCOUNT_EMAIL_VERIFICATION="mandatory",
@@ -260,10 +258,10 @@ class TestLoginView:
         resp = api_client.post(
             "/api/auth/login/",
             {"email": "test@example.com", "password": "testpass123"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["username"] == "testuser"
+        assert resp.status_code == 200
+        assert resp.json()["username"] == "testuser"
 
 
 @pytest.mark.django_db
@@ -280,19 +278,21 @@ class TestEmailVerificationFlow:
                 "username": "verifyuser",
                 "password": "newpass123",
             },
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_201_CREATED
-        assert "detail" in resp.data
-        assert "username" not in resp.data
-        assert resp.data["code"] == "verification_pending"
+        assert resp.status_code == 201
+        assert "detail" in resp.json()
+        assert "username" not in resp.json()
+        assert resp.json()["code"] == "verification_pending"
 
     @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
     def test_resend_verification_anonymous_without_email_returns_200(self, api_client):
         """Anonymous resend without email returns 200 (no user enumeration)."""
-        resp = api_client.post("/api/auth/resend-verification/")
-        assert resp.status_code == status.HTTP_200_OK
-        assert "verification email sent" in resp.data["detail"].lower()
+        resp = api_client.post(
+            "/api/auth/resend-verification/", content_type="application/json"
+        )
+        assert resp.status_code == 200
+        assert "verification email sent" in resp.json()["detail"].lower()
 
     @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
     def test_resend_verification_anonymous_with_unknown_email_returns_200(
@@ -302,10 +302,10 @@ class TestEmailVerificationFlow:
         resp = api_client.post(
             "/api/auth/resend-verification/",
             {"email": "nobody@example.com"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["detail"] == GENERIC_RESEND_DETAIL
+        assert resp.status_code == 200
+        assert resp.json()["detail"] == GENERIC_RESEND_DETAIL
 
     @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
     def test_resend_verification_anonymous_with_valid_email_returns_200(
@@ -315,10 +315,10 @@ class TestEmailVerificationFlow:
         resp = api_client.post(
             "/api/auth/resend-verification/",
             {"email": user.email},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
-        assert "verification email sent" in resp.data["detail"].lower()
+        assert resp.status_code == 200
+        assert "verification email sent" in resp.json()["detail"].lower()
 
     @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
     def test_resend_verification_anonymous_with_non_string_email_returns_200(
@@ -328,10 +328,10 @@ class TestEmailVerificationFlow:
         resp = api_client.post(
             "/api/auth/resend-verification/",
             {"email": [1]},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
-        assert "verification email sent" in resp.data["detail"].lower()
+        assert resp.status_code == 200
+        assert "verification email sent" in resp.json()["detail"].lower()
 
     @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
     def test_resend_verification_returns_200_for_verified_user(self, auth_client, user):
@@ -343,14 +343,14 @@ class TestEmailVerificationFlow:
             primary=True,
         )
         resp = auth_client.post("/api/auth/resend-verification/")
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["detail"] == GENERIC_RESEND_DETAIL
+        assert resp.status_code == 200
+        assert resp.json()["detail"] == GENERIC_RESEND_DETAIL
 
     @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
     def test_resend_verification_succeeds_for_unverified_user(self, auth_client):
         """Authenticated unverified users can request another verification email."""
         resp = auth_client.post("/api/auth/resend-verification/")
-        assert resp.status_code == status.HTTP_200_OK
+        assert resp.status_code == 200
 
     @override_settings(ACCOUNT_EMAIL_VERIFICATION="mandatory")
     def test_resend_verification_hides_smtp_failure_for_anonymous_known_email(
@@ -364,10 +364,10 @@ class TestEmailVerificationFlow:
             resp = api_client.post(
                 "/api/auth/resend-verification/",
                 {"email": user.email},
-                format="json",
+                content_type="application/json",
             )
-        assert resp.status_code == status.HTTP_200_OK
-        assert "verification email sent" in resp.data["detail"].lower()
+        assert resp.status_code == 200
+        assert "verification email sent" in resp.json()["detail"].lower()
 
 
 # ── Logout ─────────────────────────────────────────────────────────────────────
@@ -380,13 +380,13 @@ class TestLogoutView:
     def test_authenticated_logout_returns_200(self, auth_client):
         """An authenticated user can log out successfully."""
         resp = auth_client.post("/api/auth/logout/")
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["detail"] == "Logged out."
+        assert resp.status_code == 200
+        assert resp.json()["detail"] == "Logged out."
 
     def test_unauthenticated_logout_returns_403(self, api_client):
         """An unauthenticated request to logout is rejected."""
         resp = api_client.post("/api/auth/logout/")
-        assert resp.status_code == status.HTTP_403_FORBIDDEN
+        assert resp.status_code == 403
 
 
 # ── Current User ───────────────────────────────────────────────────────────────
@@ -399,13 +399,13 @@ class TestCurrentUserView:
     def test_authenticated_returns_user_data(self, auth_client, user):
         """Authenticated users receive their own serialized data."""
         resp = auth_client.get("/api/auth/user/")
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["username"] == "testuser"
+        assert resp.status_code == 200
+        assert resp.json()["username"] == "testuser"
 
     def test_unauthenticated_returns_403(self, api_client):
-        """Unauthenticated requests are rejected; DRF SessionAuthentication returns 403."""
+        """Unauthenticated requests are rejected with 403."""
         resp = api_client.get("/api/auth/user/")
-        assert resp.status_code == status.HTTP_403_FORBIDDEN
+        assert resp.status_code == 403
 
 
 # ── Update Profile ─────────────────────────────────────────────────────────────
@@ -418,53 +418,57 @@ class TestUpdateProfileView:
     def test_change_username_succeeds(self, auth_client):
         """Providing a new unique username updates it successfully."""
         resp = auth_client.patch(
-            "/api/auth/profile/", {"username": "newname"}, format="json"
+            "/api/auth/profile/",
+            {"username": "newname"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["username"] == "newname"
+        assert resp.status_code == 200
+        assert resp.json()["username"] == "newname"
 
     def test_change_password_succeeds(self, auth_client):
         """Providing correct current password allows password change."""
         resp = auth_client.patch(
             "/api/auth/profile/",
             {"current_password": "testpass123", "new_password": "newpassword456"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
+        assert resp.status_code == 200
 
     def test_wrong_current_password_returns_400(self, auth_client):
         """An incorrect current password is rejected with a field error."""
         resp = auth_client.patch(
             "/api/auth/profile/",
             {"current_password": "wrongpass", "new_password": "newpassword456"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        assert "current_password" in resp.data
+        assert resp.status_code == 400
+        assert "current_password" in resp.json()
 
     def test_new_password_too_short_returns_400(self, auth_client):
         """A new password shorter than 8 characters is rejected."""
         resp = auth_client.patch(
             "/api/auth/profile/",
             {"current_password": "testpass123", "new_password": "short"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        assert "new_password" in resp.data
+        assert resp.status_code == 400
+        assert "new_password" in resp.json()
 
     def test_taken_username_returns_400(self, auth_client, db):
         """Attempting to take another user's username is rejected."""
         User.objects.create_user(username="taken", email="taken@x.com", password="p")
         resp = auth_client.patch(
-            "/api/auth/profile/", {"username": "taken"}, format="json"
+            "/api/auth/profile/", {"username": "taken"}, content_type="application/json"
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        assert "username" in resp.data
+        assert resp.status_code == 400
+        assert "username" in resp.json()
 
     def test_empty_username_returns_400(self, auth_client):
         """Submitting an empty string for username is rejected."""
-        resp = auth_client.patch("/api/auth/profile/", {"username": ""}, format="json")
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        resp = auth_client.patch(
+            "/api/auth/profile/", {"username": ""}, content_type="application/json"
+        )
+        assert resp.status_code == 400
 
     def test_non_string_profile_fields_return_400(self, auth_client):
         """Non-string profile update fields return explicit validation errors."""
@@ -475,11 +479,11 @@ class TestUpdateProfileView:
                 "current_password": {"$ne": ""},
                 "new_password": ["bad"],
             },
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
-        assert resp.data["username"] == "Username must be a string."
-        assert resp.data["new_password"] == "Password must be a string."
+        assert resp.status_code == 400
+        assert resp.json()["username"] == "Username must be a string."
+        assert resp.json()["new_password"] == "Password must be a string."
 
 
 # ── Google OAuth ────────────────────────────────────────────────────────────────
@@ -514,7 +518,7 @@ class TestGoogleOAuth:
         a POST is required to initiate the redirect.
         """
         resp = client.post("/accounts/google/login/")
-        assert resp.status_code == status.HTTP_302_FOUND
+        assert resp.status_code == 302
 
     def test_google_login_redirect_targets_google(self, client):
         """The POST redirect URL points to accounts.google.com."""
@@ -528,7 +532,6 @@ class TestGoogleOAuth:
         """A user created in any way (including via social login) auto-receives a Profile from signals."""
         from accounts.models import Profile
 
-        # Simulate what allauth does after completing the OAuth flow: save the user.
         u = User.objects.create_user(username="g_newuser", email="g_new@example.com")
         assert Profile.objects.filter(user=u).exists()
 
@@ -577,17 +580,17 @@ class TestGoogleOAuth:
         )
         Profile.objects.get_or_create(user=social_user)
 
-        client = APIClient()
-        client.force_authenticate(user=social_user)
+        client = Client()
+        client.force_login(social_user)
         resp = client.get("/api/auth/user/")
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["email"] == "g_api@example.com"
+        assert resp.status_code == 200
+        assert resp.json()["email"] == "g_api@example.com"
 
     def test_social_user_without_auth_cannot_access_user_endpoint(self, db):
         """An unauthenticated request is still rejected even for OAuth-created accounts."""
-        client = APIClient()
+        client = Client()
         resp = client.get("/api/auth/user/")
-        assert resp.status_code == status.HTTP_403_FORBIDDEN
+        assert resp.status_code == 403
 
     # ── ensure_sites_migrations command ────────────────────────────────────
 

@@ -3,7 +3,7 @@
 import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.db.models import Count
-from rest_framework.test import APIRequestFactory
+from django.test import RequestFactory
 
 from blog.models import Tag
 from blog.serializers import (
@@ -146,7 +146,7 @@ class TestPostDetailSerializer:
 
     def test_includes_body_and_comments(self, post):
         """Detail serializer adds body and comments on top of list fields."""
-        factory = APIRequestFactory()
+        factory = RequestFactory()
         request = factory.get("/")
         request.user = AnonymousUser()
         data = PostDetailSerializer(post, context={"request": request}).data
@@ -155,7 +155,7 @@ class TestPostDetailSerializer:
 
     def test_comments_is_list(self, post, comment):
         """comments serializes as a list of comment objects."""
-        factory = APIRequestFactory()
+        factory = RequestFactory()
         request = factory.get("/")
         request.user = AnonymousUser()
         data = PostDetailSerializer(post, context={"request": request}).data
@@ -172,7 +172,7 @@ class TestCommentSerializer:
 
     def test_exposes_expected_fields(self, comment):
         """Serialized comment contains all expected fields."""
-        factory = APIRequestFactory()
+        factory = RequestFactory()
         request = factory.get("/")
         request.user = AnonymousUser()
         data = CommentSerializer(comment, context={"request": request}).data
@@ -189,7 +189,7 @@ class TestCommentSerializer:
 
     def test_likes_and_dislikes_default_to_zero(self, comment):
         """A new comment has zero likes and dislikes."""
-        factory = APIRequestFactory()
+        factory = RequestFactory()
         request = factory.get("/")
         request.user = AnonymousUser()
         data = CommentSerializer(comment, context={"request": request}).data
@@ -198,7 +198,7 @@ class TestCommentSerializer:
 
     def test_user_vote_is_none_for_anonymous(self, comment):
         """user_vote is None when the request has no authenticated user."""
-        factory = APIRequestFactory()
+        factory = RequestFactory()
         request = factory.get("/")
         request.user = AnonymousUser()
         data = CommentSerializer(comment, context={"request": request}).data
@@ -213,7 +213,7 @@ class TestPostWriteSerializerTagValidation:
     """Tests for PostWriteSerializer.validate_tag_ids."""
 
     def _make_context(self, user):
-        factory = APIRequestFactory()
+        factory = RequestFactory()
         request = factory.post("/")
         request.user = user
         return {"request": request}

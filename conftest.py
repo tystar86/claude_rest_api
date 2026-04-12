@@ -2,7 +2,7 @@
 
 import pytest
 from django.contrib.auth.models import User
-from rest_framework.test import APIClient
+from django.test import Client
 
 from accounts.models import Profile
 from blog.models import Comment, Post, Tag
@@ -13,28 +13,28 @@ from blog.models import Comment, Post, Tag
 
 @pytest.fixture
 def api_client():
-    """Unauthenticated DRF test client."""
-    return APIClient()
+    """Unauthenticated Django test client."""
+    return Client()
 
 
 @pytest.fixture
 def auth_client(api_client, user):
-    """DRF test client authenticated as a regular user."""
-    api_client.force_authenticate(user=user)
+    """Django test client authenticated as a regular user."""
+    api_client.force_login(user)
     return api_client
 
 
 @pytest.fixture
 def mod_client(api_client, moderator):
-    """DRF test client authenticated as a moderator."""
-    api_client.force_authenticate(user=moderator)
+    """Django test client authenticated as a moderator."""
+    api_client.force_login(moderator)
     return api_client
 
 
 @pytest.fixture
 def admin_client(api_client, admin_user):
-    """DRF test client authenticated as an admin."""
-    api_client.force_authenticate(user=admin_user)
+    """Django test client authenticated as an admin."""
+    api_client.force_login(admin_user)
     return api_client
 
 

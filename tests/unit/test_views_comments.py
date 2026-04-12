@@ -2,7 +2,6 @@
 
 import pytest
 from django.contrib.auth.models import User
-from rest_framework import status
 
 from blog.models import Comment, CommentVote, Post
 
@@ -17,15 +16,15 @@ class TestCommentList:
     def test_list_returns_200_for_anonymous(self, api_client, comment):
         """Anyone can list comments."""
         resp = api_client.get("/api/comments/")
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["count"] >= 1
+        assert resp.status_code == 200
+        assert resp.json()["count"] >= 1
 
     def test_list_response_is_paginated(self, api_client):
         """Response includes pagination metadata."""
-        resp = api_client.get("/api/comments/")
-        assert "count" in resp.data
-        assert "total_pages" in resp.data
-        assert "results" in resp.data
+        data = api_client.get("/api/comments/").json()
+        assert "count" in data
+        assert "total_pages" in data
+        assert "results" in data
 
     def test_list_excludes_comments_on_draft_posts(self, api_client, user):
         """Anonymous users do not see comments attached to draft posts."""
@@ -44,24 +43,27 @@ class TestCommentList:
         )
 
         resp = api_client.get("/api/comments/")
-        assert resp.status_code == status.HTTP_200_OK
-        assert all(item["post_slug"] != "hidden-draft" for item in resp.data["results"])
+        assert resp.status_code == 200
+        assert all(
+            item["post_slug"] != "hidden-draft" for item in resp.json()["results"]
+        )
 
     def test_post_comments_list_returns_paginated_response(
         self, api_client, post, comment
     ):
         """GET /api/posts/<slug>/comments/ returns paginated comments for the post."""
         resp = api_client.get(f"/api/posts/{post.slug}/comments/")
-        assert resp.status_code == status.HTTP_200_OK
-        assert "count" in resp.data
-        assert "total_pages" in resp.data
-        assert "results" in resp.data
-        assert all(item["post_slug"] == post.slug for item in resp.data["results"])
+        data = resp.json()
+        assert resp.status_code == 200
+        assert "count" in data
+        assert "total_pages" in data
+        assert "results" in data
+        assert all(item["post_slug"] == post.slug for item in data["results"])
 
     def test_post_comments_list_nonexistent_post_returns_404(self, api_client):
         """GET /api/posts/<slug>/comments/ returns 404 for missing posts."""
         resp = api_client.get("/api/posts/no-such-post/comments/")
-        assert resp.status_code == status.HTTP_404_NOT_FOUND
+        assert resp.status_code == 404
 
 
 # ── Comment Create ─────────────────────────────────────────────────────────────
@@ -76,55 +78,55 @@ class TestCommentCreate:
         resp = auth_client.post(
             f"/api/posts/{post.slug}/comments/",
             {"body": "Great post!"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_201_CREATED
-        assert resp.data["body"] == "Great post!"
+        assert resp.status_code == 201
+        assert resp.json()["body"] == "Great post!"
 
     def test_unauthenticated_user_cannot_comment(self, api_client, post):
         """An unauthenticated user is rejected."""
         resp = api_client.post(
             f"/api/posts/{post.slug}/comments/",
             {"body": "Hey"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+        assert resp.status_code == 401
 
     def test_empty_body_returns_400(self, auth_client, post):
         """An empty comment body is rejected."""
         resp = auth_client.post(
             f"/api/posts/{post.slug}/comments/",
             {"body": ""},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.status_code == 400
 
     def test_reply_to_existing_comment(self, auth_client, post, comment):
         """A reply links to the parent comment."""
         resp = auth_client.post(
             f"/api/posts/{post.slug}/comments/",
             {"body": "Reply!", "parent_id": comment.id},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_201_CREATED
+        assert resp.status_code == 201
 
     def test_nonexistent_post_returns_404(self, auth_client):
         """Commenting on a non-existent post returns 404."""
         resp = auth_client.post(
             "/api/posts/no-post/comments/",
             {"body": "body"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_404_NOT_FOUND
+        assert resp.status_code == 404
 
     def test_invalid_parent_id_returns_400(self, auth_client, post):
         """A parent_id that doesn't exist on the post returns 400."""
         resp = auth_client.post(
             f"/api/posts/{post.slug}/comments/",
             {"body": "body", "parent_id": 99999},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.status_code == 400
 
     def test_regular_user_cannot_comment_on_another_users_draft(
         self, api_client, draft_post
@@ -135,22 +137,22 @@ class TestCommentCreate:
             email="other-draft@example.com",
             password="strongpass123",
         )
-        api_client.force_authenticate(user=other)
+        api_client.force_login(other)
         resp = api_client.post(
             f"/api/posts/{draft_post.slug}/comments/",
             {"body": "Sneaky"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_404_NOT_FOUND
+        assert resp.status_code == 404
 
     def test_non_string_body_returns_400(self, auth_client, post):
         """Structured JSON payloads are rejected cleanly."""
         resp = auth_client.post(
             f"/api/posts/{post.slug}/comments/",
             {"body": {"$ne": ""}},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.status_code == 400
 
 
 # ── Comment Update ─────────────────────────────────────────────────────────────
@@ -165,35 +167,41 @@ class TestCommentUpdate:
         resp = auth_client.patch(
             f"/api/comments/{comment.id}/",
             {"body": "Edited body"},
-            format="json",
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["body"] == "Edited body"
+        assert resp.status_code == 200
+        assert resp.json()["body"] == "Edited body"
 
     def test_other_user_cannot_update_comment(self, api_client, comment, db):
         """A different user cannot edit someone else's comment."""
         other = User.objects.create_user(
             username="other", email="o@x.com", password="p"
         )
-        api_client.force_authenticate(user=other)
+        api_client.force_login(other)
         resp = api_client.patch(
-            f"/api/comments/{comment.id}/", {"body": "Hacked"}, format="json"
+            f"/api/comments/{comment.id}/",
+            {"body": "Hacked"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_404_NOT_FOUND
+        assert resp.status_code == 404
 
     def test_empty_body_returns_400(self, auth_client, comment):
         """Setting comment body to empty is rejected."""
         resp = auth_client.patch(
-            f"/api/comments/{comment.id}/", {"body": ""}, format="json"
+            f"/api/comments/{comment.id}/",
+            {"body": ""},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.status_code == 400
 
     def test_nonexistent_comment_returns_404(self, auth_client):
         """Updating a non-existent comment returns 404."""
         resp = auth_client.patch(
-            "/api/comments/99999/", {"body": "body"}, format="json"
+            "/api/comments/99999/",
+            {"body": "body"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_404_NOT_FOUND
+        assert resp.status_code == 404
 
 
 # ── Comment Delete ─────────────────────────────────────────────────────────────
@@ -206,7 +214,7 @@ class TestCommentDelete:
     def test_author_can_delete_own_comment(self, auth_client, comment):
         """A comment author can delete their comment."""
         resp = auth_client.delete(f"/api/comments/{comment.id}/")
-        assert resp.status_code == status.HTTP_204_NO_CONTENT
+        assert resp.status_code == 204
         assert not Comment.objects.filter(id=comment.id).exists()
 
     def test_other_user_cannot_delete_comment(self, api_client, comment, db):
@@ -214,14 +222,14 @@ class TestCommentDelete:
         other = User.objects.create_user(
             username="other2", email="o2@x.com", password="p"
         )
-        api_client.force_authenticate(user=other)
+        api_client.force_login(other)
         resp = api_client.delete(f"/api/comments/{comment.id}/")
-        assert resp.status_code == status.HTTP_404_NOT_FOUND
+        assert resp.status_code == 404
 
     def test_nonexistent_comment_returns_404(self, auth_client):
         """Deleting a non-existent comment returns 404."""
         resp = auth_client.delete("/api/comments/99999/")
-        assert resp.status_code == status.HTTP_404_NOT_FOUND
+        assert resp.status_code == 404
 
 
 # ── Comment Vote ───────────────────────────────────────────────────────────────
@@ -234,18 +242,22 @@ class TestCommentVote:
     def test_like_comment(self, auth_client, comment):
         """Liking a comment increments the likes count."""
         resp = auth_client.post(
-            f"/api/comments/{comment.id}/vote/", {"vote": "like"}, format="json"
+            f"/api/comments/{comment.id}/vote/",
+            {"vote": "like"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["likes"] == 1
+        assert resp.status_code == 200
+        assert resp.json()["likes"] == 1
 
     def test_dislike_comment(self, auth_client, comment):
         """Disliking a comment increments the dislikes count."""
         resp = auth_client.post(
-            f"/api/comments/{comment.id}/vote/", {"vote": "dislike"}, format="json"
+            f"/api/comments/{comment.id}/vote/",
+            {"vote": "dislike"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["dislikes"] == 1
+        assert resp.status_code == 200
+        assert resp.json()["dislikes"] == 1
 
     def test_voting_same_type_twice_toggles_off(self, auth_client, user, comment):
         """Sending the same vote twice removes the vote (toggle off)."""
@@ -253,10 +265,12 @@ class TestCommentVote:
             comment=comment, user=user, vote=CommentVote.VoteType.LIKE
         )
         resp = auth_client.post(
-            f"/api/comments/{comment.id}/vote/", {"vote": "like"}, format="json"
+            f"/api/comments/{comment.id}/vote/",
+            {"vote": "like"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["likes"] == 0
+        assert resp.status_code == 200
+        assert resp.json()["likes"] == 0
 
     def test_switching_vote_updates_counts(self, auth_client, user, comment):
         """Switching from like to dislike updates both counts correctly."""
@@ -264,32 +278,40 @@ class TestCommentVote:
             comment=comment, user=user, vote=CommentVote.VoteType.LIKE
         )
         resp = auth_client.post(
-            f"/api/comments/{comment.id}/vote/", {"vote": "dislike"}, format="json"
+            f"/api/comments/{comment.id}/vote/",
+            {"vote": "dislike"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.data["likes"] == 0
-        assert resp.data["dislikes"] == 1
+        assert resp.status_code == 200
+        assert resp.json()["likes"] == 0
+        assert resp.json()["dislikes"] == 1
 
     def test_invalid_vote_type_returns_400(self, auth_client, comment):
         """An unrecognised vote type is rejected."""
         resp = auth_client.post(
-            f"/api/comments/{comment.id}/vote/", {"vote": "invalid"}, format="json"
+            f"/api/comments/{comment.id}/vote/",
+            {"vote": "invalid"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.status_code == 400
 
     def test_unauthenticated_vote_returns_401(self, api_client, comment):
         """Unauthenticated users cannot vote."""
         resp = api_client.post(
-            f"/api/comments/{comment.id}/vote/", {"vote": "like"}, format="json"
+            f"/api/comments/{comment.id}/vote/",
+            {"vote": "like"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+        assert resp.status_code == 401
 
     def test_vote_on_nonexistent_comment_returns_404(self, auth_client):
         """Voting on a non-existent comment returns 404."""
         resp = auth_client.post(
-            "/api/comments/99999/vote/", {"vote": "like"}, format="json"
+            "/api/comments/99999/vote/",
+            {"vote": "like"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_404_NOT_FOUND
+        assert resp.status_code == 404
 
     def test_vote_on_comment_for_hidden_draft_returns_404(self, api_client, draft_post):
         """Users cannot interact with comments tied to hidden draft posts."""
@@ -305,8 +327,10 @@ class TestCommentVote:
             email="vote-user@example.com",
             password="strongpass123",
         )
-        api_client.force_authenticate(user=other)
+        api_client.force_login(other)
         resp = api_client.post(
-            f"/api/comments/{comment.id}/vote/", {"vote": "like"}, format="json"
+            f"/api/comments/{comment.id}/vote/",
+            {"vote": "like"},
+            content_type="application/json",
         )
-        assert resp.status_code == status.HTTP_404_NOT_FOUND
+        assert resp.status_code == 404

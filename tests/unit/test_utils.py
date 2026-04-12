@@ -2,7 +2,7 @@
 
 import pytest
 from django.contrib.auth.models import AnonymousUser
-from rest_framework.test import APIRequestFactory
+from django.test import RequestFactory
 
 from blog.api_views import can_manage_tags, paginate
 from blog.utils import build_unique_slug
@@ -107,7 +107,7 @@ class TestPaginate:
 
     def _make_request(self, page="1"):
         """Return a GET request with the given page parameter."""
-        factory = APIRequestFactory()
+        factory = RequestFactory()
         return factory.get("/", {"page": page})
 
     def test_returns_required_keys(self, db):
