@@ -183,6 +183,7 @@ class TestNinjaWritePreview:
         with override_settings(
             API_THROTTLE_RATES=low_rates,
             NINJA_DEFAULT_THROTTLE_RATES=low_rates,
+            EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
             CACHES={
                 "default": {
                     "BACKEND": "django.core.cache.backends.locmem.LocMemCache",

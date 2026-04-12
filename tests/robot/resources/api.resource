@@ -1,7 +1,11 @@
 *** Settings ***
 Library    RequestsLibrary
 Library    Collections
+Library    Process
 Resource   common.resource
+
+*** Variables ***
+${MODERATOR_BOOTSTRAP_CMD}    from django.contrib.auth.models import User; from accounts.models import Profile; u, _ = User.objects.get_or_create(username='${MOD_USERNAME}', defaults={'email': '${MOD_EMAIL}'}); u.email='${MOD_EMAIL}'; u.set_password('${MOD_PASSWORD}'); u.save(); profile, _ = Profile.objects.get_or_create(user=u); profile.role='moderator'; profile.save(update_fields=['role'])
 
 *** Keywords ***
 Create API Session
@@ -33,7 +37,36 @@ Register Test User
         Should Be Equal As Integers    ${resp.status_code}    201
     END
 
-Login As Moderator
+Ensure Moderator User
+    # First try host-based seeding (works when backend uses host Python env).
+    ${result}=    Run Process
+    ...    uv
+    ...    run
+    ...    python
+    ...    manage.py
+    ...    shell
+    ...    -c
+    ...    ${MODERATOR_BOOTSTRAP_CMD}
+    ...    cwd=${CURDIR}/../../..
+    ${status}=    Try Moderator Login
+    IF    ${status} != 200
+        # Fallback for dockerized local stacks where backend DB is in container.
+        ${docker_result}=    Run Process
+        ...    docker-compose
+        ...    exec
+        ...    -T
+        ...    backend
+        ...    python
+        ...    manage.py
+        ...    shell
+        ...    -c
+        ...    ${MODERATOR_BOOTSTRAP_CMD}
+        ...    cwd=${CURDIR}/../../..
+        ${status}=    Try Moderator Login
+    END
+    Should Be Equal As Integers    ${status}    200
+
+Try Moderator Login
     ${token}=    Get CSRF Token
     ${headers}=    Create Dictionary    X-CSRFToken=${token}
     ${payload}=    Create Dictionary    email=${MOD_EMAIL}    password=${MOD_PASSWORD}
@@ -43,7 +76,11 @@ Login As Moderator
     ...    json=${payload}
     ...    headers=${headers}
     ...    expected_status=any
-    Should Be Equal As Integers    ${resp.status_code}    200
+    RETURN    ${resp.status_code}
+
+Login As Moderator
+    ${status}=    Try Moderator Login
+    Should Be Equal As Integers    ${status}    200
 
 Login Test User
     ${token}=    Get CSRF Token

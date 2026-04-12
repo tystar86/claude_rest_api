@@ -166,12 +166,11 @@ def register(request: HttpRequest):
                 email=email,
                 password=password,
             )
+            Profile.objects.get_or_create(user=user)
     except ValidationError as exc:
         return json_compat_response({"password": exc.messages}, status=400)
     except IntegrityError:
         return json_compat_response({"detail": "Registration failed."}, status=400)
-
-    Profile.objects.get_or_create(user=user)
     if settings.ACCOUNT_EMAIL_VERIFICATION == "mandatory":
         setup_user_email(request, user, [])
         try:
