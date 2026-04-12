@@ -70,6 +70,10 @@ class TestUserSerializer:
         """post_count increments when the user has posts."""
         assert UserSerializer(user).data["post_count"] == 1
 
+    def test_post_count_excludes_drafts_without_annotation(self, user, draft_post):
+        """Unannotated users only count published posts (matches list API annotate)."""
+        assert UserSerializer(user).data["post_count"] == 0
+
     def test_nested_profile_present(self, user):
         """profile is a nested object containing role and bio."""
         profile_data = UserSerializer(user).data["profile"]

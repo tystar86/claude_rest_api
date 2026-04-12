@@ -54,7 +54,7 @@ class UserSerializer(_ReadSerializer):
         if hasattr(obj, "post_count"):
             post_count = obj.post_count
         else:
-            post_count = obj.posts.count()
+            post_count = obj.posts.filter(status=Post.Status.PUBLISHED).count()
         return {
             "id": obj.id,
             "username": obj.username,
@@ -134,6 +134,12 @@ class CommentSerializer(_ReadSerializer):
     def _user_vote(self, obj: Comment) -> str | None:
         return self._vote_tuple(obj)[2]
 
+    def _reply_post_author_id(self, reply: Comment) -> int:
+        """Prefer post author from context (set by PostDetailSerializer) to avoid N+1."""
+        if "post_author_id" in self.context:
+            return self.context["post_author_id"]
+        return reply.post.author_id
+
     def _replies(self, obj: Comment) -> list[dict]:
         request = self.context.get("request")
         replies = [
@@ -145,7 +151,7 @@ class CommentSerializer(_ReadSerializer):
                 and request.user.is_authenticated
                 and (
                     reply.author_id == request.user.id
-                    or reply.post.author_id == request.user.id
+                    or self._reply_post_author_id(reply) == request.user.id
                     or request.user.is_superuser
                     or request.user.is_staff
                     or getattr(getattr(request.user, "profile", None), "role", "user")
@@ -221,5 +227,6 @@ class PostDetailSerializer(PostSerializer):
                 )
             ):
                 top_level.append(comment)
-        data["comments"] = CommentSerializer(top_level, many=True, context=self.context).data
+        comment_ctx = {**self.context, "post_author_id": obj.author_id}
+        data["comments"] = CommentSerializer(top_level, many=True, context=comment_ctx).data
         return data
