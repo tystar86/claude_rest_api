@@ -71,6 +71,8 @@ export const updateComment = (commentId, body) =>
 export const deleteComment = (commentId) =>
   api.delete(`/comments/${commentId}/`).then((r) => r.data);
 
+export const resendVerification = (email) => api.post("/auth/resend-verification/", { email }).then((r) => r.data);
+
 export const fetchCsrf = () => api.get("/auth/csrf/").then((r) => r.data);
 
 export default api;
