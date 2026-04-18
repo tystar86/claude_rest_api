@@ -415,7 +415,7 @@ export default function PostDetail() {
     <div className="nb-post-detail">
 
       {/* Breadcrumb bar */}
-      <div style={{ borderBottom: "var(--border)", padding: "10px 32px", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ borderBottom: "var(--border)", padding: "10px var(--nb-copy-pad-x)", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <nav aria-label="breadcrumb">
           <ol className="breadcrumb mb-0">
             <li className="breadcrumb-item"><Link to="/posts">Posts</Link></li>
@@ -472,7 +472,7 @@ export default function PostDetail() {
 
       {/* Edit form */}
       {editingPost && (
-        <div style={{ padding: "28px 32px", borderBottom: "var(--border)", background: "var(--white)" }}>
+        <div style={{ padding: "28px var(--nb-copy-pad-x)", borderBottom: "var(--border)", background: "var(--white)" }}>
           <form onSubmit={handlePostUpdate}>
             <div className="nb-field">
               <label>Title</label>
@@ -569,7 +569,7 @@ export default function PostDetail() {
           </span>
         </div>
 
-        <div style={{ padding: "24px 32px", background: "var(--bg)" }}>
+        <div style={{ padding: "24px var(--nb-copy-pad-x)", background: "var(--bg)" }}>
           {user ? (
             <form onSubmit={handleCreateComment} style={{ marginBottom: "24px" }}>
               <div className="nb-field">

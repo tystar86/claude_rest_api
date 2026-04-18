@@ -51,7 +51,7 @@ export default function CommentList() {
 
   if (fetchError) return (
     <div className="nb-layout-full">
-      <div className="nb-error" style={{ padding: "40px 32px" }}>
+      <div className="nb-error" style={{ padding: "40px var(--nb-copy-pad-x)" }}>
         Failed to load comments. Please refresh the page.
       </div>
     </div>
@@ -77,7 +77,7 @@ export default function CommentList() {
 
       {/* Comment rows */}
       {items.length === 0 && (
-        <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
+        <div style={{ padding: "40px var(--nb-copy-pad-x)", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
           No comments yet.
         </div>
       )}

@@ -102,7 +102,7 @@ export default function UserDetail() {
           </div>
         </div>
 
-        <div style={{ padding: "16px 24px" }}>
+        <div style={{ padding: "16px var(--nb-copy-pad-x)" }}>
           <Link to="/users" style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--black)", textDecoration: "underline" }}>
             ← All Users
           </Link>
@@ -117,7 +117,7 @@ export default function UserDetail() {
         </div>
 
         {items.length === 0 && (
-          <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
+          <div style={{ padding: "40px var(--nb-copy-pad-x)", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
             No posts yet.
           </div>
         )}

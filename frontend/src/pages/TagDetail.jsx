@@ -80,7 +80,7 @@ export default function TagDetail() {
 
       {/* Post rows */}
       {items.length === 0 && (
-        <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
+        <div style={{ padding: "40px var(--nb-copy-pad-x)", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
           No posts with this tag yet.
         </div>
       )}
