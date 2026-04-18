@@ -81,12 +81,16 @@ const EMPTY_PAYLOAD = {
 };
 
 describe('Dashboard', () => {
-  it('shows loading spinner before data arrives', () => {
+  it('shows loading skeleton and hint before data arrives', () => {
     vi.mocked(fetchDashboard).mockReturnValue(new Promise(() => {}));
 
     render(<Dashboard />);
 
     expect(document.querySelector('.spinner-border')).not.toBeNull();
+    expect(
+      screen.getByText(/Loading dashboard data/i)
+    ).toBeInTheDocument();
+    expect(document.querySelector('.nb-skel-stat-value')).not.toBeNull();
   });
 
   it('renders stat cards after successful fetch', async () => {
