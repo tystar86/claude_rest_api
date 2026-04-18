@@ -9,6 +9,73 @@ function fmt(dateStr) {
   });
 }
 
+function DashboardLoading() {
+  const skelListRows = (count) =>
+    Array.from({ length: count }, (_, j) => (
+      <div key={j} className="nb-list-item nb-skel-item" aria-hidden>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="nb-skel nb-skel-title" />
+          <div className="nb-skel nb-skel-meta" />
+        </div>
+        <div className="nb-skel nb-skel-badge" />
+      </div>
+    ));
+
+  return (
+    <div className="nb-layout-full" role="status" aria-live="polite" aria-busy="true">
+      <div className="nb-dashboard-loading-banner">
+        <div className="spinner-border" aria-hidden />
+        <p className="nb-dashboard-loading-hint">
+          Loading dashboard data. If the backend is waking up (typical on free hosting), this can take up to about a minute.
+        </p>
+      </div>
+
+      <div style={{ borderBottom: "var(--border)", display: "grid", gridTemplateColumns: "repeat(5, 1fr)" }}>
+        {Array.from({ length: 5 }, (_, i) => (
+          <div
+            key={i}
+            style={{ borderRight: i < 4 ? "var(--border)" : "none", padding: "24px", background: "var(--white)" }}
+            aria-hidden
+          >
+            <div className="nb-skel nb-skel-stat-value" />
+            <div className="nb-skel nb-skel-stat-label" />
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "var(--border)" }}>
+        <div style={{ borderRight: "var(--border)" }}>
+          <div className="nb-card-header">Latest Posts</div>
+          <div className="nb-card-body">{skelListRows(6)}</div>
+        </div>
+        <div>
+          <div className="nb-card-header">Most Commented</div>
+          <div className="nb-card-body">{skelListRows(6)}</div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+        <div style={{ borderRight: "var(--border)", borderBottom: "var(--border)" }}>
+          <div className="nb-card-header">Most Used Tags</div>
+          <div style={{ padding: "20px", display: "flex", flexWrap: "wrap", gap: "8px" }} aria-hidden>
+            {Array.from({ length: 8 }, (_, k) => (
+              <div key={k} className="nb-skel nb-skel-chip" />
+            ))}
+          </div>
+        </div>
+        <div style={{ borderBottom: "var(--border)" }}>
+          <div className="nb-card-header">Top Authors</div>
+          <div style={{ padding: "20px", display: "flex", flexWrap: "wrap", gap: "8px" }} aria-hidden>
+            {Array.from({ length: 8 }, (_, k) => (
+              <div key={k} className="nb-skel nb-skel-chip" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [data, setData] = useState(null);
 
@@ -23,11 +90,7 @@ export default function Dashboard() {
   }, []);
 
   if (!data) {
-    return (
-      <div className="nb-layout-full nb-spinner">
-        <div className="spinner-border" />
-      </div>
-    );
+    return <DashboardLoading />;
   }
 
   const stats = data.stats ?? {};
