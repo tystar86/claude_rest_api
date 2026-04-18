@@ -647,8 +647,8 @@ h1, h2, h3, h4, h5, h6 {
   min-height: calc(100vh - 95px);
 }
 
-/* /dashboard?v2 — edge-to-edge main column (e.g. other worktree / wide monitor). */
-.nb-layout-full.nb-dashboard--v2-fullwidth {
+/* Dashboard: full-bleed main column (viewport-wide strip under the header). */
+.nb-layout-full.nb-dashboard {
   max-width: none;
   width: 100%;
   margin-left: 0;
@@ -749,62 +749,9 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--rose);
 }
 
-/* Dashboard layout variants (?v=1 default | ?v=3 compact) */
-
-/* v1 — post rows sit on neige (--bg); hover matches header (black + sage) via .nb-list-item:hover */
-.nb-dashboard--v1 .nb-card-body .nb-list-item:not(.nb-skel-item) {
+/* Post rows on neige; hover uses .nb-list-item:hover from theme */
+.nb-dashboard .nb-card-body .nb-list-item:not(.nb-skel-item) {
   background: var(--bg);
-}
-
-/* v3 — tighter rhythm, single-band feel */
-.nb-dashboard--v3 .nb-layout-full {
-  background: var(--bg);
-}
-
-.nb-dashboard--v3 .nb-dashboard-stats {
-  background: var(--white);
-}
-
-.nb-dashboard--v3 .nb-dashboard-stat-cell {
-  padding: 10px 14px;
-}
-
-.nb-dashboard--v3 .nb-dashboard-stat-cell .nb-stat-value {
-  font-size: 32px;
-  letter-spacing: -0.03em;
-}
-
-.nb-dashboard--v3 .nb-dashboard-stat-cell .nb-stat-label {
-  font-size: 12px;
-  letter-spacing: 0.08em;
-}
-
-.nb-dashboard--v3 .nb-card-header {
-  padding: 6px 14px;
-  font-size: 10px;
-}
-
-.nb-dashboard--v3 .nb-list-item {
-  padding: 8px 14px;
-  gap: 8px;
-}
-
-.nb-dashboard--v3 .nb-list-title {
-  font-size: 13px;
-}
-
-.nb-dashboard--v3 .nb-dashboard-chip-area {
-  padding: 10px 14px;
-  gap: 6px;
-}
-
-.nb-dashboard--v3 .nb-dashboard-panel {
-  background: var(--white);
-}
-
-.nb-dashboard--v3 .nb-dashboard-posts-row,
-.nb-dashboard--v3 .nb-dashboard-tags-row {
-  background: var(--white);
 }
 
 /* ─── Hero Bar ─── */

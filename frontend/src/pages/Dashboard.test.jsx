@@ -4,8 +4,6 @@ import { vi } from 'vitest';
 import { fetchDashboard } from '../api/client';
 import Dashboard from './Dashboard';
 
-const dashboardSearchParams = { current: new URLSearchParams() };
-
 vi.mock('../api/client', () => import('../test/mocks/client.js'));
 vi.mock('../components/Navbar', () => ({
   default: () => <div data-testid="navbar" />,
@@ -13,13 +11,11 @@ vi.mock('../components/Navbar', () => ({
 vi.mock('react-router-dom', () => ({
   Link: ({ children, to }) => React.createElement('a', { href: to }, children),
   useNavigate: () => vi.fn(),
-  useSearchParams: () => [dashboardSearchParams.current, vi.fn()],
   MemoryRouter: ({ children }) => children,
 }));
 
 afterEach(() => {
   vi.clearAllMocks();
-  dashboardSearchParams.current = new URLSearchParams();
 });
 
 const FULL_PAYLOAD = {
@@ -105,6 +101,7 @@ describe('Dashboard', () => {
       screen.getByText(/Loading dashboard data/i)
     ).toBeInTheDocument();
     expect(document.querySelector('.nb-skel-stat-value')).not.toBeNull();
+    expect(document.querySelector('.nb-layout-full.nb-dashboard')).not.toBeNull();
   });
 
   it('renders stat cards after successful fetch', async () => {
@@ -115,6 +112,8 @@ describe('Dashboard', () => {
     await waitFor(() =>
       expect(document.querySelector('.spinner-border')).toBeNull()
     );
+
+    expect(document.querySelector('.nb-layout-full.nb-dashboard')).not.toBeNull();
 
     expect(screen.getByText('Posts')).toBeInTheDocument();
     expect(screen.queryByText('Total Posts')).toBeNull();
@@ -162,48 +161,6 @@ describe('Dashboard', () => {
     expect(document.querySelectorAll('.nb-dashboard-post-badge--comments').length).toBeGreaterThanOrEqual(1);
     expect(document.querySelectorAll('.nb-dashboard-post-badge--likes').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('9 cmts')).toBeInTheDocument();
-  });
-
-  it('query v=2 falls back to default layout variant (not v2 flag)', async () => {
-    dashboardSearchParams.current = new URLSearchParams('v=2');
-    vi.mocked(fetchDashboard).mockResolvedValue(FULL_PAYLOAD);
-
-    render(<Dashboard />);
-
-    await waitFor(() =>
-      expect(document.querySelector('.spinner-border')).toBeNull()
-    );
-
-    expect(document.querySelector('.nb-dashboard--v2-fullwidth')).toBeNull();
-    expect(document.querySelector('.nb-dashboard--v1')).not.toBeNull();
-  });
-
-  it('query v2 flag applies full-width dashboard class', async () => {
-    dashboardSearchParams.current = new URLSearchParams('v2');
-    vi.mocked(fetchDashboard).mockResolvedValue(FULL_PAYLOAD);
-
-    render(<Dashboard />);
-
-    await waitFor(() =>
-      expect(document.querySelector('.spinner-border')).toBeNull()
-    );
-
-    expect(document.querySelector('.nb-dashboard--v2-fullwidth')).not.toBeNull();
-  });
-
-  it('variant v=3 applies layout class and same stat labels as default', async () => {
-    dashboardSearchParams.current = new URLSearchParams('v=3');
-    vi.mocked(fetchDashboard).mockResolvedValue(FULL_PAYLOAD);
-
-    render(<Dashboard />);
-
-    await waitFor(() =>
-      expect(document.querySelector('.spinner-border')).toBeNull()
-    );
-
-    expect(document.querySelector('.nb-dashboard--v3')).not.toBeNull();
-    expect(screen.getByText('Posts')).toBeInTheDocument();
-    expect(screen.queryByText('Active Tags')).toBeNull();
   });
 
   it('renders empty state cards when lists are empty', async () => {
@@ -258,20 +215,5 @@ describe('Dashboard', () => {
     // Stat cards still render with 0
     const zeroStats = screen.getAllByText('0');
     expect(zeroStats.length).toBeGreaterThanOrEqual(4);
-  });
-
-  it('variant v=3 error state exposes four zero KPIs', async () => {
-    dashboardSearchParams.current = new URLSearchParams('v=3');
-    vi.mocked(fetchDashboard).mockRejectedValue(new Error('Server unavailable'));
-
-    render(<Dashboard />);
-
-    await waitFor(() =>
-      expect(document.querySelector('.spinner-border')).toBeNull()
-    );
-
-    const zeroStats = screen.getAllByText('0');
-    expect(zeroStats.length).toBeGreaterThanOrEqual(4);
-    expect(screen.queryByText('Active Tags')).toBeNull();
   });
 });

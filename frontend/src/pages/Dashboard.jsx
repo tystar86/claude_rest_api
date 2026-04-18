@@ -1,26 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { fetchDashboard } from "../api/client";
-
-/** Layout variants: ?v=1 default, ?v=3 compact / tight bands (labels unchanged). */
-function useDashboardVariant() {
-  const [params] = useSearchParams();
-  const raw = params.get("v");
-  if (raw === "3") return 3;
-  return 1;
-}
-
-/** Full-width dashboard chrome — `?v2` (flag) for an alternate worktree / wide layout. */
-function useDashboardV2FullWidth() {
-  const [params] = useSearchParams();
-  return params.has("v2");
-}
-
-function dashboardRootClass(variant, v2FullWidth) {
-  return ["nb-layout-full", `nb-dashboard--v${variant}`, v2FullWidth && "nb-dashboard--v2-fullwidth"]
-    .filter(Boolean)
-    .join(" ");
-}
 
 function fmt(dateStr) {
   return new Date(dateStr).toLocaleDateString("en-US", {
@@ -28,7 +8,7 @@ function fmt(dateStr) {
   });
 }
 
-function DashboardLoading({ variant, v2FullWidth }) {
+function DashboardLoading() {
   const statSlots = 4;
   const skelListRows = (count, withTrailSkel = true) =>
     Array.from({ length: count }, (_, j) => (
@@ -43,7 +23,7 @@ function DashboardLoading({ variant, v2FullWidth }) {
 
   return (
     <div
-      className={dashboardRootClass(variant, v2FullWidth)}
+      className="nb-layout-full nb-dashboard"
       role="status"
       aria-live="polite"
       aria-busy="true"
@@ -102,8 +82,6 @@ function DashboardLoading({ variant, v2FullWidth }) {
 }
 
 export default function Dashboard() {
-  const variant = useDashboardVariant();
-  const v2FullWidth = useDashboardV2FullWidth();
   const [data, setData] = useState(null);
 
   useEffect(() => {
@@ -118,7 +96,7 @@ export default function Dashboard() {
   }, []);
 
   if (!data) {
-    return <DashboardLoading variant={variant} v2FullWidth={v2FullWidth} />;
+    return <DashboardLoading />;
   }
 
   const stats = data.stats ?? {};
@@ -131,7 +109,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className={dashboardRootClass(variant, v2FullWidth)}>
+    <div className="nb-layout-full nb-dashboard">
 
       {/* Stats row */}
       <div className="nb-dashboard-stats">
