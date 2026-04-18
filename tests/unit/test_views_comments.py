@@ -26,6 +26,19 @@ class TestCommentList:
         assert "total_pages" in data
         assert "results" in data
 
+    def test_list_includes_unapproved_on_published_posts(self, api_client, post, user):
+        """Comments on published posts are listed regardless of is_approved."""
+        Comment.objects.create(
+            post=post,
+            author=user,
+            body="Awaiting moderation",
+            is_approved=False,
+        )
+        resp = api_client.get("/api/comments/")
+        assert resp.status_code == 200
+        bodies = [item["body"] for item in resp.json()["results"]]
+        assert "Awaiting moderation" in bodies
+
     def test_list_excludes_comments_on_draft_posts(self, api_client, user):
         """Anonymous users do not see comments attached to draft posts."""
         draft = Post.objects.create(

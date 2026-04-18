@@ -3,7 +3,7 @@
 import pytest
 from django.contrib.auth.models import User
 
-from blog.models import Comment, Post, Tag
+from blog.models import Comment, CommentVote, Post, Tag
 
 
 @pytest.mark.django_db
@@ -15,14 +15,35 @@ class TestDashboardView:
         resp = api_client.get("/api/dashboard/")
         assert resp.status_code == 200
 
+    def test_head_returns_200(self, api_client):
+        """HEAD is supported for cache / link checking without a body."""
+        resp = api_client.head("/api/dashboard/")
+        assert resp.status_code == 200
+
     def test_response_contains_top_level_keys(self, api_client):
         """Response includes all expected top-level sections."""
         data = api_client.get("/api/dashboard/").json()
         assert "stats" in data
+        assert "activity" in data
         assert "latest_posts" in data
         assert "most_commented_posts" in data
+        assert "most_liked_posts" in data
         assert "most_used_tags" in data
         assert "top_authors" in data
+
+    def test_activity_has_expected_fields(self, api_client):
+        """activity block exposes ticker-friendly nullable fields."""
+        activity = api_client.get("/api/dashboard/").json()["activity"]
+        for key in (
+            "latest_post_title",
+            "latest_post_at",
+            "latest_comment_author",
+            "latest_comment_at",
+            "latest_comment_post_title",
+            "latest_user_username",
+            "latest_user_joined_at",
+        ):
+            assert key in activity
 
     def test_stats_contains_expected_fields(self, api_client):
         """stats section exposes all expected counters."""
@@ -35,18 +56,67 @@ class TestDashboardView:
 
     def test_stats_reflect_created_content(self, api_client, post, comment):
         """Stats accurately count existing posts and comments."""
-        stats = api_client.get("/api/dashboard/").json()["stats"]
+        data = api_client.get("/api/dashboard/").json()
+        stats = data["stats"]
         assert stats["total_posts"] >= 1
         assert stats["comments"] >= 1
+        act = data["activity"]
+        assert act["latest_post_title"] == post.title
+        assert act["latest_comment_author"] == comment.author.username
+
+    def test_most_liked_posts_ranks_by_comment_upvotes(self, api_client, db, post, comment, user):
+        """most_liked_posts lists posts with at least one comment like, ordered by like total."""
+        other = User.objects.create_user(username="liker", email="liker@x.com", password="p")
+        CommentVote.objects.create(user=other, comment=comment, vote=CommentVote.VoteType.LIKE)
+        data = api_client.get("/api/dashboard/").json()
+        liked = data["most_liked_posts"]
+        assert len(liked) >= 1
+        first = next(p for p in liked if p["slug"] == post.slug)
+        assert first["like_count"] >= 1
+
+    def test_most_commented_posts_include_accurate_comment_count(
+        self, api_client, db, post, user, comment
+    ):
+        """most_commented_posts comment_count matches all comments on published posts."""
+        u2 = User.objects.create_user(username="c2", email="c2@x.com", password="p")
+        u3 = User.objects.create_user(username="c3", email="c3@x.com", password="p")
+        Comment.objects.create(post=post, author=u2, body="Second.", is_approved=True)
+        Comment.objects.create(post=post, author=u3, body="Third.", is_approved=True)
+        Comment.objects.create(post=post, author=u3, body="Pending.", is_approved=False)
+        data = api_client.get("/api/dashboard/").json()
+        row = next(p for p in data["most_commented_posts"] if p["slug"] == post.slug)
+        # 1 from `comment` fixture + 3 more (including unapproved)
+        assert row["comment_count"] == 4
+
+    def test_post_summary_lists_include_comment_count_and_like_count(
+        self, api_client, post, comment, user
+    ):
+        """latest_posts, most_commented_posts, and most_liked_posts expose count fields for the UI."""
+        other = User.objects.create_user(username="voter", email="voter@x.com", password="p")
+        CommentVote.objects.create(user=other, comment=comment, vote=CommentVote.VoteType.LIKE)
+        data = api_client.get("/api/dashboard/").json()
+        for key in ("latest_posts", "most_commented_posts", "most_liked_posts"):
+            items = data[key]
+            assert isinstance(items, list)
+            for item in items:
+                assert "comment_count" in item
+                assert "like_count" in item
+                assert isinstance(item["comment_count"], int)
+                assert isinstance(item["like_count"], int)
 
     def test_empty_database_returns_zero_stats(self, api_client, db):
         """All counters are 0 on an empty database."""
-        stats = api_client.get("/api/dashboard/").json()["stats"]
+        data = api_client.get("/api/dashboard/").json()
+        stats = data["stats"]
         assert stats["total_posts"] == 0
         assert stats["comments"] == 0
         assert stats["authors"] == 0
         assert stats["active_tags"] == 0
         assert stats["average_depth_words"] == 0
+        act = data["activity"]
+        assert act["latest_post_title"] is None
+        assert act["latest_comment_at"] is None
+        assert act["latest_user_username"] is None
 
     def test_latest_posts_is_list(self, api_client):
         """latest_posts is always a list."""
@@ -63,6 +133,19 @@ class TestDashboardView:
         """average_depth_words is a positive integer when posts exist."""
         data = api_client.get("/api/dashboard/").json()
         assert data["stats"]["average_depth_words"] > 0
+
+    def test_stats_comments_include_unapproved_on_published_posts(
+        self, api_client, db, post, user, comment
+    ):
+        """Unapproved comments on published posts count toward stats.comments."""
+        Comment.objects.create(
+            post=post,
+            author=user,
+            body="Pending moderation.",
+            is_approved=False,
+        )
+        data = api_client.get("/api/dashboard/").json()
+        assert data["stats"]["comments"] == 2
 
     def test_draft_post_comments_excluded_from_comment_count(self, api_client, db):
         """Comments on draft posts are not counted in the stats comment total."""

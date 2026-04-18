@@ -134,31 +134,8 @@ class CommentSerializer(_ReadSerializer):
     def _user_vote(self, obj: Comment) -> str | None:
         return self._vote_tuple(obj)[2]
 
-    def _reply_post_author_id(self, reply: Comment) -> int:
-        """Prefer post author from context (set by PostDetailSerializer) to avoid N+1."""
-        if "post_author_id" in self.context:
-            return self.context["post_author_id"]
-        return reply.post.author_id
-
     def _replies(self, obj: Comment) -> list[dict]:
-        request = self.context.get("request")
-        replies = [
-            reply
-            for reply in obj.replies.all()
-            if getattr(reply, "is_approved", True)
-            or (
-                request is not None
-                and request.user.is_authenticated
-                and (
-                    reply.author_id == request.user.id
-                    or self._reply_post_author_id(reply) == request.user.id
-                    or request.user.is_superuser
-                    or request.user.is_staff
-                    or getattr(getattr(request.user, "profile", None), "role", "user")
-                    in ("moderator", "admin")
-                )
-            )
-        ]
+        replies = list(obj.replies.all())
         return CommentSerializer(replies, many=True, context=self.context).data
 
 
@@ -187,6 +164,9 @@ class PostSerializer(_ReadSerializer):
         comment_count = getattr(obj, "comment_count", None)
         if comment_count is None:
             comment_count = obj.comments.count()
+        like_count = getattr(obj, "comment_like_count", None)
+        if like_count is None:
+            like_count = 0
         return {
             "id": obj.id,
             "title": obj.title,
@@ -198,6 +178,7 @@ class PostSerializer(_ReadSerializer):
             "created_at": _dt(obj.created_at),
             "published_at": _dt(obj.published_at),
             "comment_count": comment_count,
+            "like_count": like_count,
         }
 
 
@@ -205,28 +186,10 @@ class PostDetailSerializer(PostSerializer):
     def to_representation(self, obj: Post) -> dict:
         data = super().to_representation(obj)
         data["body"] = obj.body
-        request = self.context.get("request")
-        privileged_roles = ("moderator", "admin")
         top_level: list[Comment] = []
         for comment in obj.comments.all():
             if comment.parent_id is not None:
                 continue
-            if comment.is_approved:
-                top_level.append(comment)
-                continue
-            if (
-                request is not None
-                and request.user.is_authenticated
-                and (
-                    comment.author_id == request.user.id
-                    or obj.author_id == request.user.id
-                    or request.user.is_superuser
-                    or request.user.is_staff
-                    or getattr(getattr(request.user, "profile", None), "role", "user")
-                    in privileged_roles
-                )
-            ):
-                top_level.append(comment)
-        comment_ctx = {**self.context, "post_author_id": obj.author_id}
-        data["comments"] = CommentSerializer(top_level, many=True, context=comment_ctx).data
+            top_level.append(comment)
+        data["comments"] = CommentSerializer(top_level, many=True, context=self.context).data
         return data

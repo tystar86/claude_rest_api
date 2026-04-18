@@ -5,7 +5,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.db.models import Count, IntegerField, Value
 from django.test import RequestFactory
 
-from blog.models import Post, Tag
+from blog.models import Comment, Post, Tag
 from blog.serializers import (
     CommentSerializer,
     CurrentUserSerializer,
@@ -129,6 +129,7 @@ class TestPostSerializer:
             "created_at",
             "published_at",
             "comment_count",
+            "like_count",
         }
         assert expected.issubset(data.keys())
 
@@ -141,10 +142,20 @@ class TestPostSerializer:
         assert isinstance(PostSerializer(post).data["tags"], list)
 
     def test_comment_count_integer_when_queryset_not_annotated(self, post, comment):
-        """Without a comment_count annotation, count all related comments."""
+        """Without a comment_count annotation, count all comments on the post."""
         data = PostSerializer(post).data
         assert data["comment_count"] == 1
         assert isinstance(data["comment_count"], int)
+
+    def test_comment_count_includes_unapproved_when_not_annotated(self, post, user, comment):
+        """Unapproved comments are included in comment_count until moderation is enforced."""
+        Comment.objects.create(
+            post=post,
+            author=user,
+            body="Awaiting moderation.",
+            is_approved=False,
+        )
+        assert PostSerializer(post).data["comment_count"] == 2
 
     def test_comment_count_prefers_annotation_when_present(self, post, comment):
         """Annotated comment_count wins over a live DB count."""
@@ -152,6 +163,15 @@ class TestPostSerializer:
             pk=post.pk
         )
         assert PostSerializer(annotated).data["comment_count"] == 99
+
+    def test_like_count_defaults_when_not_annotated(self, post):
+        assert PostSerializer(post).data["like_count"] == 0
+
+    def test_like_count_prefers_annotation_when_present(self, post):
+        annotated = Post.objects.annotate(
+            comment_like_count=Value(42, output_field=IntegerField())
+        ).get(pk=post.pk)
+        assert PostSerializer(annotated).data["like_count"] == 42
 
 
 # ── PostDetailSerializer ───────────────────────────────────────────────────────
@@ -178,6 +198,21 @@ class TestPostDetailSerializer:
         data = PostDetailSerializer(post, context={"request": request}).data
         assert isinstance(data["comments"], list)
         assert len(data["comments"]) == 1
+
+    def test_unapproved_top_level_visible_to_anonymous(self, post, user, comment):
+        """Pending top-level comments appear in detail payload for anonymous readers."""
+        Comment.objects.create(
+            post=post,
+            author=user,
+            body="Not yet approved.",
+            is_approved=False,
+        )
+        factory = RequestFactory()
+        request = factory.get("/")
+        request.user = AnonymousUser()
+        data = PostDetailSerializer(post, context={"request": request}).data
+        bodies = {c["body"] for c in data["comments"]}
+        assert "Not yet approved." in bodies
 
 
 # ── CommentSerializer ──────────────────────────────────────────────────────────

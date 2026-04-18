@@ -15,7 +15,9 @@ class TestNinjaRead:
         data = resp.json()
         assert resp.status_code == 200
         assert "stats" in data
+        assert "activity" in data
         assert "latest_posts" in data
+        assert "most_liked_posts" in data
         assert "most_used_tags" in data
 
     def test_post_list_is_paginated(self, api_client, post):
@@ -68,7 +70,7 @@ class TestNinjaRead:
         results = resp.json()["results"]
         assert resp.status_code == 200
         slugs = [item["post_slug"] for item in results]
-        assert published.slug in slugs, "approved comment on published post must appear"
+        assert published.slug in slugs, "comment on published post must appear"
         assert draft.slug not in slugs, "comment on draft post must be excluded"
 
     def test_user_routes_are_available(self, api_client, post, comment):

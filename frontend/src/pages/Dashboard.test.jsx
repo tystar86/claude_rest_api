@@ -4,21 +4,23 @@ import { vi } from 'vitest';
 import { fetchDashboard } from '../api/client';
 import Dashboard from './Dashboard';
 
+const dashboardSearchParams = { current: new URLSearchParams() };
+
 vi.mock('../api/client', () => import('../test/mocks/client.js'));
 vi.mock('../components/Navbar', () => ({
   default: () => <div data-testid="navbar" />,
 }));
-vi.mock('../components/StatusBadge', () => ({
-  default: ({ status }) => <span>{status}</span>,
-}));
 vi.mock('react-router-dom', () => ({
   Link: ({ children, to }) => React.createElement('a', { href: to }, children),
   useNavigate: () => vi.fn(),
-  useSearchParams: () => [new URLSearchParams(), vi.fn()],
+  useSearchParams: () => [dashboardSearchParams.current, vi.fn()],
   MemoryRouter: ({ children }) => children,
 }));
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  dashboardSearchParams.current = new URLSearchParams();
+});
 
 const FULL_PAYLOAD = {
   stats: {
@@ -56,6 +58,17 @@ const FULL_PAYLOAD = {
       comment_count: 9,
     },
   ],
+  most_liked_posts: [
+    {
+      id: 1,
+      slug: 'first-post',
+      title: 'First Post',
+      author: 'alice',
+      created_at: '2026-01-15T10:00:00Z',
+      comment_count: 9,
+      like_count: 12,
+    },
+  ],
   most_used_tags: [
     { id: 10, slug: 'django', name: 'django', post_count: 12 },
     { id: 11, slug: 'react', name: 'react', post_count: 7 },
@@ -76,6 +89,7 @@ const EMPTY_PAYLOAD = {
   },
   latest_posts: [],
   most_commented_posts: [],
+  most_liked_posts: [],
   most_used_tags: [],
   top_authors: [],
 };
@@ -102,10 +116,11 @@ describe('Dashboard', () => {
       expect(document.querySelector('.spinner-border')).toBeNull()
     );
 
-    expect(screen.getByText('Total Posts')).toBeInTheDocument();
+    expect(screen.getByText('Posts')).toBeInTheDocument();
+    expect(screen.queryByText('Total Posts')).toBeNull();
     expect(screen.getByText('Comments')).toBeInTheDocument();
     expect(screen.getByText('Authors')).toBeInTheDocument();
-    expect(screen.getByText('Active Tags')).toBeInTheDocument();
+    expect(screen.queryByText('Active Tags')).toBeNull();
     expect(screen.getByText('Avg Words')).toBeInTheDocument();
 
     // Stat values rendered as plain numbers
@@ -116,6 +131,79 @@ describe('Dashboard', () => {
     expect(screen.getAllByText('First Post').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('alice').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('django')).toBeInTheDocument();
+    expect(screen.getByText('Most Liked')).toBeInTheDocument();
+    expect(screen.getByText('Most Active Authors')).toBeInTheDocument();
+    expect(screen.getByText('▲12')).toBeInTheDocument();
+  });
+
+  it('KPI stat row has no links (static counters)', async () => {
+    vi.mocked(fetchDashboard).mockResolvedValue(FULL_PAYLOAD);
+
+    render(<Dashboard />);
+
+    await waitFor(() =>
+      expect(document.querySelector('.spinner-border')).toBeNull()
+    );
+
+    const statsRow = document.querySelector('.nb-dashboard-stats');
+    expect(statsRow).not.toBeNull();
+    expect(statsRow.querySelectorAll('a')).toHaveLength(0);
+  });
+
+  it('most commented and most liked rows use badge classes for counts', async () => {
+    vi.mocked(fetchDashboard).mockResolvedValue(FULL_PAYLOAD);
+
+    render(<Dashboard />);
+
+    await waitFor(() =>
+      expect(document.querySelector('.spinner-border')).toBeNull()
+    );
+
+    expect(document.querySelectorAll('.nb-dashboard-post-badge--comments').length).toBeGreaterThanOrEqual(1);
+    expect(document.querySelectorAll('.nb-dashboard-post-badge--likes').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('9 cmts')).toBeInTheDocument();
+  });
+
+  it('query v=2 falls back to default layout variant (not v2 flag)', async () => {
+    dashboardSearchParams.current = new URLSearchParams('v=2');
+    vi.mocked(fetchDashboard).mockResolvedValue(FULL_PAYLOAD);
+
+    render(<Dashboard />);
+
+    await waitFor(() =>
+      expect(document.querySelector('.spinner-border')).toBeNull()
+    );
+
+    expect(document.querySelector('.nb-dashboard--v2-fullwidth')).toBeNull();
+    expect(document.querySelector('.nb-dashboard--v1')).not.toBeNull();
+  });
+
+  it('query v2 flag applies full-width dashboard class', async () => {
+    dashboardSearchParams.current = new URLSearchParams('v2');
+    vi.mocked(fetchDashboard).mockResolvedValue(FULL_PAYLOAD);
+
+    render(<Dashboard />);
+
+    await waitFor(() =>
+      expect(document.querySelector('.spinner-border')).toBeNull()
+    );
+
+    expect(document.querySelector('.nb-dashboard--v2-fullwidth')).not.toBeNull();
+  });
+
+  it('variant v=3 applies layout class and same stat labels as default', async () => {
+    dashboardSearchParams.current = new URLSearchParams('v=3');
+    vi.mocked(fetchDashboard).mockResolvedValue(FULL_PAYLOAD);
+
+    render(<Dashboard />);
+
+    await waitFor(() =>
+      expect(document.querySelector('.spinner-border')).toBeNull()
+    );
+
+    expect(document.querySelector('.nb-dashboard--v3')).not.toBeNull();
+    expect(screen.getByText('Posts')).toBeInTheDocument();
+    expect(screen.queryByText('Active Tags')).toBeNull();
   });
 
   it('renders empty state cards when lists are empty', async () => {
@@ -169,6 +257,21 @@ describe('Dashboard', () => {
 
     // Stat cards still render with 0
     const zeroStats = screen.getAllByText('0');
-    expect(zeroStats.length).toBeGreaterThanOrEqual(5);
+    expect(zeroStats.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('variant v=3 error state exposes four zero KPIs', async () => {
+    dashboardSearchParams.current = new URLSearchParams('v=3');
+    vi.mocked(fetchDashboard).mockRejectedValue(new Error('Server unavailable'));
+
+    render(<Dashboard />);
+
+    await waitFor(() =>
+      expect(document.querySelector('.spinner-border')).toBeNull()
+    );
+
+    const zeroStats = screen.getAllByText('0');
+    expect(zeroStats.length).toBeGreaterThanOrEqual(4);
+    expect(screen.queryByText('Active Tags')).toBeNull();
   });
 });
