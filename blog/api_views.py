@@ -1,9 +1,12 @@
 import logging
+from datetime import timedelta
+
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 
-from django.db.models import Avg, Count, IntegerField, OuterRef, Q, Subquery
-from django.db.models.functions import Coalesce, Length
+from django.db.models import Count, IntegerField, OuterRef, Q, Subquery
+from django.utils import timezone
+from django.db.models.functions import Coalesce
 
 from .models import Comment, CommentVote, Post, Tag
 from .serializers import (
@@ -14,18 +17,18 @@ from .serializers import (
 
 security_log = logging.getLogger("security")
 
-PAGE_SIZE = 10
+PAGE_SIZE = 50
 _MAX_PAGE = 10_000
 # Dummy hash used for constant-time password check when user does not exist (prevents timing attacks).
 _DUMMY_PASSWORD_HASH = make_password("_dummy_")
 
 
-def paginate(qs, request, serializer_class):
+def paginate(qs, request, serializer_class, *, total_count: int | None = None):
     try:
         page = max(1, min(int(request.GET.get("page", 1)), _MAX_PAGE))
     except ValueError:
         page = 1
-    total = qs.count()
+    total = total_count if total_count is not None else qs.count()
     start = (page - 1) * PAGE_SIZE
     items = serializer_class(
         qs[start : start + PAGE_SIZE],
@@ -106,9 +109,11 @@ def build_dashboard_payload():
     total_comments = Comment.objects.filter(post__status=Post.Status.PUBLISHED).count()
     total_authors = User.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
     active_tags = Tag.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
-
-    avg_chars = published.aggregate(avg=Avg(Length("body")))["avg"] or 0
-    average_depth_words = round(avg_chars / 5)
+    cutoff_7d = timezone.now() - timedelta(days=7)
+    new_posts_7d = published.filter(
+        Q(published_at__gte=cutoff_7d)
+        | (Q(published_at__isnull=True) & Q(created_at__gte=cutoff_7d))
+    ).count()
 
     latest_post = published.order_by("-published_at", "-created_at").defer("body").first()
     latest_comment = (
@@ -145,7 +150,7 @@ def build_dashboard_payload():
             "comments": total_comments,
             "authors": total_authors,
             "active_tags": active_tags,
-            "average_depth_words": average_depth_words,
+            "new_posts_7d": new_posts_7d,
         },
         "activity": activity,
         "latest_posts": PostSerializer(

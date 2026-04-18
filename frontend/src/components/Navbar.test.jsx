@@ -4,22 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation, useSearchParams } from "react-router-dom";
 import { vi } from "vitest";
 import { fetchDashboard } from "../api/client";
+import { mockDesktopViewport, mockMobileViewport } from "../test/viewport";
 vi.mock("../api/client", () => import("../test/mocks/client.js"));
-
-/** Same breakpoint as useNarrowHeader; tolerate spacing differences from the runtime. */
-function isNarrowHeaderQuery(query) {
-  const q = String(query).trim().toLowerCase().replace(/\s+/g, " ");
-  return q.includes("max-width") && q.includes("900px");
-}
-
-function mockMatchMediaHeader(narrow) {
-  window.matchMedia = vi.fn().mockImplementation((query) => ({
-    matches: isNarrowHeaderQuery(query) ? narrow : false,
-    media: query,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  }));
-}
 
 const authStore = { user: null, logout: vi.fn() };
 
@@ -48,7 +34,7 @@ afterEach(() => {
 
 describe("Navbar", () => {
   beforeEach(() => {
-    mockMatchMediaHeader(false);
+    mockDesktopViewport();
     authStore.user = { username: "alice", profile: { role: "user" } };
     vi.mocked(fetchDashboard).mockResolvedValue({
       stats: {
@@ -56,7 +42,7 @@ describe("Navbar", () => {
         authors: 1,
         active_tags: 1,
         comments: 0,
-        average_depth_words: 100,
+        new_posts_7d: 0,
       },
       activity: {
         latest_post_title: "Hello",
@@ -72,7 +58,7 @@ describe("Navbar", () => {
         authors: 1,
         active_tags: 1,
         comments: 1,
-        average_depth_words: 50,
+        new_posts_7d: 1,
       },
       activity: {
         latest_post_title: "Alpha Post",
@@ -205,7 +191,7 @@ describe("Navbar", () => {
   });
 
   it("narrow header shows menu control instead of inline Posts link", async () => {
-    mockMatchMediaHeader(true);
+    mockMobileViewport();
     render(
       <MemoryRouter>
         <Navbar />
@@ -219,7 +205,7 @@ describe("Navbar", () => {
   });
 
   it("opens mobile drawer with primary links", async () => {
-    mockMatchMediaHeader(true);
+    mockMobileViewport();
     const user = userEvent.setup();
     render(
       <MemoryRouter>
@@ -234,7 +220,7 @@ describe("Navbar", () => {
   });
 
   it("closes mobile menu on Escape", async () => {
-    mockMatchMediaHeader(true);
+    mockMobileViewport();
     const user = userEvent.setup();
     render(
       <MemoryRouter>

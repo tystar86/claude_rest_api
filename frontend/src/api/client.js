@@ -13,11 +13,25 @@ function getCookie(name) {
   if (parts.length === 2) return parts.pop().split(";").shift();
 }
 
+/** Single in-flight CSRF fetch so Strict Mode / parallel mutating requests do not race. */
+let csrfTokenPromise = null;
+
+async function getOrFetchCsrfToken() {
+  const existing = getCookie("csrftoken");
+  if (existing) return existing;
+  if (!csrfTokenPromise) {
+    csrfTokenPromise = api
+      .get("/auth/csrf/")
+      .then(({ data }) => getCookie("csrftoken") || data.csrfToken)
+      .finally(() => {
+        csrfTokenPromise = null;
+      });
+  }
+  return csrfTokenPromise;
+}
+
 async function ensureCsrfCookie() {
-  const token = getCookie("csrftoken");
-  if (token) return token;
-  const { data } = await api.get("/auth/csrf/");
-  return getCookie("csrftoken") || data.csrfToken;
+  return getOrFetchCsrfToken();
 }
 
 api.interceptors.request.use(async (config) => {
@@ -61,5 +75,10 @@ export const deleteComment = (commentId) =>
   api.delete(`/comments/${commentId}/`).then((r) => r.data);
 
 export const fetchCsrf = () => api.get("/auth/csrf/").then((r) => r.data);
+
+/** Ensure CSRF cookie exists; deduped with mutating-request CSRF fetch. */
+export async function ensureCsrfForSession() {
+  await getOrFetchCsrfToken();
+}
 
 export default api;

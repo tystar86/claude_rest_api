@@ -105,7 +105,7 @@ export default function Dashboard() {
     { label: "Posts", value: stats.total_posts ?? 0 },
     { label: "Comments", value: stats.comments ?? 0 },
     { label: "Authors", value: stats.authors ?? 0 },
-    { label: "Avg Words", value: stats.average_depth_words ?? 0 },
+    { label: "New posts (7 days)", value: stats.new_posts_7d ?? 0 },
   ];
 
   return (

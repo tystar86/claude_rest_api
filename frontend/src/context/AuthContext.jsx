@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { fetchCsrf, fetchCurrentUser, logoutUser } from "../api/client";
+import { ensureCsrfForSession, fetchCurrentUser, logoutUser } from "../api/client";
 
 const AuthContext = createContext(null);
 
@@ -8,11 +8,16 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchCsrf()
-      .then(() => fetchCurrentUser())
-      .then(setUser)
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+    (async () => {
+      try {
+        await ensureCsrfForSession();
+        setUser(await fetchCurrentUser());
+      } catch {
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
   const logout = async () => {

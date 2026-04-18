@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 
@@ -6,4 +7,5 @@ urlpatterns = [
     path("api/", include("blog.api_urls")),
 ]
 
-# urlpatterns += [path("silk/", include("silk.urls", namespace="silk"))]  # Uncomment to enable django-silk (dev only)
+if settings.ENABLE_SILK:
+    urlpatterns += [path("silk/", include("silk.urls", namespace="silk"))]

@@ -84,7 +84,7 @@ class DashboardStatsResponse(Schema):
     comments: int
     authors: int
     active_tags: int
-    average_depth_words: int
+    new_posts_7d: int
 
 
 class DashboardActivityResponse(Schema):
