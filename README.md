@@ -148,7 +148,7 @@ GET  /api/users/:username/comments/ User's comments
 GET  /api/dashboard/            Aggregated site stats
 ```
 
-All list endpoints are paginated (default page size: 10). All write endpoints are rate-limited.
+All list endpoints are paginated (default page size: 50). All write endpoints are rate-limited.
 
 ---
 

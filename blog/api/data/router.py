@@ -385,15 +385,15 @@ def tag_detail(request: HttpRequest, slug: str):
     except Tag.DoesNotExist:
         return _not_found_response()
 
-    posts_qs = (
-        Post.objects.filter(tags=tag, status=Post.Status.PUBLISHED)
-        .select_related("author")
-        .prefetch_related("tags")
-        .order_by("-created_at")
-    )
+    posts_qs = api_views._published_posts_list_qs().filter(tags=tag).order_by("-created_at")
     payload = {
         "tag": _serialize(TagSerializer, tag, request=request),
-        **api_views.paginate(posts_qs, request, PostSerializer),
+        **api_views.paginate(
+            posts_qs,
+            request,
+            PostSerializer,
+            total_count=tag.post_count,
+        ),
     }
     return JsonResponse(payload, status=200)
 
@@ -479,15 +479,15 @@ def user_detail(request: HttpRequest, username: str):
     except User.DoesNotExist:
         return _not_found_response()
 
-    posts_qs = (
-        Post.objects.filter(author=user, status=Post.Status.PUBLISHED)
-        .select_related("author")
-        .prefetch_related("tags")
-        .order_by("-created_at")
-    )
+    posts_qs = api_views._published_posts_list_qs().filter(author=user).order_by("-created_at")
     payload = {
         "user": _serialize(UserSerializer, user, request=request),
-        **api_views.paginate(posts_qs, request, PostSerializer),
+        **api_views.paginate(
+            posts_qs,
+            request,
+            PostSerializer,
+            total_count=user.post_count,
+        ),
     }
     return JsonResponse(payload, status=200)
 

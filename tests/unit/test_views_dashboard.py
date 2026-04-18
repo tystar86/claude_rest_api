@@ -1,7 +1,10 @@
 """Unit tests for the dashboard API endpoint."""
 
+from datetime import timedelta
+
 import pytest
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 from blog.models import Comment, CommentVote, Post, Tag
 
@@ -52,13 +55,14 @@ class TestDashboardView:
         assert "comments" in stats
         assert "authors" in stats
         assert "active_tags" in stats
-        assert "average_depth_words" in stats
+        assert "new_posts_7d" in stats
 
     def test_stats_reflect_created_content(self, api_client, post, comment):
         """Stats accurately count existing posts and comments."""
         data = api_client.get("/api/dashboard/").json()
         stats = data["stats"]
         assert stats["total_posts"] >= 1
+        assert stats["new_posts_7d"] >= 1
         assert stats["comments"] >= 1
         act = data["activity"]
         assert act["latest_post_title"] == post.title
@@ -112,7 +116,7 @@ class TestDashboardView:
         assert stats["comments"] == 0
         assert stats["authors"] == 0
         assert stats["active_tags"] == 0
-        assert stats["average_depth_words"] == 0
+        assert stats["new_posts_7d"] == 0
         act = data["activity"]
         assert act["latest_post_title"] is None
         assert act["latest_comment_at"] is None
@@ -129,10 +133,20 @@ class TestDashboardView:
         for author in data["top_authors"]:
             assert author["post_count"] > 0
 
-    def test_average_depth_words_computed(self, api_client, post):
-        """average_depth_words is a positive integer when posts exist."""
+    def test_new_posts_7d_excludes_published_before_window(self, api_client, db, user):
+        """Posts first published more than 7 days ago do not count toward new_posts_7d."""
+        old = timezone.now() - timedelta(days=10)
+        p = Post.objects.create(
+            title="Stale",
+            slug="stale-post",
+            author=user,
+            body="Body.",
+            status=Post.Status.PUBLISHED,
+            published_at=old,
+        )
+        Post.objects.filter(pk=p.pk).update(created_at=old)
         data = api_client.get("/api/dashboard/").json()
-        assert data["stats"]["average_depth_words"] > 0
+        assert data["stats"]["new_posts_7d"] == 0
 
     def test_stats_comments_include_unapproved_on_published_posts(
         self, api_client, db, post, user, comment

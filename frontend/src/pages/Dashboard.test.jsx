@@ -24,7 +24,7 @@ const FULL_PAYLOAD = {
     comments: 17,
     authors: 5,
     active_tags: 8,
-    average_depth_words: 120,
+    new_posts_7d: 6,
   },
   latest_posts: [
     {
@@ -81,7 +81,7 @@ const EMPTY_PAYLOAD = {
     comments: 0,
     authors: 0,
     active_tags: 0,
-    average_depth_words: 0,
+    likes: 0,
   },
   latest_posts: [],
   most_commented_posts: [],
@@ -119,12 +119,12 @@ describe('Dashboard', () => {
     expect(screen.queryByText('Total Posts')).toBeNull();
     expect(screen.getByText('Comments')).toBeInTheDocument();
     expect(screen.getByText('Authors')).toBeInTheDocument();
-    expect(screen.queryByText('Active Tags')).toBeNull();
-    expect(screen.getByText('Avg Words')).toBeInTheDocument();
+    expect(screen.getByText('New posts (7 days)')).toBeInTheDocument();
 
     // Stat values rendered as plain numbers
     expect(screen.getByText('42')).toBeInTheDocument();
     expect(screen.getByText('17')).toBeInTheDocument();
+    expect(screen.getByText('6')).toBeInTheDocument();
 
     // Posts and authors appear in cards (First Post appears in both Latest and Most Commented)
     expect(screen.getAllByText('First Post').length).toBeGreaterThanOrEqual(1);
@@ -206,7 +206,7 @@ describe('Dashboard', () => {
       expect(document.querySelector('.spinner-border')).toBeNull()
     );
 
-    // All four empty-state messages appear, confirming no .length crash occurred
+    // Empty-state messages appear, confirming no .length crash occurred
     const noPostsMessages = screen.getAllByText('No posts yet.');
     expect(noPostsMessages.length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('No tags yet.')).toBeInTheDocument();

@@ -131,20 +131,20 @@ class TestPaginate:
         result = paginate(Tag.objects.none(), request, TagSerializer)
         assert set(result.keys()) == {"count", "total_pages", "page", "results"}
 
-    def test_first_page_returns_up_to_ten_items(self, db):
-        """Page 1 returns at most 10 results for 15 items."""
-        for i in range(15):
+    def test_first_page_returns_up_to_page_size_items(self, db):
+        """Page 1 returns at most PAGE_SIZE results when count exceeds one page."""
+        for i in range(55):
             Tag.objects.create(name=f"Tag{i}", slug=f"tag{i}")
         request = self._make_request(page="1")
         result = paginate(Tag.objects.all(), request, TagSerializer)
-        assert result["count"] == 15
+        assert result["count"] == 55
         assert result["total_pages"] == 2
         assert result["page"] == 1
-        assert len(result["results"]) == 10
+        assert len(result["results"]) == 50
 
     def test_second_page_returns_remainder(self, db):
-        """Page 2 returns the remaining 5 items from a 15-item set."""
-        for i in range(15):
+        """Page 2 returns the remaining items after the first full page."""
+        for i in range(55):
             Tag.objects.create(name=f"Tag{i}", slug=f"tag{i}")
         request = self._make_request(page="2")
         result = paginate(Tag.objects.all(), request, TagSerializer)

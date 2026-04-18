@@ -44,6 +44,7 @@ Dashboard Stats Are Present And Numeric
     Dictionary Should Contain Key    ${stats}    comments
     Dictionary Should Contain Key    ${stats}    authors
     Dictionary Should Contain Key    ${stats}    active_tags
+    Dictionary Should Contain Key    ${stats}    new_posts_7d
     ${total}=    Get From Dictionary    ${stats}    total_posts
     Should Be True    ${total} >= 0
 

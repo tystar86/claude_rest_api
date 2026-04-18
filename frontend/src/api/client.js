@@ -62,4 +62,10 @@ export const deleteComment = (commentId) =>
 
 export const fetchCsrf = () => api.get("/auth/csrf/").then((r) => r.data);
 
+/** Ensure CSRF cookie exists; no network call if already present. */
+export async function ensureCsrfForSession() {
+  if (getCookie("csrftoken")) return;
+  await api.get("/auth/csrf/");
+}
+
 export default api;

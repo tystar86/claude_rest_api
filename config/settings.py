@@ -21,6 +21,13 @@ os.environ.setdefault("DJANGO_ENV", DJANGO_ENV)
 load_dotenv(f".env.{DJANGO_ENV}")
 TEST_USE_POSTGRES = os.environ.get("TEST_USE_POSTGRES", "False").lower() == "true"
 
+# django-silk: local + ENABLE_SILK only (never in pytest "testing" unless explicitly forced).
+ENABLE_SILK: bool = DJANGO_ENV == "local" and os.environ.get("ENABLE_SILK", "").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 
 SECRET_KEY: str = os.environ["SECRET_KEY"]
@@ -39,11 +46,12 @@ INSTALLED_APPS: list[str] = [
     "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
     "corsheaders",
-    # "silk",  # Uncomment to enable django-silk query profiler (dev only)
     # local
     "blog",
     "accounts",
 ]
+if ENABLE_SILK:
+    INSTALLED_APPS.insert(INSTALLED_APPS.index("corsheaders") + 1, "silk")
 
 MIDDLEWARE: list[str | None] = [
     "django.middleware.security.SecurityMiddleware",
@@ -51,13 +59,15 @@ MIDDLEWARE: list[str | None] = [
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    # "silk.middleware.SilkyMiddleware",  # Uncomment to enable django-silk (dev only)
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "blog.api.csrf.JsonMethodNotAllowedMiddleware",
 ]
+if ENABLE_SILK:
+    _csrf_i = MIDDLEWARE.index("django.middleware.csrf.CsrfViewMiddleware")
+    MIDDLEWARE.insert(_csrf_i, "silk.middleware.SilkyMiddleware")
 
 ROOT_URLCONF: str = "config.urls"
 

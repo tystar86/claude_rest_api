@@ -33,7 +33,7 @@ Comment List Page Size Is Bounded
     ${json}=    Set Variable    ${resp.json()}
     ${results}=    Get From Dictionary    ${json}    results
     ${length}=    Get Length    ${results}
-    Should Be True    ${length} <= 10
+    Should Be True    ${length} <= 50
 
 Can Create Comment On Post As Authenticated User
     Login Test User

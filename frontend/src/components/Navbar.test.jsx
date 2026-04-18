@@ -56,7 +56,7 @@ describe("Navbar", () => {
         authors: 1,
         active_tags: 1,
         comments: 0,
-        average_depth_words: 100,
+        new_posts_7d: 0,
       },
       activity: {
         latest_post_title: "Hello",
@@ -72,7 +72,7 @@ describe("Navbar", () => {
         authors: 1,
         active_tags: 1,
         comments: 1,
-        average_depth_words: 50,
+        new_posts_7d: 1,
       },
       activity: {
         latest_post_title: "Alpha Post",

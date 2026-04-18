@@ -661,6 +661,7 @@ h1, h2, h3, h4, h5, h6 {
 .nb-dashboard-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
   border-bottom: var(--border);
 }
 
