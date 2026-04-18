@@ -2,18 +2,42 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { fetchDashboard } from "../api/client";
 import { useEffect, useState } from "react";
+import { useNarrowHeader } from "../hooks/useNarrowHeader";
+
+const PRIMARY_LINKS = [
+  { path: "/posts", label: "Posts" },
+  { path: "/tags", label: "Tags" },
+  { path: "/users", label: "Users" },
+  { path: "/comments", label: "Comments" },
+];
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const narrowHeader = useNarrowHeader();
   const [tickerStats, setTickerStats] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     fetchDashboard()
       .then((data) => setTickerStats(data?.stats ?? { failed: true }))
       .catch(() => setTickerStats({ failed: true }));
   }, []);
+
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => setMobileMenuOpen(false));
+    return () => window.cancelAnimationFrame(id);
+  }, [location.pathname, narrowHeader]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen || !narrowHeader) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileMenuOpen, narrowHeader]);
 
   const handleLogout = async () => {
     await logout();
@@ -43,36 +67,47 @@ export default function Navbar() {
       ]
     : null;
 
+  const primaryNavList = (variant) => (
+    <ul className={variant === "desktop" ? "nb-nav" : "nb-nav-mobile-list"}>
+      {PRIMARY_LINKS.map(({ path, label }) => (
+        <li key={path}>
+          <Link to={path} className={isActive(path) ? "active" : ""}>
+            {label}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+
   return (
     <>
       <header className="nb-header">
         <div className="nb-header-inner">
           <Link className="nb-brand" to="/dashboard">TheBlog</Link>
 
-          <nav aria-label="Primary">
-            <ul className="nb-nav">
-              <li>
-                <Link to="/posts" className={isActive("/posts") ? "active" : ""}>
-                  Posts
-                </Link>
-              </li>
-              <li>
-                <Link to="/tags" className={isActive("/tags") ? "active" : ""}>
-                  Tags
-                </Link>
-              </li>
-              <li>
-                <Link to="/users" className={isActive("/users") ? "active" : ""}>
-                  Users
-                </Link>
-              </li>
-              <li>
-                <Link to="/comments" className={isActive("/comments") ? "active" : ""}>
-                  Comments
-                </Link>
-              </li>
-            </ul>
-          </nav>
+          {!narrowHeader && (
+            <nav aria-label="Primary" className="nb-primary-desktop">
+              {primaryNavList("desktop")}
+            </nav>
+          )}
+
+          {narrowHeader && (
+            <button
+              type="button"
+              className="nb-menu-toggle"
+              aria-expanded={mobileMenuOpen}
+              aria-controls="nb-mobile-primary-nav"
+              id="nb-menu-toggle"
+              aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+              onClick={() => setMobileMenuOpen((o) => !o)}
+            >
+              <span className="nb-menu-toggle-bars" aria-hidden>
+                <span />
+                <span />
+                <span />
+              </span>
+            </button>
+          )}
 
           <div className="nb-header-right">
             {user ? (
@@ -115,6 +150,12 @@ export default function Navbar() {
             )}
           </div>
         </div>
+
+        {narrowHeader && mobileMenuOpen && (
+          <div className="nb-mobile-drawer" id="nb-mobile-primary-nav">
+            <nav aria-label="Primary">{primaryNavList("mobile")}</nav>
+          </div>
+        )}
       </header>
 
       {tickerItems && (
