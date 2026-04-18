@@ -114,7 +114,7 @@ export default function TagList() {
 
       {/* Create tag form */}
       {user && showCreate && (
-        <div style={{ borderBottom: "var(--border)", padding: "20px 32px", background: "var(--white)" }}>
+        <div style={{ borderBottom: "var(--border)", padding: "20px var(--nb-copy-pad-x)", background: "var(--white)" }}>
           <form onSubmit={handleCreateTag}>
             <div style={{ display: "flex", gap: "0", maxWidth: "480px" }}>
               <input
@@ -135,7 +135,7 @@ export default function TagList() {
       )}
 
       {/* Tag grid */}
-      <div style={{ padding: "32px", background: "var(--bg)" }}>
+      <div style={{ padding: "32px var(--nb-copy-pad-x)", background: "var(--bg)" }}>
         {data.results.length === 0 && (
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>No tags yet.</div>
         )}

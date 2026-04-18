@@ -2,8 +2,12 @@
 
 /* ─── CSS Variables ─── */
 :root {
+  /* Space from viewport corners to chrome (frame, header, dashboard strip). */
+  --nb-page-edge: clamp(16px, 4vw, 36px);
+  /* Horizontal inset for type in bars, list rows, stat cells, post bodies. */
+  --nb-copy-pad-x: clamp(20px, 3.25vw, 40px);
   /* Centered “frame” for main chrome (was 1400px full-bleed feel on large monitors). */
-  --nb-frame-max-width: min(1080px, calc(100vw - 40px));
+  --nb-frame-max-width: min(1080px, calc(100vw - 2 * var(--nb-page-edge)));
   --black: #0a0a0a;
   --white: #fefefe;
   --bg: #E8E2D8;
@@ -325,8 +329,7 @@ h1, h2, h3, h4, h5, h6 {
   z-index: 100;
 }
 
-/* Full-width bar: brand at viewport left, primary nav viewport-centered, auth viewport-right.
-   (Do not reuse --nb-frame-max-width here — that centers the whole strip and pulls the brand inward.) */
+/* Full-width bar: brand left, nav centered, auth right — inset from viewport via --nb-page-edge. */
 .nb-header-inner {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -335,6 +338,8 @@ h1, h2, h3, h4, h5, h6 {
   width: 100%;
   max-width: none;
   margin: 0;
+  padding-left: var(--nb-page-edge);
+  padding-right: var(--nb-page-edge);
 }
 
 .nb-brand {
@@ -576,7 +581,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .nb-nav-mobile-list a {
   display: block;
-  padding: 16px 24px;
+  padding: 16px var(--nb-copy-pad-x);
   text-decoration: none;
   color: var(--black);
   font-weight: 700;
@@ -597,7 +602,7 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--green);
   color: var(--bg);
   overflow: hidden;
-  padding: 8px 0;
+  padding: 8px var(--nb-page-edge);
   font-family: 'Space Mono', monospace;
   font-size: 11px;
   letter-spacing: 0.1em;
@@ -666,7 +671,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .nb-dashboard-stat-cell {
-  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 24px var(--nb-copy-pad-x);
   background: var(--white);
   border-right: var(--border);
   min-width: 0;
@@ -712,7 +721,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .nb-dashboard-chip-area {
-  padding: 20px;
+  padding: 20px var(--nb-copy-pad-x);
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -759,7 +768,7 @@ h1, h2, h3, h4, h5, h6 {
 .nb-hero-bar {
   background: var(--sage-light);
   border-bottom: var(--border);
-  padding: 32px;
+  padding: 32px var(--nb-copy-pad-x);
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 40px;
@@ -796,7 +805,7 @@ h1, h2, h3, h4, h5, h6 {
 .nb-section-bar {
   background: var(--green);
   color: var(--bg);
-  padding: 10px 32px;
+  padding: 10px var(--nb-copy-pad-x);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -886,7 +895,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .nb-post-body {
-  padding: 16px 24px;
+  padding: 16px var(--nb-copy-pad-x);
   min-width: 0;
 }
 
@@ -1006,7 +1015,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .nb-sidebar-block {
   border-bottom: var(--border);
-  padding: 22px 24px;
+  padding: 22px var(--nb-copy-pad-x);
 }
 
 .nb-sidebar-head {
@@ -1178,7 +1187,7 @@ h1, h2, h3, h4, h5, h6 {
 .nb-panel-header {
   background: var(--bg);
   border-bottom: var(--border);
-  padding: 12px 20px;
+  padding: 12px var(--nb-copy-pad-x);
   font-family: 'Space Mono', monospace;
   font-size: 12px;
   font-weight: 700;
@@ -1198,7 +1207,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .nb-content-area {
-  padding: 32px;
+  padding: 32px var(--nb-copy-pad-x);
 }
 
 /* ─── Auth Pages ─── */
@@ -1207,7 +1216,7 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 40px var(--nb-page-edge);
   background: var(--bg);
 }
 
@@ -1222,7 +1231,7 @@ h1, h2, h3, h4, h5, h6 {
 .nb-auth-header {
   background: var(--black);
   color: var(--sage);
-  padding: 20px 28px;
+  padding: 20px var(--nb-copy-pad-x);
   font-family: 'Space Mono', monospace;
   font-size: 18px;
   font-weight: 700;
@@ -1231,7 +1240,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .nb-auth-body {
-  padding: 28px;
+  padding: 28px var(--nb-copy-pad-x);
 }
 
 .nb-field {
@@ -1391,7 +1400,7 @@ h1, h2, h3, h4, h5, h6 {
 .nb-card-header {
   background: var(--green);
   color: var(--bg);
-  padding: 10px 20px;
+  padding: 10px var(--nb-copy-pad-x);
   border-bottom: var(--border);
   font-family: 'Space Mono', monospace;
   font-size: 11px;
@@ -1406,7 +1415,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .nb-list-item {
   border-bottom: 2px solid var(--bg);
-  padding: 12px 20px;
+  padding: 12px var(--nb-copy-pad-x);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1629,7 +1638,7 @@ h1, h2, h3, h4, h5, h6 {
 .nb-post-header {
   background: var(--sage-light);
   border-bottom: var(--border);
-  padding: 28px 32px;
+  padding: 28px var(--nb-copy-pad-x);
 }
 
 .nb-post-header-title {
@@ -1642,7 +1651,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .nb-post-content {
-  padding: 28px 32px;
+  padding: 28px var(--nb-copy-pad-x);
   background: var(--white);
   border-bottom: var(--border);
 }
@@ -1748,7 +1757,7 @@ h1, h2, h3, h4, h5, h6 {
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  padding: 24px 20px 20px;
+  padding: 24px var(--nb-copy-pad-x) 20px;
   border-bottom: var(--border);
   background: var(--white);
 }
@@ -1864,19 +1873,19 @@ h1, h2, h3, h4, h5, h6 {
 
   .nb-hero-bar {
     gap: 20px;
-    padding: 20px;
+    padding: 20px var(--nb-copy-pad-x);
   }
 
   .nb-content-area {
-    padding: 20px;
+    padding: 20px var(--nb-copy-pad-x);
   }
 
   .nb-post-header {
-    padding: 20px;
+    padding: 20px var(--nb-copy-pad-x);
   }
 
   .nb-post-content {
-    padding: 20px;
+    padding: 20px var(--nb-copy-pad-x);
   }
 
   .nb-dashboard-stats {
@@ -1940,6 +1949,7 @@ h1, h2, h3, h4, h5, h6 {
   .nb-hero-bar {
     grid-template-columns: 1fr;
     gap: 10px;
+    padding: 20px var(--nb-copy-pad-x);
   }
 
   .nb-post-header-title {
@@ -1947,7 +1957,7 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   .nb-dashboard-stat-cell {
-    padding: 18px 20px;
+    padding: 18px var(--nb-copy-pad-x);
   }
 
   .nb-dashboard-stat-cell .nb-stat-value {

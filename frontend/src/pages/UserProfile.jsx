@@ -219,12 +219,12 @@ export default function UserProfile() {
             <div className="nb-section-bar">
               <span className="nb-section-title">Account Settings</span>
             </div>
-            <div style={{ padding: "32px", background: "var(--bg)" }}>
+            <div style={{ padding: "32px var(--nb-copy-pad-x)", background: "var(--bg)" }}>
 
               {/* Change Username */}
               <div className="nb-panel" style={{ marginBottom: "24px" }}>
                 <div className="nb-panel-header">Change Username</div>
-                <div style={{ padding: "24px" }}>
+                <div style={{ padding: "24px var(--nb-copy-pad-x)" }}>
                   <div style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", marginBottom: "16px", opacity: 0.6 }}>
                     Current: <strong style={{ opacity: 1 }}>{user.username}</strong>
                   </div>
@@ -254,7 +254,7 @@ export default function UserProfile() {
               {/* Change Password */}
               <div className="nb-panel">
                 <div className="nb-panel-header">Change Password</div>
-                <div style={{ padding: "24px" }}>
+                <div style={{ padding: "24px var(--nb-copy-pad-x)" }}>
                   <div style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", marginBottom: "16px", opacity: 0.6 }}>
                     Choose a strong password with at least 8 characters.
                   </div>
@@ -300,7 +300,7 @@ export default function UserProfile() {
             {postItems !== null && (
               <>
                 {postItems.length === 0 && (
-                  <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
+                  <div style={{ padding: "40px var(--nb-copy-pad-x)", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
                     You haven&apos;t written any posts yet.
                   </div>
                 )}
@@ -360,7 +360,7 @@ export default function UserProfile() {
             {commentItems !== null && (
               <>
                 {commentItems.length === 0 && (
-                  <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
+                  <div style={{ padding: "40px var(--nb-copy-pad-x)", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
                     You haven&apos;t commented on any posts yet.
                   </div>
                 )}

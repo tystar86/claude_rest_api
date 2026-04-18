@@ -186,7 +186,7 @@ export default function PostList() {
   if (fetchError) return (
     <div className="nb-layout">
       <main className="nb-main">
-        <div className="nb-error" style={{ padding: "40px 32px" }}>
+        <div className="nb-error" style={{ padding: "40px var(--nb-copy-pad-x)" }}>
           Failed to load posts. Please refresh the page.
         </div>
       </main>
@@ -219,7 +219,7 @@ export default function PostList() {
 
         {/* New Post toggle */}
         {user && (
-          <div style={{ borderBottom: "2px solid var(--black)", padding: "10px 32px", background: "var(--bg)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ borderBottom: "2px solid var(--black)", padding: "10px var(--nb-copy-pad-x)", background: "var(--bg)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
               {showCreate ? "New Post Form" : "Share your knowledge"}
             </span>
@@ -235,7 +235,7 @@ export default function PostList() {
 
         {/* Create post form */}
         {user && showCreate && (
-          <div style={{ borderBottom: "var(--border)", background: "var(--white)", padding: "24px 32px" }}>
+          <div style={{ borderBottom: "var(--border)", background: "var(--white)", padding: "24px var(--nb-copy-pad-x)" }}>
             <form onSubmit={handleCreatePost}>
               <div className="nb-field">
                 <label>Post Title</label>
@@ -302,7 +302,7 @@ export default function PostList() {
 
         {/* Post rows */}
         {items !== null && listItems.length === 0 && (
-          <div style={{ padding: "40px 32px", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
+          <div style={{ padding: "40px var(--nb-copy-pad-x)", textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: "13px", opacity: 0.5 }}>
             No posts yet.
           </div>
         )}

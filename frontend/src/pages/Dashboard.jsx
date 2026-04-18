@@ -131,7 +131,7 @@ export default function Dashboard() {
           </div>
           <div className="nb-card-body">
             {data.latest_posts.length === 0 && (
-              <div style={{ padding: "20px 20px", fontFamily: "'Space Mono', monospace", fontSize: "11px", opacity: 0.5 }}>No posts yet.</div>
+              <div style={{ padding: "20px var(--nb-copy-pad-x)", fontFamily: "'Space Mono', monospace", fontSize: "11px", opacity: 0.5 }}>No posts yet.</div>
             )}
             {data.latest_posts.map((post) => (
               <div key={post.id} className="nb-list-item">
@@ -156,7 +156,7 @@ export default function Dashboard() {
           </div>
           <div className="nb-card-body">
             {data.most_commented_posts.length === 0 && (
-              <div style={{ padding: "20px 20px", fontFamily: "'Space Mono', monospace", fontSize: "11px", opacity: 0.5 }}>No posts yet.</div>
+              <div style={{ padding: "20px var(--nb-copy-pad-x)", fontFamily: "'Space Mono', monospace", fontSize: "11px", opacity: 0.5 }}>No posts yet.</div>
             )}
             {data.most_commented_posts.map((post) => (
               <div key={post.id} className="nb-list-item">
@@ -184,7 +184,7 @@ export default function Dashboard() {
           </div>
           <div className="nb-card-body">
             {(data.most_liked_posts ?? []).length === 0 && (
-              <div style={{ padding: "20px 20px", fontFamily: "'Space Mono', monospace", fontSize: "11px", opacity: 0.5 }}>No comment likes yet.</div>
+              <div style={{ padding: "20px var(--nb-copy-pad-x)", fontFamily: "'Space Mono', monospace", fontSize: "11px", opacity: 0.5 }}>No comment likes yet.</div>
             )}
             {(data.most_liked_posts ?? []).map((post) => (
               <div key={post.id} className="nb-list-item">
