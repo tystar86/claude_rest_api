@@ -4,8 +4,10 @@
 :root {
   /* Space from viewport corners to chrome (frame, header, dashboard strip). */
   --nb-page-edge: clamp(16px, 4vw, 36px);
-  /* Horizontal inset for type in bars, list rows, stat cells, post bodies. */
+  /* Horizontal inset for type in bars, list rows, post bodies, etc. */
   --nb-copy-pad-x: clamp(20px, 3.25vw, 40px);
+  /* KPI row: lighter horizontal pad so four columns read as even quarters (copy-pad-x is too heavy on outer edges). */
+  --nb-stat-cell-pad-x: clamp(6px, 1.5vw, 14px);
   /* Centered “frame” for main chrome (was 1400px full-bleed feel on large monitors). */
   --nb-frame-max-width: min(1080px, calc(100vw - 2 * var(--nb-page-edge)));
   --black: #0a0a0a;
@@ -675,7 +677,7 @@ h1, h2, h3, h4, h5, h6 {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 24px var(--nb-copy-pad-x);
+  padding: 24px var(--nb-stat-cell-pad-x);
   background: var(--white);
   border-right: var(--border);
   min-width: 0;
@@ -689,6 +691,14 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 13px;
   letter-spacing: 0.09em;
   opacity: 0.72;
+}
+
+/* Loading skeleton: must span cell width so vertical borders align with bar edges (centered flex shrinks skel blocks). */
+.nb-dashboard-stat-cell > .nb-skel-stat-value,
+.nb-dashboard-stat-cell > .nb-skel-stat-label {
+  align-self: stretch;
+  max-width: none;
+  width: 100%;
 }
 
 .nb-dashboard-two-col {
@@ -1957,7 +1967,7 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   .nb-dashboard-stat-cell {
-    padding: 18px var(--nb-copy-pad-x);
+    padding: 18px var(--nb-stat-cell-pad-x);
   }
 
   .nb-dashboard-stat-cell .nb-stat-value {
