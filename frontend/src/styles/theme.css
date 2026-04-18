@@ -582,6 +582,54 @@ h1, h2, h3, h4, h5, h6 {
   min-height: calc(100vh - 95px);
 }
 
+/* ─── Dashboard responsive grids ─── */
+.nb-dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-bottom: var(--border);
+}
+
+.nb-dashboard-stat-cell {
+  padding: 24px;
+  background: var(--white);
+  border-right: var(--border);
+  min-width: 0;
+}
+
+.nb-dashboard-stat-cell:last-child {
+  border-right: none;
+}
+
+.nb-dashboard-two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-bottom: var(--border);
+}
+
+.nb-dashboard-panel {
+  min-width: 0;
+}
+
+.nb-dashboard-panel--divider-right {
+  border-right: var(--border);
+}
+
+.nb-dashboard-tags-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.nb-dashboard-tags-row .nb-dashboard-panel {
+  border-bottom: var(--border);
+}
+
+.nb-dashboard-chip-area {
+  padding: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* ─── Hero Bar ─── */
 .nb-hero-bar {
   background: var(--sage-light);
@@ -1650,6 +1698,45 @@ h1, h2, h3, h4, h5, h6 {
   .nb-post-content {
     padding: 20px;
   }
+
+  .nb-dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .nb-dashboard-stat-cell {
+    border-right: none;
+    border-bottom: var(--border-2);
+  }
+
+  .nb-dashboard-stat-cell:last-child {
+    border-bottom: none;
+  }
+
+  .nb-dashboard-two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .nb-dashboard-panel--divider-right {
+    border-right: none;
+    border-bottom: var(--border);
+  }
+
+  .nb-dashboard-two-col > .nb-dashboard-panel:last-child {
+    border-bottom: none;
+  }
+
+  .nb-dashboard-tags-row {
+    grid-template-columns: 1fr;
+  }
+
+  .nb-dashboard-tags-row .nb-dashboard-panel--divider-right {
+    border-right: none;
+    border-bottom: var(--border);
+  }
+
+  .nb-dashboard-tags-row > .nb-dashboard-panel:last-child {
+    border-bottom: none;
+  }
 }
 
 @media (max-width: 600px) {
@@ -1669,5 +1756,13 @@ h1, h2, h3, h4, h5, h6 {
 
   .nb-post-header-title {
     font-size: 22px;
+  }
+
+  .nb-dashboard-stat-cell {
+    padding: 18px 20px;
+  }
+
+  .nb-dashboard-stat-cell .nb-stat-value {
+    font-size: 28px;
   }
 }

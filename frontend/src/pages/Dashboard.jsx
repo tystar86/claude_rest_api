@@ -30,42 +30,38 @@ function DashboardLoading() {
         </p>
       </div>
 
-      <div style={{ borderBottom: "var(--border)", display: "grid", gridTemplateColumns: "repeat(5, 1fr)" }}>
+      <div className="nb-dashboard-stats">
         {Array.from({ length: 5 }, (_, i) => (
-          <div
-            key={i}
-            style={{ borderRight: i < 4 ? "var(--border)" : "none", padding: "24px", background: "var(--white)" }}
-            aria-hidden
-          >
+          <div key={i} className="nb-dashboard-stat-cell" aria-hidden>
             <div className="nb-skel nb-skel-stat-value" />
             <div className="nb-skel nb-skel-stat-label" />
           </div>
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "var(--border)" }}>
-        <div style={{ borderRight: "var(--border)" }}>
+      <div className="nb-dashboard-two-col">
+        <div className="nb-dashboard-panel nb-dashboard-panel--divider-right">
           <div className="nb-card-header">Latest Posts</div>
           <div className="nb-card-body">{skelListRows(6)}</div>
         </div>
-        <div>
+        <div className="nb-dashboard-panel">
           <div className="nb-card-header">Most Commented</div>
           <div className="nb-card-body">{skelListRows(6)}</div>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
-        <div style={{ borderRight: "var(--border)", borderBottom: "var(--border)" }}>
+      <div className="nb-dashboard-tags-row">
+        <div className="nb-dashboard-panel nb-dashboard-panel--divider-right">
           <div className="nb-card-header">Most Used Tags</div>
-          <div style={{ padding: "20px", display: "flex", flexWrap: "wrap", gap: "8px" }} aria-hidden>
+          <div className="nb-dashboard-chip-area" aria-hidden>
             {Array.from({ length: 8 }, (_, k) => (
               <div key={k} className="nb-skel nb-skel-chip" />
             ))}
           </div>
         </div>
-        <div style={{ borderBottom: "var(--border)" }}>
+        <div className="nb-dashboard-panel">
           <div className="nb-card-header">Top Authors</div>
-          <div style={{ padding: "20px", display: "flex", flexWrap: "wrap", gap: "8px" }} aria-hidden>
+          <div className="nb-dashboard-chip-area" aria-hidden>
             {Array.from({ length: 8 }, (_, k) => (
               <div key={k} className="nb-skel nb-skel-chip" />
             ))}
@@ -99,7 +95,7 @@ export default function Dashboard() {
     <div className="nb-layout-full">
 
       {/* Stats row */}
-      <div style={{ borderBottom: "var(--border)", display: "grid", gridTemplateColumns: "repeat(5, 1fr)" }}>
+      <div className="nb-dashboard-stats">
         {[
           { label: "Total Posts", value: stats.total_posts ?? 0, to: "/posts" },
           { label: "Comments", value: stats.comments ?? 0, to: "/comments" },
@@ -107,10 +103,7 @@ export default function Dashboard() {
           { label: "Active Tags", value: stats.active_tags ?? 0, to: "/tags" },
           { label: "Avg Words", value: stats.average_depth_words ?? 0, to: null },
         ].map((s, i) => (
-          <div
-            key={i}
-            style={{ borderRight: i < 4 ? "var(--border)" : "none", padding: "24px", background: "var(--white)" }}
-          >
+          <div key={i} className="nb-dashboard-stat-cell">
             {s.to ? (
               <Link to={s.to} style={{ textDecoration: "none", display: "block" }}>
                 <div className="nb-stat-value">{s.value}</div>
@@ -127,10 +120,10 @@ export default function Dashboard() {
       </div>
 
       {/* Content grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "var(--border)" }}>
+      <div className="nb-dashboard-two-col">
 
         {/* Latest Posts */}
-        <div style={{ borderRight: "var(--border)" }}>
+        <div className="nb-dashboard-panel nb-dashboard-panel--divider-right">
           <div className="nb-card-header">
             Latest Posts
           </div>
@@ -156,7 +149,7 @@ export default function Dashboard() {
         </div>
 
         {/* Most Commented */}
-        <div>
+        <div className="nb-dashboard-panel">
           <div className="nb-card-header">
             Most Commented
           </div>
@@ -197,12 +190,12 @@ export default function Dashboard() {
       </div>
 
       {/* Tags + Authors row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+      <div className="nb-dashboard-tags-row">
 
         {/* Most Used Tags */}
-        <div style={{ borderRight: "var(--border)", borderBottom: "var(--border)" }}>
+        <div className="nb-dashboard-panel nb-dashboard-panel--divider-right">
           <div className="nb-card-header">Most Used Tags</div>
-          <div style={{ padding: "20px", display: "flex", flexWrap: "wrap", gap: "8px" }}>
+          <div className="nb-dashboard-chip-area">
             {data.most_used_tags.length === 0 && (
               <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", opacity: 0.5 }}>No tags yet.</span>
             )}
@@ -221,9 +214,9 @@ export default function Dashboard() {
         </div>
 
         {/* Top Authors */}
-        <div style={{ borderBottom: "var(--border)" }}>
+        <div className="nb-dashboard-panel">
           <div className="nb-card-header">Top Authors</div>
-          <div style={{ padding: "20px", display: "flex", flexWrap: "wrap", gap: "8px" }}>
+          <div className="nb-dashboard-chip-area">
             {data.top_authors.length === 0 && (
               <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", opacity: 0.5 }}>No authors yet.</span>
             )}
