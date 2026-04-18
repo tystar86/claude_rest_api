@@ -1,11 +1,13 @@
 """Unit tests for blog.utils (build_unique_slug) and api_views helpers (paginate, can_manage_tags)."""
 
+import math
+
 import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
 
 from blog.api.utils import request_data
-from blog.api_views import can_manage_tags, paginate
+from blog.api_views import PAGE_SIZE, can_manage_tags, paginate
 from blog.utils import build_unique_slug
 from blog.models import Tag
 from blog.serializers import TagSerializer
@@ -164,3 +166,17 @@ class TestPaginate:
         assert result["count"] == 0
         assert result["total_pages"] == 1
         assert result["results"] == []
+
+    def test_total_count_overrides_metadata(self, db):
+        """total_count sets pagination totals while results still slice the queryset."""
+        for i in range(3):
+            Tag.objects.create(name=f"Tag{i}", slug=f"tag{i}")
+        request = self._make_request(page="1")
+        qs = Tag.objects.all().order_by("id")
+        result = paginate(qs, request, TagSerializer, total_count=123)
+        assert result["count"] == 123
+        assert result["total_pages"] == math.ceil(123 / PAGE_SIZE)
+        assert result["page"] == 1
+        assert len(result["results"]) == 3
+        returned_ids = {row["id"] for row in result["results"]}
+        assert returned_ids == set(Tag.objects.values_list("id", flat=True))

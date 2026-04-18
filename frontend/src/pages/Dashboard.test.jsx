@@ -81,7 +81,7 @@ const EMPTY_PAYLOAD = {
     comments: 0,
     authors: 0,
     active_tags: 0,
-    likes: 0,
+    new_posts_7d: 0,
   },
   latest_posts: [],
   most_commented_posts: [],

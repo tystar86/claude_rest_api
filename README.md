@@ -59,7 +59,7 @@ New contributors should start with [`docs/developers/START_HERE.md`](docs/develo
 - **Comments** — threaded replies with like/dislike voting; moderation approval
 - **Tags** — tag posts and browse posts by tag
 - **Users** — public profiles, per-user comment history
-- **Dashboard** — aggregated stats (post count, authors, active tags, average word depth, most commented posts)
+- **Dashboard** — aggregated stats (post count, authors, active tags, New posts (7 days), most commented posts)
 - **Auth** — email/password registration and login
 - **Roles** — `user` · `moderator` · `admin` with enforced permission layers
 

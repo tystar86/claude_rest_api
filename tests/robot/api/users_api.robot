@@ -47,6 +47,9 @@ Dashboard Stats Are Present And Numeric
     Dictionary Should Contain Key    ${stats}    new_posts_7d
     ${total}=    Get From Dictionary    ${stats}    total_posts
     Should Be True    ${total} >= 0
+    ${new_7d}=    Get From Dictionary    ${stats}    new_posts_7d
+    ${new_7d_num}=    Convert To Integer    ${new_7d}
+    Should Be True    ${new_7d_num} >= 0
 
 Dashboard Returns Latest Posts And Tags
     ${resp}=    GET On Session    api    /api/dashboard/

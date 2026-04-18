@@ -30,5 +30,6 @@ export const updateComment = vi.fn();
 export const deleteComment = vi.fn();
 
 export const fetchCsrf = vi.fn();
+export const ensureCsrfForSession = vi.fn().mockResolvedValue(undefined);
 
 export default { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() };

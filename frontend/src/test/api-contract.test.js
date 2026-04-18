@@ -18,7 +18,8 @@ const clientSource = readFileSync(
   "utf-8",
 );
 
-const EXPORT_RE = /export\s+(?:const|function|class|let|var)\s+(\w+)/g;
+const EXPORT_RE =
+  /export\s+(?:async\s+)?(?:const|function|class|let|var)\s+(\w+)/g;
 function extractNamedExports(source) {
   const names = new Set();
   let m;
