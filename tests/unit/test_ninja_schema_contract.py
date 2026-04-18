@@ -144,7 +144,7 @@ class TestPaginationSchemaContract:
     def test_paginated_comments_validates(self, comment):
         request = self._make_request()
         qs = (
-            Comment.objects.filter(post__status=Post.Status.PUBLISHED, is_approved=True)
+            Comment.objects.filter(post__status=Post.Status.PUBLISHED)
             .select_related("author", "post")
             .prefetch_related("votes")
         )

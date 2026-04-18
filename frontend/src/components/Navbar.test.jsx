@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation, useSearchParams } from "react-router-dom";
 import { vi } from "vitest";
@@ -58,7 +58,45 @@ describe("Navbar", () => {
         comments: 0,
         average_depth_words: 100,
       },
+      activity: {
+        latest_post_title: "Hello",
+        latest_post_at: "2026-04-01T12:00:00.000Z",
+      },
     });
+  });
+
+  it("ticker shows news-style lines from dashboard activity", async () => {
+    vi.mocked(fetchDashboard).mockResolvedValue({
+      stats: {
+        total_posts: 2,
+        authors: 1,
+        active_tags: 1,
+        comments: 1,
+        average_depth_words: 50,
+      },
+      activity: {
+        latest_post_title: "Alpha Post",
+        latest_post_at: "2026-04-10T08:00:00.000Z",
+        latest_comment_author: "bob",
+        latest_comment_at: "2026-04-11T09:00:00.000Z",
+        latest_comment_post_title: "Beta Thread",
+        latest_user_username: "carol",
+        latest_user_joined_at: "2026-04-12T10:00:00.000Z",
+      },
+    });
+    render(
+      <MemoryRouter>
+        <Navbar />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      const posts = screen.getAllByText(/Latest post "Alpha Post" published on/);
+      expect(posts.length).toBeGreaterThanOrEqual(1);
+    });
+    expect(
+      screen.getAllByText(/Latest comment by @bob on "Beta Thread" on/).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/New member @carol joined on/).length).toBeGreaterThanOrEqual(1);
   });
 
   it("shows + New Post when the user is signed in", async () => {
@@ -70,6 +108,21 @@ describe("Navbar", () => {
     await waitFor(() =>
       expect(screen.getByRole("link", { name: "+ New Post" })).toBeInTheDocument(),
     );
+  });
+
+  it("desktop primary nav exposes Posts, Tags, Users, and Comments with correct hrefs", async () => {
+    render(
+      <MemoryRouter>
+        <Navbar />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(vi.mocked(fetchDashboard)).toHaveBeenCalled());
+
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    expect(within(nav).getByRole("link", { name: "Posts" })).toHaveAttribute("href", "/posts");
+    expect(within(nav).getByRole("link", { name: "Tags" })).toHaveAttribute("href", "/tags");
+    expect(within(nav).getByRole("link", { name: "Users" })).toHaveAttribute("href", "/users");
+    expect(within(nav).getByRole("link", { name: "Comments" })).toHaveAttribute("href", "/comments");
   });
 
   it("the + New Post link href includes ?create=1", async () => {

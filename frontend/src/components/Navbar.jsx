@@ -11,20 +11,67 @@ const PRIMARY_LINKS = [
   { path: "/comments", label: "Comments" },
 ];
 
+function truncTickerLabel(text, max) {
+  if (text == null || text === "") return "";
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1)}…`;
+}
+
+function fmtTickerWhen(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/** Build scrolling headline lines from dashboard `activity` (news-style). */
+function buildTickerLinesFromDashboard(data) {
+  if (!data || data.failed) return null;
+  const a = data.activity ?? {};
+  const lines = [];
+  if (a.latest_post_title && a.latest_post_at) {
+    const title = truncTickerLabel(a.latest_post_title, 48);
+    lines.push(`Latest post "${title}" published on ${fmtTickerWhen(a.latest_post_at)}`);
+  }
+  if (a.latest_comment_author && a.latest_comment_at) {
+    const postBit = a.latest_comment_post_title
+      ? ` on "${truncTickerLabel(a.latest_comment_post_title, 32)}"`
+      : "";
+    lines.push(
+      `Latest comment by @${a.latest_comment_author}${postBit} on ${fmtTickerWhen(a.latest_comment_at)}`,
+    );
+  }
+  if (a.latest_user_username && a.latest_user_joined_at) {
+    lines.push(
+      `New member @${a.latest_user_username} joined on ${fmtTickerWhen(a.latest_user_joined_at)}`,
+    );
+  }
+  if (lines.length === 0) {
+    lines.push(
+      "Site news will appear here once there are posts, comments, and new members.",
+    );
+  }
+  return [...lines, ...lines];
+}
+
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const narrowHeader = useNarrowHeader();
-  const [tickerStats, setTickerStats] = useState(null);
+  const [tickerSource, setTickerSource] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const prevPathRef = useRef(null);
   const prevNarrowRef = useRef(null);
 
   useEffect(() => {
     fetchDashboard()
-      .then((data) => setTickerStats(data?.stats ?? { failed: true }))
-      .catch(() => setTickerStats({ failed: true }));
+      .then((data) => setTickerSource(data ?? { failed: true }))
+      .catch(() => setTickerSource({ failed: true }));
   }, []);
 
   // Close the mobile drawer only when route or breakpoint mode actually changes — not on every
@@ -68,20 +115,7 @@ export default function Navbar() {
     return false;
   };
 
-  const tickerItems = tickerStats && !tickerStats.failed
-    ? [
-        `${tickerStats.total_posts ?? 0} posts published`,
-        `${tickerStats.authors ?? 0} authors active`,
-        `${tickerStats.active_tags ?? 0} tags available`,
-        `${tickerStats.comments ?? 0} comments total`,
-        `${tickerStats.average_depth_words ?? 0} avg word depth`,
-        `${tickerStats.total_posts ?? 0} posts published`,
-        `${tickerStats.authors ?? 0} authors active`,
-        `${tickerStats.active_tags ?? 0} tags available`,
-        `${tickerStats.comments ?? 0} comments total`,
-        `${tickerStats.average_depth_words ?? 0} avg word depth`,
-      ]
-    : null;
+  const tickerItems = buildTickerLinesFromDashboard(tickerSource);
 
   const primaryNavList = (variant) => (
     <ul className={variant === "desktop" ? "nb-nav" : "nb-nav-mobile-list"}>

@@ -2,6 +2,8 @@
 
 /* ─── CSS Variables ─── */
 :root {
+  /* Centered “frame” for main chrome (was 1400px full-bleed feel on large monitors). */
+  --nb-frame-max-width: min(1080px, calc(100vw - 40px));
   --black: #0a0a0a;
   --white: #fefefe;
   --bg: #E8E2D8;
@@ -105,7 +107,7 @@ h1, h2, h3, h4, h5, h6 {
   display: flex !important;
   align-items: center;
   justify-content: center;
-  transition: background 0.1s !important;
+  transition: background 0.1s, color 0.1s !important;
 }
 
 .page-item:last-child .page-link {
@@ -122,7 +124,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .page-link:hover {
-  background: var(--sage-light) !important;
+  background: var(--black) !important;
+  color: var(--sage) !important;
   transform: none !important;
 }
 
@@ -322,26 +325,32 @@ h1, h2, h3, h4, h5, h6 {
   z-index: 100;
 }
 
+/* Full-width bar: brand at viewport left, primary nav viewport-centered, auth viewport-right.
+   (Do not reuse --nb-frame-max-width here — that centers the whole strip and pulls the brand inward.) */
 .nb-header-inner {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-areas: "brand nav actions";
   align-items: stretch;
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 .nb-brand {
+  grid-area: brand;
+  justify-self: start;
   font-family: 'Space Mono', monospace;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.03em;
   padding: 14px 28px;
-  border-right: var(--border);
   text-decoration: none;
   color: var(--black);
   display: flex;
   align-items: center;
   text-transform: uppercase;
-  transition: background 0.1s;
+  transition: background 0.1s, color 0.1s;
   white-space: nowrap;
 }
 
@@ -355,39 +364,83 @@ h1, h2, h3, h4, h5, h6 {
   list-style: none;
   margin: 0;
   padding: 0;
-  border-right: var(--border);
   flex-wrap: nowrap;
+}
+
+/* Columns grow from label width (avoids squeezing “Comments”); extra space shared evenly */
+.nb-nav li {
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: stretch;
+  min-width: max-content;
 }
 
 .nb-nav a {
   display: flex;
   align-items: center;
-  padding: 14px 20px;
+  justify-content: center;
+  width: 100%;
+  padding: 14px 18px;
   text-decoration: none;
   color: var(--black);
   font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.06em;
+  font-size: 15px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  border-right: 2px solid var(--black);
-  transition: background 0.1s;
+  transition: background 0.1s, color 0.1s;
   white-space: nowrap;
 }
 
-.nb-nav li:last-child a {
-  border-right: none;
+/* Short vertical rules — vertically centered with the label strip */
+.nb-nav li:not(:last-child) a {
+  position: relative;
+}
+
+.nb-nav li:not(:last-child) a::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 1.2em;
+  background: var(--black);
 }
 
 .nb-nav a:hover,
 .nb-nav a.active {
   background: var(--black);
   color: var(--sage);
+  position: relative;
+  z-index: 1;
+}
+
+/* Widen hover paint by 2px so it covers the vertical ::after divider (without overlapping past nav) */
+.nb-nav li:first-child a:hover,
+.nb-nav li:first-child a.active {
+  margin-right: -2px;
+  padding-right: 20px;
+}
+
+.nb-nav li:last-child a:hover,
+.nb-nav li:last-child a.active {
+  margin-left: -2px;
+  padding-left: 20px;
+}
+
+.nb-nav li:not(:first-child):not(:last-child) a:hover,
+.nb-nav li:not(:first-child):not(:last-child) a.active {
+  margin-left: -2px;
+  margin-right: -2px;
+  padding-left: 20px;
+  padding-right: 20px;
 }
 
 .nb-header-right {
+  grid-area: actions;
+  justify-self: end;
   display: flex;
-  align-items: center;
-  margin-left: auto;
+  align-items: stretch;
 }
 
 .nb-user-tag {
@@ -401,6 +454,13 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--black);
   white-space: nowrap;
   font-family: 'Space Mono', monospace;
+  text-decoration: none;
+  transition: background 0.1s, color 0.1s;
+}
+
+.nb-user-tag:hover {
+  background: var(--black);
+  color: var(--sage);
 }
 
 .nb-btn-head {
@@ -416,7 +476,7 @@ h1, h2, h3, h4, h5, h6 {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   height: 100%;
-  transition: background 0.1s;
+  transition: background 0.1s, color 0.1s;
   white-space: nowrap;
   text-decoration: none;
   display: flex;
@@ -424,8 +484,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .nb-btn-head:hover {
-  background: var(--bg);
-  color: var(--black);
+  background: var(--black);
+  color: var(--sage);
 }
 
 .nb-btn-head.cta {
@@ -439,11 +499,15 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .nb-primary-desktop {
+  grid-area: nav;
+  justify-self: center;
   display: flex;
   align-items: stretch;
 }
 
 .nb-menu-toggle {
+  grid-area: nav;
+  justify-self: end;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -491,8 +555,9 @@ h1, h2, h3, h4, h5, h6 {
 .nb-mobile-drawer {
   border-bottom: var(--border);
   background: var(--white);
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 .nb-nav-mobile-list {
@@ -515,8 +580,8 @@ h1, h2, h3, h4, h5, h6 {
   text-decoration: none;
   color: var(--black);
   font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 0.06em;
+  font-size: 15px;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
@@ -543,7 +608,7 @@ h1, h2, h3, h4, h5, h6 {
 .nb-ticker-inner {
   display: inline-flex;
   gap: 60px;
-  animation: nb-ticker 30s linear infinite;
+  animation: nb-ticker 55s linear infinite;
 }
 
 @keyframes nb-ticker {
@@ -558,7 +623,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ─── Layout ─── */
 .nb-layout {
-  max-width: 1400px;
+  max-width: var(--nb-frame-max-width);
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr 320px;
@@ -574,7 +639,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .nb-layout-full {
-  max-width: 1400px;
+  max-width: var(--nb-frame-max-width);
   margin: 0 auto;
   border-left: var(--border);
   border-right: var(--border);
@@ -582,10 +647,20 @@ h1, h2, h3, h4, h5, h6 {
   min-height: calc(100vh - 95px);
 }
 
+/* Dashboard: full-bleed main column (viewport-wide strip under the header). */
+.nb-layout-full.nb-dashboard {
+  max-width: none;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+  border-left: none;
+  border-right: none;
+}
+
 /* ─── Dashboard responsive grids ─── */
 .nb-dashboard-stats {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border-bottom: var(--border);
 }
 
@@ -600,9 +675,21 @@ h1, h2, h3, h4, h5, h6 {
   border-right: none;
 }
 
+.nb-dashboard-stat-cell .nb-stat-label {
+  font-size: 13px;
+  letter-spacing: 0.09em;
+  opacity: 0.72;
+}
+
 .nb-dashboard-two-col {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-bottom: var(--border);
+}
+
+.nb-dashboard-posts-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-bottom: var(--border);
 }
 
@@ -628,6 +715,43 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* Chips in dashboard tags/authors: base fill from --chip-bg; hover inverts to black + chip fill as text */
+.nb-dashboard-chip-area .nb-chip {
+  background: var(--chip-bg, var(--bg));
+}
+
+.nb-dashboard-chip-area .nb-chip:hover {
+  background: var(--black);
+  color: var(--chip-bg, var(--sage));
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--black);
+}
+
+/* Post row count badges — keep pill colors on row hover (title/meta use inherited sage) */
+.nb-dashboard-post-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--black);
+  border: 2px solid var(--black);
+  padding: 2px 8px;
+  white-space: nowrap;
+  box-shadow: 2px 2px 0 var(--black);
+}
+
+.nb-dashboard-post-badge--comments {
+  background: var(--sage);
+}
+
+.nb-dashboard-post-badge--likes {
+  background: var(--rose);
+}
+
+/* Post rows on neige; hover uses .nb-list-item:hover from theme */
+.nb-dashboard .nb-card-body .nb-list-item:not(.nb-skel-item) {
+  background: var(--bg);
 }
 
 /* ─── Hero Bar ─── */
@@ -699,22 +823,51 @@ h1, h2, h3, h4, h5, h6 {
   border-bottom: 2px solid var(--black);
   text-decoration: none;
   color: var(--black);
-  transition: background 0.1s;
+  transition: background 0.1s, color 0.1s;
   min-height: 80px;
 }
 
 .nb-post-item:hover {
-  background: var(--sage-light);
-  color: var(--black);
-}
-
-.nb-post-item:hover .nb-post-num {
   background: var(--black);
   color: var(--sage);
 }
 
-.nb-post-item:hover .nb-tag-box {
+.nb-post-item:hover .nb-post-num {
   background: var(--sage);
+  color: var(--black);
+}
+
+.nb-post-item:hover .nb-post-title {
+  color: var(--sage);
+}
+
+.nb-post-item:hover .nb-post-meta {
+  opacity: 1;
+  color: var(--sage);
+}
+
+.nb-post-item:hover .nb-post-meta-author {
+  color: var(--sage);
+}
+
+.nb-post-item:hover .nb-post-meta-sep {
+  color: var(--sage);
+  opacity: 0.45;
+}
+
+.nb-post-item:hover .nb-comment-count {
+  color: var(--sage);
+  opacity: 0.55;
+}
+
+.nb-post-item:hover .nb-tag-box {
+  background: var(--bg);
+  color: var(--black);
+}
+
+.nb-post-item:hover .nb-tag-box:hover {
+  background: var(--black);
+  color: var(--sage);
 }
 
 .nb-post-num {
@@ -792,8 +945,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .nb-tag-box:hover {
-  background: var(--sage);
-  color: var(--black);
+  background: var(--black);
+  color: var(--sage);
 }
 
 .nb-post-right {
@@ -916,8 +1069,8 @@ h1, h2, h3, h4, h5, h6 {
 .nb-tag-btn:hover {
   transform: translate(-1px, -1px);
   box-shadow: 4px 4px 0 var(--black);
-  background: var(--sage);
-  color: var(--black);
+  background: var(--black);
+  color: var(--sage);
 }
 
 .nb-sidebar-cta {
@@ -988,7 +1141,7 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.1s;
+  transition: background 0.1s, color 0.1s;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--black);
@@ -1000,7 +1153,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .nb-page-btn:hover {
-  background: var(--sage-light);
+  background: var(--black);
+  color: var(--sage);
 }
 
 .nb-page-btn.active {
@@ -1033,7 +1187,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ─── Page Content Areas ─── */
 .nb-page-wrap {
-  max-width: 1400px;
+  max-width: var(--nb-frame-max-width);
   margin: 0 auto;
   border-left: var(--border);
   border-right: var(--border);
@@ -1256,7 +1410,7 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  transition: background 0.1s;
+  transition: background 0.1s, color 0.1s;
   text-decoration: none;
   color: var(--black);
 }
@@ -1265,8 +1419,19 @@ h1, h2, h3, h4, h5, h6 {
   border-bottom: none;
 }
 
-.nb-list-item:hover {
-  background: var(--sage-light);
+.nb-list-item:not(.nb-skel-item):hover {
+  background: var(--black);
+  color: var(--sage);
+}
+
+.nb-list-item:not(.nb-skel-item):hover .nb-list-title,
+.nb-list-item:not(.nb-skel-item):hover .nb-list-meta,
+.nb-list-item:not(.nb-skel-item):hover .nb-list-meta a {
+  color: var(--sage);
+}
+
+.nb-list-item:not(.nb-skel-item):hover .nb-list-meta {
+  opacity: 0.85;
 }
 
 .nb-list-title {
@@ -1279,6 +1444,10 @@ h1, h2, h3, h4, h5, h6 {
 .nb-list-title:hover {
   text-decoration: underline;
   color: var(--black);
+}
+
+.nb-list-item:not(.nb-skel-item):hover .nb-list-title:hover {
+  color: var(--sage);
 }
 
 .nb-list-meta {
@@ -1309,8 +1478,8 @@ h1, h2, h3, h4, h5, h6 {
 .nb-chip:hover {
   transform: translate(-1px, -1px);
   box-shadow: 4px 4px 0 var(--black);
-  background: var(--sage);
-  color: var(--black);
+  background: var(--black);
+  color: var(--sage);
 }
 
 .nb-chip-active {
@@ -1449,7 +1618,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ─── Post Detail ─── */
 .nb-post-detail {
-  max-width: 1400px;
+  max-width: var(--nb-frame-max-width);
   margin: 0 auto;
   border-left: var(--border);
   border-right: var(--border);
@@ -1669,6 +1838,16 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ─── Responsive ─── */
 @media (max-width: 900px) {
+  .nb-header-inner {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "brand nav actions";
+  }
+
+  .nb-menu-toggle {
+    grid-area: nav;
+    justify-self: end;
+  }
+
   .nb-layout {
     grid-template-columns: 1fr;
   }
@@ -1716,12 +1895,20 @@ h1, h2, h3, h4, h5, h6 {
     grid-template-columns: 1fr;
   }
 
+  .nb-dashboard-posts-row {
+    grid-template-columns: 1fr;
+  }
+
   .nb-dashboard-panel--divider-right {
     border-right: none;
     border-bottom: var(--border);
   }
 
   .nb-dashboard-two-col > .nb-dashboard-panel:last-child {
+    border-bottom: none;
+  }
+
+  .nb-dashboard-posts-row > .nb-dashboard-panel:last-child {
     border-bottom: none;
   }
 

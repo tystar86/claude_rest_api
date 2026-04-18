@@ -176,7 +176,7 @@ def delete_post(request: HttpRequest, slug: str):
 @router.api_operation(["GET", "HEAD"], "/comments/", response=PaginatedCommentsResponse)
 def comment_list(request: HttpRequest):
     qs = (
-        Comment.objects.filter(post__status=Post.Status.PUBLISHED, is_approved=True)
+        Comment.objects.filter(post__status=Post.Status.PUBLISHED)
         .select_related("author", "post")
         .prefetch_related("votes")
         .order_by("-created_at")
@@ -201,7 +201,7 @@ def comment_list_by_post(request: HttpRequest, slug: str):
         return _not_found_response()
 
     qs = (
-        Comment.objects.filter(post=post, is_approved=True)
+        Comment.objects.filter(post=post)
         .select_related("author", "post")
         .prefetch_related("votes")
         .order_by("-created_at")
@@ -504,7 +504,7 @@ def user_comments(request: HttpRequest, username: str):
         return _not_found_response()
 
     qs = (
-        Comment.objects.filter(author=user, post__status=Post.Status.PUBLISHED, is_approved=True)
+        Comment.objects.filter(author=user, post__status=Post.Status.PUBLISHED)
         .select_related("author", "post")
         .prefetch_related("votes")
         .order_by("-created_at")

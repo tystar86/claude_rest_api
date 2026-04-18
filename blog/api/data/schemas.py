@@ -71,6 +71,7 @@ class PostSummaryResponse(Schema):
     created_at: datetime
     published_at: datetime | None
     comment_count: int | None
+    like_count: int = 0
 
 
 class PostDetailResponse(PostSummaryResponse):
@@ -86,10 +87,24 @@ class DashboardStatsResponse(Schema):
     average_depth_words: int
 
 
+class DashboardActivityResponse(Schema):
+    """Recent public activity for the header ticker (nullable when no data)."""
+
+    latest_post_title: str | None = None
+    latest_post_at: datetime | None = None
+    latest_comment_author: str | None = None
+    latest_comment_at: datetime | None = None
+    latest_comment_post_title: str | None = None
+    latest_user_username: str | None = None
+    latest_user_joined_at: datetime | None = None
+
+
 class DashboardResponse(Schema):
     stats: DashboardStatsResponse
+    activity: DashboardActivityResponse
     latest_posts: list[PostSummaryResponse]
     most_commented_posts: list[PostSummaryResponse]
+    most_liked_posts: list[PostSummaryResponse]
     most_used_tags: list[TagSummaryResponse]
     top_authors: list[UserSummaryResponse]
 

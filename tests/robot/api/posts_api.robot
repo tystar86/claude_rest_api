@@ -65,4 +65,5 @@ Post Detail Returns Correct Fields
         Dictionary Should Contain Key    ${first}    title
         Dictionary Should Contain Key    ${first}    author
         Dictionary Should Contain Key    ${first}    comment_count
+        Dictionary Should Contain Key    ${first}    like_count
     END
