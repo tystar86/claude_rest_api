@@ -175,7 +175,7 @@ describe("Navbar", () => {
     );
     await waitFor(() => expect(vi.mocked(fetchDashboard)).toHaveBeenCalled());
     await user.click(screen.getByRole("button", { name: "Open navigation menu" }));
-    expect(screen.getByRole("link", { name: "Posts" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Posts" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Tags" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Close navigation menu" })).toBeInTheDocument();
   });
@@ -190,7 +190,7 @@ describe("Navbar", () => {
     );
     await waitFor(() => expect(vi.mocked(fetchDashboard)).toHaveBeenCalled());
     await user.click(screen.getByRole("button", { name: "Open navigation menu" }));
-    expect(screen.getByRole("link", { name: "Posts" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Posts" })).toBeInTheDocument();
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("link", { name: "Posts" })).toBeNull();
   });

@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { fetchDashboard } from "../api/client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNarrowHeader } from "../hooks/useNarrowHeader";
 
 const PRIMARY_LINKS = [
@@ -18,6 +18,8 @@ export default function Navbar() {
   const narrowHeader = useNarrowHeader();
   const [tickerStats, setTickerStats] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const prevPathRef = useRef(null);
+  const prevNarrowRef = useRef(null);
 
   useEffect(() => {
     fetchDashboard()
@@ -25,9 +27,23 @@ export default function Navbar() {
       .catch(() => setTickerStats({ failed: true }));
   }, []);
 
+  // Close the mobile drawer only when route or breakpoint mode actually changes — not on every
+  // mount tick. requestAnimationFrame(close) raced with open clicks in some CI/jsdom timings.
   useEffect(() => {
-    const id = window.requestAnimationFrame(() => setMobileMenuOpen(false));
-    return () => window.cancelAnimationFrame(id);
+    const path = location.pathname;
+    const narrow = narrowHeader;
+    if (prevPathRef.current === null && prevNarrowRef.current === null) {
+      prevPathRef.current = path;
+      prevNarrowRef.current = narrow;
+      return;
+    }
+    const pathChanged = prevPathRef.current !== path;
+    const narrowChanged = prevNarrowRef.current !== narrow;
+    prevPathRef.current = path;
+    prevNarrowRef.current = narrow;
+    if (pathChanged || narrowChanged) {
+      queueMicrotask(() => setMobileMenuOpen(false));
+    }
   }, [location.pathname, narrowHeader]);
 
   useEffect(() => {
