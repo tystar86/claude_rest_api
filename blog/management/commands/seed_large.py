@@ -7,12 +7,13 @@ Add --clear to wipe previously seeded data first.
 import random
 from datetime import datetime, timedelta, timezone
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from accounts.models import Profile
 from blog.models import Comment, CommentVote, Post, Tag
+
+User = get_user_model()
 
 # ---------------------------------------------------------------------------
 # Static data pools
@@ -462,9 +463,6 @@ class Command(BaseCommand):
         self.stdout.write("Creating 1000 users…")
         users = self._create_users(rng)
 
-        self.stdout.write("Creating profiles…")
-        self._create_profiles(rng, users)
-
         self.stdout.write("Creating 50 posts per user (50 000 total)…")
         posts = self._create_posts(rng, users, tag_objs, tag_names)
 
@@ -510,6 +508,8 @@ class Command(BaseCommand):
                     password="pbkdf2_sha256$870000$placeholder$placeholder=",
                     is_active=True,
                     date_joined=_rand_date(rng),
+                    role="user",
+                    bio=_make_bio(rng),
                 )
             )
         User.objects.bulk_create(to_create, batch_size=500)
@@ -518,13 +518,6 @@ class Command(BaseCommand):
                 username__in=[f"techuser_{i:04d}" for i in range(1, 1001)]
             ).order_by("username")
         )
-
-    def _create_profiles(self, rng: random.Random, users: list[User]) -> None:
-        existing = set(Profile.objects.values_list("user_id", flat=True))
-        to_create = [
-            Profile(user=u, role="user", bio=_make_bio(rng)) for u in users if u.pk not in existing
-        ]
-        Profile.objects.bulk_create(to_create, batch_size=500)
 
     def _create_posts(
         self,

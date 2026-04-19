@@ -3,7 +3,6 @@
 import pytest
 from django.db import IntegrityError
 
-from accounts.models import Profile
 from blog.models import Comment, CommentVote, Post, Tag
 
 
@@ -139,32 +138,25 @@ class TestCommentVoteModel:
 
 @pytest.mark.django_db
 class TestProfileModel:
-    """Tests for the accounts Profile model."""
+    """Tests for the CustomUser role/bio fields."""
 
     def test_default_role_is_user(self, user):
-        """A newly created profile defaults to the 'user' role."""
-        assert user.profile.role == Profile.Role.USER
+        assert user.role == "user"
 
     def test_moderator_role(self, moderator):
-        """is_moderator returns True for users with the moderator role."""
-        assert moderator.profile.is_moderator
+        assert moderator.is_moderator
 
     def test_admin_role(self, admin_user):
-        """is_admin returns True for users with the admin role."""
-        assert admin_user.profile.is_admin
+        assert admin_user.is_admin
 
     def test_admin_is_also_moderator(self, admin_user):
-        """Admins pass the is_moderator check as well."""
-        assert admin_user.profile.is_moderator
+        assert admin_user.is_moderator
 
     def test_regular_user_is_not_moderator(self, user):
-        """Regular users do not pass the is_moderator check."""
-        assert not user.profile.is_moderator
+        assert not user.is_moderator
 
     def test_str_contains_username(self, user):
-        """__str__ includes the username."""
-        assert user.username in str(user.profile)
+        assert user.username in str(user)
 
     def test_bio_defaults_to_blank(self, user):
-        """bio field defaults to an empty string."""
-        assert user.profile.bio == ""
+        assert user.bio == ""

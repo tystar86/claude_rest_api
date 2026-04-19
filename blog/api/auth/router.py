@@ -7,7 +7,8 @@ from django.contrib.auth import (
     update_session_auth_hash,
 )
 from django.contrib.auth.hashers import check_password
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -24,6 +25,8 @@ from ..constants import AUTHENTICATION_REQUIRED_DETAIL
 from .schemas import CsrfTokenResponse, CurrentUserResponse, DetailResponse
 from ..throttling import LOGIN_THROTTLES, WRITE_THROTTLES
 from ..utils import request_data_or_error
+
+User = get_user_model()
 
 router = Router(tags=["Auth"])
 compat_session_auth = SessionAuth()

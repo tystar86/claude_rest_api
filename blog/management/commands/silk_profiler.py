@@ -17,12 +17,14 @@ from __future__ import annotations
 import json
 
 from django.apps import apps
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.test import Client
 from django.utils import timezone
 
 from blog.models import Comment, CommentVote, Post, Tag
+
+User = get_user_model()
 
 
 # ---------------------------------------------------------------------------

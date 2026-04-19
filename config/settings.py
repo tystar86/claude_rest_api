@@ -50,6 +50,8 @@ INSTALLED_APPS: list[str] = [
 if ENABLE_SILK:
     INSTALLED_APPS.insert(INSTALLED_APPS.index("corsheaders") + 1, "silk")
 
+AUTH_USER_MODEL = "accounts.CustomUser"
+
 MIDDLEWARE: list[str | None] = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -132,6 +134,9 @@ USE_TZ: bool = True
 
 STATIC_URL: str = "static/"
 STATIC_ROOT: Path = BASE_DIR / "staticfiles"
+
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 STORAGES: dict[str, Any] = {
     "default": {

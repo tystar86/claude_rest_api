@@ -2,7 +2,8 @@ import logging
 from datetime import timedelta
 
 from django.contrib.auth.hashers import make_password
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
 
 from django.db import connection
 from django.db.models import Count, Q
@@ -14,6 +15,8 @@ from .serializers import (
     TagSerializer,
     UserSerializer,
 )
+
+User = get_user_model()
 
 security_log = logging.getLogger("security")
 
@@ -48,7 +51,7 @@ def can_manage_tags(user: User) -> bool:
         return False
     if user.is_superuser or user.is_staff:
         return True
-    role = getattr(getattr(user, "profile", None), "role", "user")
+    role = getattr(user, "role", "user")
     return role in ("moderator", "admin")
 
 
@@ -56,7 +59,7 @@ def has_elevated_post_access(user: User, post: Post) -> bool:
     """True if the user may view unpublished content or modify a post (author/staff/mod)."""
     if not user.is_authenticated:
         return False
-    role = getattr(getattr(user, "profile", None), "role", "user")
+    role = getattr(user, "role", "user")
     return (
         post.author_id == user.id
         or user.is_superuser
@@ -193,8 +196,7 @@ def build_dashboard_payload():
             many=True,
         ).data,
         "top_authors": UserSerializer(
-            User.objects.select_related("profile")
-            .annotate(post_count=Count("posts", filter=Q(posts__in=published_ids)))
+            User.objects.annotate(post_count=Count("posts", filter=Q(posts__in=published_ids)))
             .filter(post_count__gt=0)
             .order_by("-post_count")[:10],
             many=True,

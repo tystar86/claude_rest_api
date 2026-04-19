@@ -4,9 +4,11 @@ import io
 from unittest.mock import patch
 
 import pytest
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, connection
 from django.test import Client
+
+User = get_user_model()
 
 
 # ── CSRF ───────────────────────────────────────────────────────────────────────
@@ -363,26 +365,21 @@ class TestUserProfileAndSessionAuth:
     """Regression tests formerly grouped with OAuth-specific cases."""
 
     def test_new_user_gets_profile_via_signal(self, db):
-        """Saving a new User creates a Profile via accounts.signals."""
-        from accounts.models import Profile
-
+        """Saving a new CustomUser persists it to the database."""
         u = User.objects.create_user(
             username="prof_user",
             email="prof@example.com",
             password="pass12345",
         )
-        assert Profile.objects.filter(user=u).exists()
+        assert User.objects.filter(pk=u.pk).exists()
 
     def test_force_login_user_can_access_current_user_endpoint(self, db):
         """An authenticated user can read GET /api/auth/user/."""
-        from accounts.models import Profile
-
         u = User.objects.create_user(
             username="api_user",
             email="api@example.com",
             password="pass12345",
         )
-        Profile.objects.get_or_create(user=u)
 
         client = Client()
         client.force_login(u)

@@ -5,7 +5,7 @@ Library    Process
 Resource   common.resource
 
 *** Variables ***
-${MODERATOR_BOOTSTRAP_CMD}    from django.contrib.auth.models import User; from accounts.models import Profile; u, _ = User.objects.get_or_create(username='${MOD_USERNAME}', defaults={'email': '${MOD_EMAIL}'}); u.email='${MOD_EMAIL}'; u.set_password('${MOD_PASSWORD}'); u.save(); profile, _ = Profile.objects.get_or_create(user=u); profile.role='moderator'; profile.save(update_fields=['role'])
+${MODERATOR_BOOTSTRAP_CMD}    from django.contrib.auth import get_user_model; User=get_user_model(); u,_=User.objects.get_or_create(username='${MOD_USERNAME}',defaults={'email':'${MOD_EMAIL}','role':'moderator'}); u.email='${MOD_EMAIL}'; u.set_password('${MOD_PASSWORD}'); u.role='moderator'; u.save()
 
 *** Keywords ***
 Create API Session

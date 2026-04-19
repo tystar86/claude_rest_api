@@ -1,9 +1,11 @@
 """Unit tests for comment and vote API endpoints."""
 
 import pytest
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 
 from blog.models import Comment, CommentVote, Post
+
+User = get_user_model()
 
 
 # ── Comment List ───────────────────────────────────────────────────────────────
