@@ -96,7 +96,7 @@ Typical API flow:
 
 ### Roles
 
-Roles live on `accounts.Profile.role`:
+Roles live on `accounts.CustomUser.role`:
 
 - `user`
 - `moderator`

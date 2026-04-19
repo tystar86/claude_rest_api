@@ -72,15 +72,16 @@ jobs:
       - name: Seed moderator test user
         run: |
           uv run python manage.py shell -c "
-          from django.contrib.auth.models import User
-          from accounts.models import Profile
+          from django.contrib.auth import get_user_model
+          User = get_user_model()
           u, _ = User.objects.get_or_create(
               username='robot_mod',
-              defaults={'email': 'robot.mod@example.com'},
+              defaults={'email': 'robot.mod@example.com', 'role': 'moderator'},
           )
+          u.email = 'robot.mod@example.com'
           u.set_password('robot_mod_pass_123')
+          u.role = 'moderator'
           u.save()
-          Profile.objects.filter(user=u).update(role='moderator')
           "
 
       # ── Playwright (rfbrowser) ────────────────────────────────────────────────

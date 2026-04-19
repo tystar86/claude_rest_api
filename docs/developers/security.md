@@ -7,7 +7,7 @@ This project uses:
 - Django session authentication
 - CSRF protection for authenticated writes
 - CORS allowlists
-- role-based authorization through `Profile.role`
+- role-based authorization through `CustomUser.role`
 - Django Ninja throttling with scoped limits (anon, user, endpoint, global, login)
 - production cookie hardening and HSTS settings
 
