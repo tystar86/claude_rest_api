@@ -159,6 +159,17 @@ class Migration(migrations.Migration):
         ("accounts", "0003_enforce_sites_dependency"),
     ]
 
+    # swappable_dependency(AUTH_USER_MODEL) resolves to ("accounts", "__first__"),
+    # i.e. accounts.0001_initial — but CustomUser is not in migration state until
+    # this migration's state_operations run. Without this, the planner can apply
+    # admin.0001_initial / blog.0001_initial before 0004 and crash with
+    # ValueError: ... lazy reference to 'accounts.customuser', but app 'accounts'
+    # doesn't provide model 'customuser'.
+    run_before = [
+        ("admin", "0001_initial"),
+        ("blog", "0001_initial"),
+    ]
+
     operations = [
         migrations.SeparateDatabaseAndState(
             state_operations=[

@@ -154,3 +154,21 @@ def test_legacy_accounts_migration_path_builds_customuser_profile_state():
 
     assert custom_user is not None
     assert profile._meta.get_field("user").remote_field.model is custom_user
+
+
+@pytest.mark.django_db
+def test_customuser_migration_precedes_admin_and_blog_initial():
+    """swappable_dependency(AUTH_USER_MODEL) maps to accounts.__first__, which is
+    not sufficient when CustomUser first appears in accounts.0004. run_before on
+    that migration forces admin/blog initial migrations after CustomUser exists
+    in the historical project state."""
+    loader = MigrationLoader(connection, replace_migrations=False)
+    graph = loader.graph
+    for target in (("blog", "0001_initial"), ("admin", "0001_initial")):
+        plan = graph.forwards_plan(target)
+        if ("accounts", "0004_repair_customuser_table") in plan:
+            assert plan.index(("accounts", "0004_repair_customuser_table")) < plan.index(target)
+        else:
+            squashed = ("accounts", "0001_squashed_0005_customuser_cutover")
+            assert squashed in plan
+            assert plan.index(squashed) < plan.index(target)
