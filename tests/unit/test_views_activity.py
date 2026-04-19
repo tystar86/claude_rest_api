@@ -4,9 +4,12 @@ from datetime import timedelta
 
 import pytest
 from django.core.cache import cache
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from blog import api_views
+from blog.api.constants import ACTIVITY_CACHE_KEY
 from blog.models import Post
 
 
@@ -16,7 +19,7 @@ class TestActivityView:
 
     @pytest.fixture(autouse=True)
     def _clear_activity_cache(self):
-        cache.delete(api_views._ACTIVITY_CACHE_KEY)
+        cache.delete(ACTIVITY_CACHE_KEY)
         yield
 
     def test_returns_200_for_anonymous(self, api_client):
@@ -49,6 +52,11 @@ class TestActivityView:
         assert data["latest_post_title"] is None
         assert data["latest_comment_at"] is None
         assert data["latest_user_username"] is None
+
+    def test_build_activity_payload_single_query(self):
+        with CaptureQueriesContext(connection) as ctx:
+            api_views.build_activity_payload()
+        assert len(ctx.captured_queries) == 1
 
     def test_latest_post_orders_by_effective_publish_time(self, api_client, user):
         """NULL published_at must not outrank a newer real publication via NULLS FIRST."""

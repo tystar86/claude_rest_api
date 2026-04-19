@@ -1,3 +1,9 @@
+# Local development only — full stack: Postgres + Django runserver + Vite dev server.
+#
+# Production does not use this file. The hosted backend is built from Dockerfile.backend
+# and runs Gunicorn via start.sh; deployment for this repo is defined in render.yaml
+# (Render). See docs/developers/START_HERE.md and the root README.
+#
 services:
   db:
     image: postgres:16-alpine
@@ -40,7 +46,12 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
-    command: sh -c "uv sync --frozen && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    # TTY + stdin so pdb/breakpoint() is usable via: docker attach claude_rest_api_backend
+    stdin_open: true
+    tty: true
+    # --nothreading: request handler must not run on a worker thread for pdb.
+    # --noreload: autoreloader forks a child; pdb runs there while docker attach targets PID 1 — stdin never reaches pdb.
+    command: sh -c "uv sync --frozen && python manage.py migrate && python manage.py runserver 0.0.0.0:8000 --nothreading --noreload"
 
   frontend:
     build:

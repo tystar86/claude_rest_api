@@ -82,6 +82,8 @@ docker-compose up
 
 Backend → `http://localhost:8000` | Frontend → `http://localhost:5173`
 
+**Docker Compose** is for **local development** only. It runs Postgres, Django’s `runserver`, and the Vite dev server. Production does **not** use Compose: the backend image (`Dockerfile.backend`) runs **Gunicorn** via `start.sh`, and this repository’s hosted backend is configured in **`render.yaml`** (Render).
+
 ### Standalone
 
 **Backend**

@@ -23,7 +23,7 @@ from ninja.security import SessionAuth
 from ..constants import AUTHENTICATION_REQUIRED_DETAIL
 from .schemas import CsrfTokenResponse, CurrentUserResponse, DetailResponse
 from ..throttling import LOGIN_THROTTLES, WRITE_THROTTLES
-from ..utils import request_data_or_error as _request_data_or_error
+from ..utils import request_data_or_error
 
 router = Router(tags=["Auth"])
 compat_session_auth = SessionAuth()
@@ -42,7 +42,7 @@ def csrf_token(request: HttpRequest):
 @router.post("/login/", throttle=LOGIN_THROTTLES)
 @csrf_protect
 def login(request: HttpRequest):
-    data, error = _request_data_or_error(request)
+    data, error = request_data_or_error(request)
     if error is not None:
         return error
     email = data.get("email", "")
@@ -80,7 +80,7 @@ def login(request: HttpRequest):
 @router.post("/register/", throttle=WRITE_THROTTLES)
 @csrf_protect
 def register(request: HttpRequest):
-    data, error = _request_data_or_error(request)
+    data, error = request_data_or_error(request)
     if error is not None:
         return error
     email = data.get("email", "")
@@ -146,7 +146,7 @@ def update_profile(request: HttpRequest):
         return JsonResponse({"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=401)
 
     user = request.user
-    data, error = _request_data_or_error(request)
+    data, error = request_data_or_error(request)
     if error is not None:
         return error
     new_username = data.get("username")

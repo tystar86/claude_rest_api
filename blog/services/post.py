@@ -9,7 +9,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from blog.models import Post, Tag
-from blog.utils import build_unique_slug
+from blog.api.utils import build_unique_slug
 
 _MAX_SLUG_INTEGRITY_RETRIES = 10
 

@@ -680,11 +680,11 @@
       "author": 3,
       "body": "## The Problem\n\nOur notification fan-out service\u2014the part that takes one event and pushes it to N subscriber feeds\u2014was written in Django. At 50K events/second it was consuming 40 CPU cores, adding 800ms of median latency, and costing $12K/month in compute.\n\nWe needed a 10x improvement. Python wasn\u2019t going to give us that.\n\n## Why Rust?\n\nWe evaluated Go first. Go would have solved the performance problem. We chose Rust because:\n\n1. **Memory safety without GC.** Fan-out is latency-sensitive. Go\u2019s GC pauses were acceptable on average but showed up badly in p99.\n2. **Zero-cost abstractions.** We could write readable code without paying a performance penalty for the abstraction layers.\n3. **Fearless concurrency.** The borrow checker catches data races at compile time. For a highly concurrent fan-out system this is a huge safety net.\n\n## The Architecture\n\nWe kept Django for everything else. The Rust service exposes a single gRPC endpoint that Django calls. It owns the fan-out logic, the Redis write pipeline, and the WebSocket push.\n\n```rust\nuse tokio::sync::mpsc;\n\nasync fn fan_out(event: Event, subscribers: Vec<UserId>) {\n    let (tx, mut rx) = mpsc::channel(1024);\n\n    for user_id in subscribers {\n        let tx = tx.clone();\n        let event = event.clone();\n        tokio::spawn(async move {\n            if let Ok(feed_key) = push_to_feed(user_id, &event).await {\n                let _ = tx.send(feed_key).await;\n            }\n        });\n    }\n    drop(tx);\n\n    while let Some(key) = rx.recv().await {\n        notify_websocket_clients(key).await;\n    }\n}\n```\n\n## Results\n\n- CPU: 40 cores \u2192 4 cores\n- Median latency: 800ms \u2192 12ms\n- p99 latency: 4.2s \u2192 45ms\n- Monthly compute cost: $12K \u2192 $900\n\n## What We Kept in Python\n\nEverything. Auth, admin, REST API, background jobs, migrations\u2014all Django. The Rust service is a single, isolated hot path. We write new features in Python and only reach for Rust when profiling shows a genuine bottleneck that Python cannot solve.",
       "excerpt": "We replaced one Django service with Rust: CPU dropped 10x, latency dropped 60x. Here's why we chose Rust over Go, how we designed the boundary, and what we kept in Python.",
-      "status": "draft",
+      "status": "published",
       "tags": [4, 1, 11],
       "created_at": "2025-04-20T09:00:00Z",
       "updated_at": "2025-04-21T15:00:00Z",
-      "published_at": null
+      "published_at": "2025-04-20T09:00:00Z"
     }
   },
   {
