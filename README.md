@@ -145,7 +145,8 @@ GET  /api/users/                User list
 GET  /api/users/:username/      User profile + posts
 GET  /api/users/:username/comments/ User's comments
 
-GET  /api/dashboard/            Aggregated site stats
+GET  /api/dashboard/            Aggregated site stats (panels)
+GET  /api/activity/             Recent activity for header ticker
 ```
 
 All list endpoints are paginated (default page size: 50). All write endpoints are rate-limited.

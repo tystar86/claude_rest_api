@@ -35,6 +35,7 @@ def _build_endpoints(post_slug, tag_slug, username, comment_id):
     return [
         # ── Public reads ──────────────────────────────────────────────
         ("GET", "/api/dashboard/", None, "Dashboard (aggregated stats)"),
+        ("GET", "/api/activity/", None, "Activity ticker (header)"),
         ("GET", "/api/posts/", None, "Post list (page 1)"),
         ("GET", "/api/posts/?page=2", None, "Post list (page 2)"),
         ("GET", f"/api/posts/{post_slug}/", None, "Post detail + comments"),

@@ -12,6 +12,7 @@ from django.test import RequestFactory
 
 from blog.api.auth.schemas import CurrentUserResponse
 from blog.api.data.schemas import (
+    ActivityResponse,
     CommentListItemResponse,
     CommentResponse,
     DashboardResponse,
@@ -159,6 +160,11 @@ class TestDashboardSchemaContract:
         data = api_views.build_dashboard_payload()
         validated = DashboardResponse(**data)
         assert validated.stats.total_posts >= 1
+
+    def test_activity_payload_validates(self, post, comment):
+        data = api_views.build_activity_payload()
+        validated = ActivityResponse(**data)
+        assert validated.latest_post_title == post.title
 
 
 @pytest.mark.django_db

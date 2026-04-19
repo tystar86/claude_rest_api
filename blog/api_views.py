@@ -101,20 +101,13 @@ def can_access_comment(user, comment):
 _DASHBOARD_CACHE_KEY = "dashboard_data"
 _DASHBOARD_CACHE_TTL = 60  # seconds
 
+_ACTIVITY_CACHE_KEY = "activity_data"
+_ACTIVITY_CACHE_TTL = 300  # seconds — header ticker; short DB/query load
 
-def build_dashboard_payload():
-    """Assemble dashboard JSON (no caching); used by Ninja read routes."""
+
+def build_activity_payload():
+    """Recent public activity for the navbar ticker (no caching); used by /api/activity/."""
     published = Post.objects.filter(status=Post.Status.PUBLISHED)
-    total_posts = published.count()
-    total_comments = Comment.objects.filter(post__status=Post.Status.PUBLISHED).count()
-    total_authors = User.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
-    active_tags = Tag.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
-    cutoff_7d = timezone.now() - timedelta(days=7)
-    new_posts_7d = published.filter(
-        Q(published_at__gte=cutoff_7d)
-        | (Q(published_at__isnull=True) & Q(created_at__gte=cutoff_7d))
-    ).count()
-
     latest_post = published.order_by("-published_at", "-created_at").defer("body").first()
     latest_comment = (
         Comment.objects.filter(post__status=Post.Status.PUBLISHED)
@@ -143,6 +136,21 @@ def build_dashboard_payload():
     if latest_user:
         activity["latest_user_username"] = latest_user.username
         activity["latest_user_joined_at"] = latest_user.date_joined
+    return activity
+
+
+def build_dashboard_payload():
+    """Assemble dashboard JSON (no caching); used by Ninja read routes."""
+    published = Post.objects.filter(status=Post.Status.PUBLISHED)
+    total_posts = published.count()
+    total_comments = Comment.objects.filter(post__status=Post.Status.PUBLISHED).count()
+    total_authors = User.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
+    active_tags = Tag.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
+    cutoff_7d = timezone.now() - timedelta(days=7)
+    new_posts_7d = published.filter(
+        Q(published_at__gte=cutoff_7d)
+        | (Q(published_at__isnull=True) & Q(created_at__gte=cutoff_7d))
+    ).count()
 
     return {
         "stats": {
@@ -152,7 +160,6 @@ def build_dashboard_payload():
             "active_tags": active_tags,
             "new_posts_7d": new_posts_7d,
         },
-        "activity": activity,
         "latest_posts": PostSerializer(
             _published_posts_list_qs().order_by("-created_at")[:10],
             many=True,

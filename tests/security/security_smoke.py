@@ -195,6 +195,7 @@ def check_content_type_enforcement(base_url: str) -> CheckResult:
     endpoints = [
         "/api/posts/",
         "/api/dashboard/",
+        "/api/activity/",
         "/api/tags/",
     ]
     non_json = []

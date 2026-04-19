@@ -9,6 +9,7 @@ import { mockMobileViewport, mockDesktopViewport } from "./test/viewport";
 vi.mock("./api/client", () => import("./test/mocks/client.js"));
 
 import {
+  fetchActivity,
   fetchCurrentUser,
   fetchDashboard,
   fetchPosts,
@@ -37,10 +38,11 @@ const DASHBOARD_PAYLOAD = {
   most_liked_posts: [],
   most_used_tags: [{ id: 1, slug: "django", name: "django", post_count: 2 }],
   top_authors: [{ id: 1, username: "alice", post_count: 2 }],
-  activity: {
-    latest_post_title: "Alpha",
-    latest_post_at: "2026-01-01T12:00:00Z",
-  },
+};
+
+const ACTIVITY_PAYLOAD = {
+  latest_post_title: "Alpha",
+  latest_post_at: "2026-01-01T12:00:00Z",
 };
 
 function renderAppAt(path) {
@@ -59,6 +61,7 @@ describe("App mobile layout (narrow viewport)", () => {
       profile: { role: "user" },
     });
     vi.mocked(fetchDashboard).mockResolvedValue(DASHBOARD_PAYLOAD);
+    vi.mocked(fetchActivity).mockResolvedValue(ACTIVITY_PAYLOAD);
     vi.mocked(fetchPosts).mockResolvedValue({
       results: [
         {

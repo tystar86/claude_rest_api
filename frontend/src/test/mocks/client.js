@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 
 export const fetchDashboard = vi.fn();
+export const fetchActivity = vi.fn();
 export const fetchComments = vi.fn();
 
 export const fetchPosts = vi.fn();

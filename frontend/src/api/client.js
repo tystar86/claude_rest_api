@@ -43,6 +43,7 @@ api.interceptors.request.use(async (config) => {
 });
 
 export const fetchDashboard = () => api.get("/dashboard/").then((r) => r.data);
+export const fetchActivity = () => api.get("/activity/").then((r) => r.data);
 export const fetchComments = (page = 1) => api.get(`/comments/?page=${page}`).then((r) => r.data);
 
 export const fetchPosts = (page = 1) => api.get(`/posts/?page=${page}`).then((r) => r.data);
