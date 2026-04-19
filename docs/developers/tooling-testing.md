@@ -167,9 +167,13 @@ This starts:
 - Django on `8000`
 - Vite on `5173`
 
+That full-stack path is **local development only**. Production does not use Docker Compose; the hosted backend is built from `Dockerfile.backend` and runs Gunicorn via `start.sh`, as configured in `render.yaml`.
+
 ### Backend container behavior
 
 `Dockerfile.backend` installs dependencies with `uv`.
+
+When you use **Docker Compose**, the `command` in `docker-compose.yml` **overrides** the image default and runs Django’s `runserver` (with migrations) instead of `start.sh`. A **production** deploy uses the Dockerfile `CMD` / `start.sh` and Gunicorn.
 
 `start.sh` then:
 
@@ -178,6 +182,30 @@ This starts:
 3. runs `migrate`
 4. runs `collectstatic`
 5. starts Gunicorn
+
+### Debugging the backend with pdb in Docker Compose
+
+The local `backend` service uses Django’s `runserver` with `--nothreading` and `--noreload`, and allocates a TTY so `breakpoint()` / `pdb.set_trace()` can work with `docker attach`. Do **not** rely on a **foreground** `docker compose up` session for typing at the debugger: that terminal is Compose’s log multiplex, not the backend’s stdin.
+
+1. Start the stack in the background (rebuild if you changed the image):
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+   (`docker-compose up -d --build` is the same with the legacy CLI.)
+
+2. In **another** terminal, attach to the backend container **before** you hit the breakpoint, or as soon as execution stops:
+
+   ```bash
+   docker attach claude_rest_api_backend
+   ```
+
+3. Reproduce the request in the browser (or client). The `(Pdb)` prompt and your commands should appear in the **attach** terminal.
+
+4. **Detach** from the container **without** stopping it: **Ctrl+P**, then **Ctrl+Q**.
+
+   Avoid **Ctrl+C** while attached unless you intend to send an interrupt to the main process inside the container.
 
 ### Frontend container behavior
 

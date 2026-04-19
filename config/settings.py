@@ -22,7 +22,8 @@ load_dotenv(f".env.{DJANGO_ENV}")
 TEST_USE_POSTGRES = os.environ.get("TEST_USE_POSTGRES", "False").lower() == "true"
 
 # django-silk: ENABLE_SILK = True only (never in pytest "testing" unless explicitly forced).
-ENABLE_SILK: bool = os.environ.get("ENABLE_SILK", "").lower() == "true"
+ENABLE_SILK: bool = os.environ.get("ENABLE_SILK", "False").lower() == "true"
+SILKY_PYTHON_PROFILER: bool = os.environ.get("SILKY_PYTHON_PROFILER", "False").lower() == "true"
 
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 

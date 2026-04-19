@@ -116,7 +116,7 @@ class TestPaginationSchemaContract:
     def test_paginated_posts_validates(self, post):
         request = self._make_request()
         data = api_views.paginate(
-            Post.objects.filter(status=Post.Status.PUBLISHED),
+            Post.published.all(),
             request,
             PostSerializer,
         )
@@ -127,7 +127,7 @@ class TestPaginationSchemaContract:
     def test_paginated_tags_validates(self, tag):
         request = self._make_request()
         qs = Tag.objects.annotate(
-            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+            post_count=Count("posts", filter=Q(posts__in=Post.published.values("id")))
         )
         data = api_views.paginate(qs, request, TagSerializer)
         validated = PaginatedTagsResponse(**data)
@@ -136,7 +136,7 @@ class TestPaginationSchemaContract:
     def test_paginated_users_validates(self, user):
         request = self._make_request()
         qs = User.objects.select_related("profile").annotate(
-            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+            post_count=Count("posts", filter=Q(posts__in=Post.published.values("id")))
         )
         data = api_views.paginate(qs, request, UserSerializer)
         validated = PaginatedUsersResponse(**data)
@@ -145,7 +145,7 @@ class TestPaginationSchemaContract:
     def test_paginated_comments_validates(self, comment):
         request = self._make_request()
         qs = (
-            Comment.objects.filter(post__status=Post.Status.PUBLISHED)
+            Comment.objects.filter(post__in=Post.published.values("id"))
             .select_related("author", "post")
             .prefetch_related("votes")
         )
@@ -173,11 +173,11 @@ class TestTagDetailSchemaContract:
         post.tags.add(tag)
         request = _anon_request()
         annotated_tag = Tag.objects.annotate(
-            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+            post_count=Count("posts", filter=Q(posts__in=Post.published.values("id")))
         ).get(pk=tag.pk)
         tag_data = TagSerializer(annotated_tag).data
         posts_data = api_views.paginate(
-            Post.objects.filter(tags=tag, status=Post.Status.PUBLISHED),
+            Post.published.filter(tags=tag),
             request,
             PostSerializer,
         )
@@ -193,12 +193,12 @@ class TestUserDetailSchemaContract:
         request = _anon_request()
         annotated_user = (
             User.objects.select_related("profile")
-            .annotate(post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED)))
+            .annotate(post_count=Count("posts", filter=Q(posts__in=Post.published.values("id"))))
             .get(pk=user.pk)
         )
         user_data = UserSerializer(annotated_user).data
         posts_data = api_views.paginate(
-            Post.objects.filter(author=user, status=Post.Status.PUBLISHED),
+            Post.published.filter(author=user),
             request,
             PostSerializer,
         )

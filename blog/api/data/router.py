@@ -13,7 +13,14 @@ from django.db.models import Count, Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_protect
 from ninja import Router
-from blog import api_views
+from blog.api_views import (
+    build_activity_payload,
+    build_dashboard_payload,
+    paginate,
+    has_elevated_post_access,
+    can_access_comment,
+    can_manage_tags,
+)
 from blog.models import Comment, CommentVote, Post, Tag
 from blog.serializers import (
     CommentListSerializer,
@@ -24,11 +31,16 @@ from blog.serializers import (
     UserSerializer,
 )
 from blog.services import PostService
-from blog.utils import build_unique_slug
 
-from ..constants import AUTHENTICATION_REQUIRED_DETAIL
+from ..constants import (
+    ACTIVITY_CACHE_KEY,
+    ACTIVITY_CACHE_TTL,
+    AUTHENTICATION_REQUIRED_DETAIL,
+    DASHBOARD_CACHE_KEY,
+    DASHBOARD_CACHE_TTL,
+)
 from ..throttling import READ_THROTTLES, WRITE_THROTTLES
-from ..utils import request_data_or_error as _request_data_or_error
+from ..utils import build_unique_slug, request_data_or_error
 from .schemas import (
     ActivityResponse,
     DashboardResponse,
@@ -45,11 +57,6 @@ from .schemas import (
 router = Router(tags=["Data"], throttle=READ_THROTTLES)
 
 _PARENT_ID_COERCE_ERRORS = (TypeError, ValueError)
-
-
-def _not_found_response() -> JsonResponse:
-    detail = "Not found."
-    return JsonResponse({"detail": detail}, status=404)
 
 
 def _unauthorized_response() -> JsonResponse:
@@ -75,19 +82,20 @@ def _post_detail_queryset():
 
 @router.api_operation(["GET", "HEAD"], "/activity/", response=ActivityResponse)
 def activity(request: HttpRequest):
-    data = cache.get(api_views._ACTIVITY_CACHE_KEY)
+    data = cache.get(ACTIVITY_CACHE_KEY)
+
     if data is None:
-        data = api_views.build_activity_payload()
-        cache.set(api_views._ACTIVITY_CACHE_KEY, data, api_views._ACTIVITY_CACHE_TTL)
+        data = build_activity_payload()
+        cache.set(ACTIVITY_CACHE_KEY, data, ACTIVITY_CACHE_TTL)
     return JsonResponse(data, status=200)
 
 
 @router.api_operation(["GET", "HEAD"], "/dashboard/", response=DashboardResponse)
 def dashboard(request: HttpRequest):
-    data = cache.get(api_views._DASHBOARD_CACHE_KEY)
+    data = cache.get(DASHBOARD_CACHE_KEY)
     if data is None:
-        data = api_views.build_dashboard_payload()
-        cache.set(api_views._DASHBOARD_CACHE_KEY, data, api_views._DASHBOARD_CACHE_TTL)
+        data = build_dashboard_payload()
+        cache.set(DASHBOARD_CACHE_KEY, data, DASHBOARD_CACHE_TTL)
     return JsonResponse(data, status=200)
 
 
@@ -96,8 +104,8 @@ def dashboard(request: HttpRequest):
 
 @router.api_operation(["GET", "HEAD"], "/posts/", response=PaginatedPostsResponse)
 def post_list(request: HttpRequest):
-    qs = api_views._published_posts_list_qs().order_by("-created_at")
-    return JsonResponse(api_views.paginate(qs, request, PostSerializer), status=200)
+    qs = Post.published.list_qs()
+    return JsonResponse(paginate(qs, request, PostSerializer), status=200)
 
 
 @router.post("/posts/", throttle=WRITE_THROTTLES)
@@ -106,7 +114,7 @@ def create_post(request: HttpRequest):
     if not request.user.is_authenticated:
         return _unauthorized_response()
 
-    data, error = _request_data_or_error(request)
+    data, error = request_data_or_error(request)
     if error is not None:
         return error
     post, errors = PostService.create(author=request.user, data=data)
@@ -126,12 +134,10 @@ def post_detail(request: HttpRequest, slug: str):
     try:
         post = _post_detail_queryset().get(slug=slug)
     except Post.DoesNotExist:
-        return _not_found_response()
+        return JsonResponse({"detail": "Not found."}, status=404)
 
-    if post.status != Post.Status.PUBLISHED and not api_views.has_elevated_post_access(
-        request.user, post
-    ):
-        return _not_found_response()
+    if post.status != Post.Status.PUBLISHED and not has_elevated_post_access(request.user, post):
+        return JsonResponse({"detail": "Not found."}, status=404)
 
     payload = _serialize(PostDetailSerializer, post, request=request)
     return JsonResponse(payload, status=200)
@@ -146,12 +152,12 @@ def update_post(request: HttpRequest, slug: str):
     try:
         post = _post_detail_queryset().get(slug=slug)
     except Post.DoesNotExist:
-        return _not_found_response()
+        return JsonResponse({"detail": "Not found."}, status=404)
 
-    if not api_views.has_elevated_post_access(request.user, post):
+    if not has_elevated_post_access(request.user, post):
         return JsonResponse({"detail": "You can edit/delete only your own posts."}, status=403)
 
-    data, error = _request_data_or_error(request)
+    data, error = request_data_or_error(request)
     if error is not None:
         return error
     _, errors = PostService.update(instance=post, data=data)
@@ -171,9 +177,9 @@ def delete_post(request: HttpRequest, slug: str):
     try:
         post = _post_detail_queryset().get(slug=slug)
     except Post.DoesNotExist:
-        return _not_found_response()
+        return JsonResponse({"detail": "Not found."}, status=404)
 
-    if not api_views.has_elevated_post_access(request.user, post):
+    if not has_elevated_post_access(request.user, post):
         return JsonResponse({"detail": "You can edit/delete only your own posts."}, status=403)
 
     post.delete()
@@ -186,12 +192,12 @@ def delete_post(request: HttpRequest, slug: str):
 @router.api_operation(["GET", "HEAD"], "/comments/", response=PaginatedCommentsResponse)
 def comment_list(request: HttpRequest):
     qs = (
-        Comment.objects.filter(post__status=Post.Status.PUBLISHED)
+        Comment.objects.filter(post__in=Post.published.values("id"))
         .select_related("author", "post")
         .prefetch_related("votes")
         .order_by("-created_at")
     )
-    return JsonResponse(api_views.paginate(qs, request, CommentListSerializer), status=200)
+    return JsonResponse(paginate(qs, request, CommentListSerializer), status=200)
 
 
 @router.api_operation(
@@ -203,12 +209,10 @@ def comment_list_by_post(request: HttpRequest, slug: str):
     try:
         post = Post.objects.select_related("author").get(slug=slug)
     except Post.DoesNotExist:
-        return _not_found_response()
+        return JsonResponse({"detail": "Not found."}, status=404)
 
-    if post.status != Post.Status.PUBLISHED and not api_views.has_elevated_post_access(
-        request.user, post
-    ):
-        return _not_found_response()
+    if post.status != Post.Status.PUBLISHED and not has_elevated_post_access(request.user, post):
+        return JsonResponse({"detail": "Not found."}, status=404)
 
     qs = (
         Comment.objects.filter(post=post)
@@ -216,7 +220,7 @@ def comment_list_by_post(request: HttpRequest, slug: str):
         .prefetch_related("votes")
         .order_by("-created_at")
     )
-    return JsonResponse(api_views.paginate(qs, request, CommentListSerializer), status=200)
+    return JsonResponse(paginate(qs, request, CommentListSerializer), status=200)
 
 
 @router.post("/posts/{slug}/comments/", throttle=WRITE_THROTTLES)
@@ -225,7 +229,7 @@ def comment_create(request: HttpRequest, slug: str):
     if not request.user.is_authenticated:
         return JsonResponse({"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=401)
 
-    data, error = _request_data_or_error(request)
+    data, error = request_data_or_error(request)
     if error is not None:
         return error
     body = data.get("body")
@@ -238,11 +242,9 @@ def comment_create(request: HttpRequest, slug: str):
     try:
         post = Post.objects.get(slug=slug)
     except Post.DoesNotExist:
-        return _not_found_response()
-    if post.status != Post.Status.PUBLISHED and not api_views.has_elevated_post_access(
-        request.user, post
-    ):
-        return _not_found_response()
+        return JsonResponse({"detail": "Not found."}, status=404)
+    if post.status != Post.Status.PUBLISHED and not has_elevated_post_access(request.user, post):
+        return JsonResponse({"detail": "Not found."}, status=404)
 
     parent_id = data.get("parent_id")
     parent = None
@@ -271,7 +273,7 @@ def comment_vote(request: HttpRequest, comment_id: int):
     if not request.user.is_authenticated:
         return JsonResponse({"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=401)
 
-    data, error = _request_data_or_error(request)
+    data, error = request_data_or_error(request)
     if error is not None:
         return error
     vote_type = data.get("vote")
@@ -281,9 +283,9 @@ def comment_vote(request: HttpRequest, comment_id: int):
     try:
         comment = Comment.objects.select_related("post", "author").get(id=comment_id)
     except Comment.DoesNotExist:
-        return _not_found_response()
-    if not api_views.can_access_comment(request.user, comment):
-        return _not_found_response()
+        return JsonResponse({"detail": "Not found."}, status=404)
+    if not can_access_comment(request.user, comment):
+        return JsonResponse({"detail": "Not found."}, status=404)
 
     existing = CommentVote.objects.filter(comment=comment, user=request.user).first()
     if existing:
@@ -309,9 +311,9 @@ def comment_update(request: HttpRequest, comment_id: int):
     try:
         comment = Comment.objects.get(id=comment_id, author_id=request.user.id)
     except Comment.DoesNotExist:
-        return _not_found_response()
+        return JsonResponse({"detail": "Not found."}, status=404)
 
-    data, error = _request_data_or_error(request)
+    data, error = request_data_or_error(request)
     if error is not None:
         return error
     body = data.get("body")
@@ -337,7 +339,7 @@ def comment_delete(request: HttpRequest, comment_id: int):
     try:
         comment = Comment.objects.get(id=comment_id, author_id=request.user.id)
     except Comment.DoesNotExist:
-        return _not_found_response()
+        return JsonResponse({"detail": "Not found."}, status=404)
 
     comment.delete()
     return HttpResponse(status=204)
@@ -349,9 +351,9 @@ def comment_delete(request: HttpRequest, comment_id: int):
 @router.api_operation(["GET", "HEAD"], "/tags/", response=PaginatedTagsResponse)
 def tag_list(request: HttpRequest):
     qs = Tag.objects.annotate(
-        post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+        post_count=Count("posts", filter=Q(posts__in=Post.published.values("id")))
     ).order_by("name")
-    return JsonResponse(api_views.paginate(qs, request, TagSerializer), status=200)
+    return JsonResponse(paginate(qs, request, TagSerializer), status=200)
 
 
 @router.post("/tags/", throttle=WRITE_THROTTLES)
@@ -359,10 +361,10 @@ def tag_list(request: HttpRequest):
 def create_tag(request: HttpRequest):
     if not request.user.is_authenticated:
         return JsonResponse({"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=401)
-    if not api_views.can_manage_tags(request.user):
+    if not can_manage_tags(request.user):
         return JsonResponse({"detail": "Only moderators/admins can create tags."}, status=403)
 
-    data, error = _request_data_or_error(request)
+    data, error = request_data_or_error(request)
     if error is not None:
         return error
     name = data.get("name")
@@ -390,15 +392,15 @@ def create_tag(request: HttpRequest):
 def tag_detail(request: HttpRequest, slug: str):
     try:
         tag = Tag.objects.annotate(
-            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+            post_count=Count("posts", filter=Q(posts__in=Post.published.values("id")))
         ).get(slug=slug)
     except Tag.DoesNotExist:
-        return _not_found_response()
+        return JsonResponse({"detail": "Not found."}, status=404)
 
-    posts_qs = api_views._published_posts_list_qs().filter(tags=tag).order_by("-created_at")
+    posts_qs = Post.published.list_qs().filter(tags=tag)
     payload = {
         "tag": _serialize(TagSerializer, tag, request=request),
-        **api_views.paginate(
+        **paginate(
             posts_qs,
             request,
             PostSerializer,
@@ -413,17 +415,17 @@ def tag_detail(request: HttpRequest, slug: str):
 def update_tag(request: HttpRequest, slug: str):
     if not request.user.is_authenticated:
         return JsonResponse({"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=401)
-    if not api_views.can_manage_tags(request.user):
+    if not can_manage_tags(request.user):
         return JsonResponse({"detail": "Only moderators/admins can manage tags."}, status=403)
 
     try:
         tag = Tag.objects.annotate(
-            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+            post_count=Count("posts", filter=Q(posts__in=Post.published.values("id")))
         ).get(slug=slug)
     except Tag.DoesNotExist:
-        return _not_found_response()
+        return JsonResponse({"detail": "Not found."}, status=404)
 
-    data, error = _request_data_or_error(request)
+    data, error = request_data_or_error(request)
     if error is not None:
         return error
     name = data.get("name")
@@ -449,13 +451,13 @@ def update_tag(request: HttpRequest, slug: str):
 def delete_tag(request: HttpRequest, slug: str):
     if not request.user.is_authenticated:
         return JsonResponse({"detail": AUTHENTICATION_REQUIRED_DETAIL}, status=401)
-    if not api_views.can_manage_tags(request.user):
+    if not can_manage_tags(request.user):
         return JsonResponse({"detail": "Only moderators/admins can manage tags."}, status=403)
 
     try:
         tag = Tag.objects.get(slug=slug)
     except Tag.DoesNotExist:
-        return _not_found_response()
+        return JsonResponse({"detail": "Not found."}, status=404)
 
     tag.delete()
     return HttpResponse(status=204)
@@ -468,10 +470,10 @@ def delete_tag(request: HttpRequest, slug: str):
 def user_list(request: HttpRequest):
     qs = (
         User.objects.select_related("profile")
-        .annotate(post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED)))
+        .annotate(post_count=Count("posts", filter=Q(posts__in=Post.published.values("id"))))
         .order_by("-date_joined")
     )
-    return JsonResponse(api_views.paginate(qs, request, UserSerializer), status=200)
+    return JsonResponse(paginate(qs, request, UserSerializer), status=200)
 
 
 @router.api_operation(
@@ -483,16 +485,16 @@ def user_detail(request: HttpRequest, username: str):
     try:
         user = (
             User.objects.select_related("profile")
-            .annotate(post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED)))
+            .annotate(post_count=Count("posts", filter=Q(posts__in=Post.published.values("id"))))
             .get(username=username)
         )
     except User.DoesNotExist:
-        return _not_found_response()
+        return JsonResponse({"detail": "Not found."}, status=404)
 
-    posts_qs = api_views._published_posts_list_qs().filter(author=user).order_by("-created_at")
+    posts_qs = Post.published.list_qs().filter(author=user)
     payload = {
         "user": _serialize(UserSerializer, user, request=request),
-        **api_views.paginate(
+        **paginate(
             posts_qs,
             request,
             PostSerializer,
@@ -511,12 +513,12 @@ def user_comments(request: HttpRequest, username: str):
     try:
         user = User.objects.get(username=username)
     except User.DoesNotExist:
-        return _not_found_response()
+        return JsonResponse({"detail": "Not found."}, status=404)
 
     qs = (
-        Comment.objects.filter(author=user, post__status=Post.Status.PUBLISHED)
+        Comment.objects.filter(author=user, post__in=Post.published.values("id"))
         .select_related("author", "post")
         .prefetch_related("votes")
         .order_by("-created_at")
     )
-    return JsonResponse(api_views.paginate(qs, request, CommentListSerializer), status=200)
+    return JsonResponse(paginate(qs, request, CommentListSerializer), status=200)

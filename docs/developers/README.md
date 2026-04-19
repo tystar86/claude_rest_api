@@ -28,7 +28,7 @@ Recommended reading order:
 
 ## What Is Intentionally Separated
 
-- Production deploy runbooks are only summarized here. The source-of-truth deploy files are `render.yaml`, `Dockerfile.backend`, `frontend/vercel.json`, and `docker-compose.yml`.
+- Production deploy runbooks are only summarized here. The source-of-truth **production** deploy files are `render.yaml`, `Dockerfile.backend`, and `frontend/vercel.json`. `docker-compose.yml` is for **local** full-stack development only (it overrides the backend image to use `runserver`, not Gunicorn).
 - Feature-by-feature API docs are not broken into a separate reference yet. The best source for endpoint behavior is `blog/api_urls.py`, `blog/api/`, and shared helpers in `blog/api_views.py`.
 
 ## Known Documentation Notes

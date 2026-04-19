@@ -4,9 +4,9 @@ from datetime import timedelta
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 
-from django.db.models import Count, IntegerField, OuterRef, Q, Subquery
+from django.db import connection
+from django.db.models import Count, Q
 from django.utils import timezone
-from django.db.models.functions import Coalesce
 
 from .models import Comment, CommentVote, Post, Tag
 from .serializers import (
@@ -43,27 +43,7 @@ def paginate(qs, request, serializer_class, *, total_count: int | None = None):
     }
 
 
-def _published_posts_list_qs():
-    """Queryset for PostSerializer list cards: skip heavy body, count comments on published posts."""
-    comment_count_sq = (
-        Comment.objects.filter(post=OuterRef("pk"))
-        .order_by()
-        .values("post")
-        .annotate(cnt=Count("id"))
-        .values("cnt")
-    )
-    return (
-        Post.objects.filter(status=Post.Status.PUBLISHED)
-        .defer("body")
-        .select_related("author")
-        .prefetch_related("tags")
-        .annotate(
-            comment_count=Coalesce(Subquery(comment_count_sq, output_field=IntegerField()), 0)
-        )
-    )
-
-
-def can_manage_tags(user):
+def can_manage_tags(user: User) -> bool:
     if not user.is_authenticated:
         return False
     if user.is_superuser or user.is_staff:
@@ -72,7 +52,7 @@ def can_manage_tags(user):
     return role in ("moderator", "admin")
 
 
-def has_elevated_post_access(user, post):
+def has_elevated_post_access(user: User, post: Post) -> bool:
     """True if the user may view unpublished content or modify a post (author/staff/mod)."""
     if not user.is_authenticated:
         return False
@@ -85,7 +65,7 @@ def has_elevated_post_access(user, post):
     )
 
 
-def can_access_comment(user, comment):
+def can_access_comment(user: User, comment: Comment) -> bool:
     if comment.post.status == Post.Status.PUBLISHED:
         return True
     if not user.is_authenticated:
@@ -98,85 +78,104 @@ def can_access_comment(user, comment):
 # ── Dashboard ──────────────────────────────────────────────────────────────────
 
 
-_DASHBOARD_CACHE_KEY = "dashboard_data"
-_DASHBOARD_CACHE_TTL = 60  # seconds
-
-_ACTIVITY_CACHE_KEY = "activity_data"
-_ACTIVITY_CACHE_TTL = 300  # seconds — header ticker; short DB/query load
-
-
-def build_activity_payload():
+def build_activity_payload() -> dict:
     """Recent public activity for the navbar ticker (no caching); used by /api/activity/."""
-    published = Post.objects.filter(status=Post.Status.PUBLISHED)
-    # Effective sort key avoids Postgres NULLS FIRST on -published_at ranking unset
-    # published posts ahead of newer-timestamp posts that have a real published_at.
-    latest_post = (
-        published.annotate(_activity_pub_at=Coalesce("published_at", "created_at"))
-        .order_by("-_activity_pub_at")
-        .defer("body")
-        .first()
-    )
-    latest_comment = (
-        Comment.objects.filter(post__status=Post.Status.PUBLISHED)
-        .select_related("author", "post")
-        .order_by("-created_at")
-        .first()
-    )
-    latest_user = User.objects.order_by("-date_joined").first()
+    # Single SQL round-trip replaces three ORM queries; ordering matches prior Coalesce(post) logic.
+    post_table = Post._meta.db_table
+    comment_table = Comment._meta.db_table
+    user_table = User._meta.db_table
+    status = Post.Status.PUBLISHED
 
-    activity = {
-        "latest_post_title": None,
-        "latest_post_at": None,
-        "latest_comment_author": None,
-        "latest_comment_at": None,
-        "latest_comment_post_title": None,
-        "latest_user_username": None,
-        "latest_user_joined_at": None,
+    sql = f"""
+        WITH
+        lp AS (
+            SELECT title, published_at, created_at
+            FROM {post_table}
+            WHERE status = %s
+            ORDER BY COALESCE(published_at, created_at) DESC
+            LIMIT 1
+        ),
+        lc AS (
+            SELECT c.id, c.created_at, c.author_id, c.post_id
+            FROM {comment_table} c
+            INNER JOIN {post_table} p ON c.post_id = p.id
+            WHERE p.status = %s
+            ORDER BY c.created_at DESC
+            LIMIT 1
+        ),
+        lu AS (
+            SELECT username, date_joined
+            FROM {user_table}
+            ORDER BY date_joined DESC
+            LIMIT 1
+        )
+        SELECT
+            (SELECT title FROM lp),
+            (SELECT COALESCE(published_at, created_at) FROM lp),
+            (SELECT u.username FROM lc INNER JOIN {user_table} u ON u.id = lc.author_id),
+            (SELECT created_at FROM lc),
+            (SELECT p.title FROM lc INNER JOIN {post_table} p ON p.id = lc.post_id),
+            (SELECT username FROM lu),
+            (SELECT date_joined FROM lu)
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(sql, [status, status])
+        row = cursor.fetchone()
+
+    (
+        latest_post_title,
+        latest_post_at,
+        latest_comment_author,
+        latest_comment_at,
+        latest_comment_post_title,
+        latest_user_username,
+        latest_user_joined_at,
+    ) = row
+
+    return {
+        "latest_post_title": latest_post_title,
+        "latest_post_at": latest_post_at,
+        "latest_comment_author": latest_comment_author,
+        "latest_comment_at": latest_comment_at,
+        "latest_comment_post_title": latest_comment_post_title,
+        "latest_user_username": latest_user_username,
+        "latest_user_joined_at": latest_user_joined_at,
     }
-    if latest_post:
-        activity["latest_post_title"] = latest_post.title
-        activity["latest_post_at"] = latest_post.published_at or latest_post.created_at
-    if latest_comment:
-        activity["latest_comment_author"] = latest_comment.author.username
-        activity["latest_comment_at"] = latest_comment.created_at
-        activity["latest_comment_post_title"] = latest_comment.post.title
-    if latest_user:
-        activity["latest_user_username"] = latest_user.username
-        activity["latest_user_joined_at"] = latest_user.date_joined
-    return activity
 
 
 def build_dashboard_payload():
     """Assemble dashboard JSON (no caching); used by Ninja read routes."""
-    published = Post.objects.filter(status=Post.Status.PUBLISHED)
-    total_posts = published.count()
-    total_comments = Comment.objects.filter(post__status=Post.Status.PUBLISHED).count()
-    total_authors = User.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
-    active_tags = Tag.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
+    published = Post.published.all()
+    published_ids = published.values("id")
+    total_posts_count = published.count()
+    total_comments_count = Comment.objects.filter(post__in=published_ids).count()
+    total_authors_count = User.objects.filter(posts__in=published_ids).distinct().count()
+    active_tags_count = Tag.objects.filter(posts__in=published_ids).distinct().count()
     cutoff_7d = timezone.now() - timedelta(days=7)
-    new_posts_7d = published.filter(
+    new_posts_7d_count = published.filter(
         Q(published_at__gte=cutoff_7d)
         | (Q(published_at__isnull=True) & Q(created_at__gte=cutoff_7d))
     ).count()
 
     return {
         "stats": {
-            "total_posts": total_posts,
-            "comments": total_comments,
-            "authors": total_authors,
-            "active_tags": active_tags,
-            "new_posts_7d": new_posts_7d,
+            "total_posts": total_posts_count,
+            "comments": total_comments_count,
+            "authors": total_authors_count,
+            "active_tags": active_tags_count,
+            "new_posts_7d": new_posts_7d_count,
         },
         "latest_posts": PostSerializer(
-            _published_posts_list_qs().order_by("-created_at")[:10],
+            Post.published.list_qs()[:10],
             many=True,
         ).data,
         "most_commented_posts": PostSerializer(
-            _published_posts_list_qs().order_by("-comment_count")[:10],
+            Post.published.list_qs().order_by("-comment_count")[:10],
             many=True,
         ).data,
         "most_liked_posts": PostSerializer(
-            _published_posts_list_qs()
+            Post.published.list_qs()
             .annotate(
                 comment_like_count=Count(
                     "comments__votes",
@@ -188,16 +187,14 @@ def build_dashboard_payload():
             many=True,
         ).data,
         "most_used_tags": TagSerializer(
-            Tag.objects.annotate(
-                post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
-            )
+            Tag.objects.annotate(post_count=Count("posts", filter=Q(posts__in=published_ids)))
             .filter(post_count__gt=0)
             .order_by("-post_count")[:10],
             many=True,
         ).data,
         "top_authors": UserSerializer(
             User.objects.select_related("profile")
-            .annotate(post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED)))
+            .annotate(post_count=Count("posts", filter=Q(posts__in=published_ids)))
             .filter(post_count__gt=0)
             .order_by("-post_count")[:10],
             many=True,

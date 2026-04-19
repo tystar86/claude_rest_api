@@ -54,7 +54,7 @@ class UserSerializer(_ReadSerializer):
         if hasattr(obj, "post_count"):
             post_count = obj.post_count
         else:
-            post_count = obj.posts.filter(status=Post.Status.PUBLISHED).count()
+            post_count = Post.published.filter(author=obj).count()
         return {
             "id": obj.id,
             "username": obj.username,

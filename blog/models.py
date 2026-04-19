@@ -1,5 +1,31 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models import Count, IntegerField, OuterRef, Subquery
+from django.db.models.functions import Coalesce
+
+
+class PublishedManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(status=Post.Status.PUBLISHED).order_by("-published_at")
+
+    def list_qs(self):
+        """Published posts annotated for list-card serialization: body deferred, comment count included."""
+        comment_count_sq = (
+            Comment.objects.filter(post=OuterRef("pk"))
+            .order_by()
+            .values("post")
+            .annotate(cnt=Count("id"))
+            .values("cnt")
+        )
+        return (
+            self.get_queryset()
+            .defer("body")
+            .select_related("author")
+            .prefetch_related("tags")
+            .annotate(
+                comment_count=Coalesce(Subquery(comment_count_sq, output_field=IntegerField()), 0)
+            )
+        )
 
 
 class Tag(models.Model):
@@ -14,6 +40,9 @@ class Post(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         PUBLISHED = "published", "Published"
+
+    objects = models.Manager()
+    published = PublishedManager()
 
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True)

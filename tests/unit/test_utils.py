@@ -1,30 +1,73 @@
-"""Unit tests for blog.utils (build_unique_slug) and api_views helpers (paginate, can_manage_tags)."""
+"""Unit tests for blog.api.utils (build_unique_slug) and api_views helpers (paginate, can_manage_tags)."""
 
+import json
 import math
 
 import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
 
-from blog.api.utils import request_data
+from blog.api.utils import request_data_or_error
 from blog.api_views import PAGE_SIZE, can_manage_tags, paginate
-from blog.utils import build_unique_slug
+from blog.api.utils import build_unique_slug
 from blog.models import Tag
 from blog.serializers import TagSerializer
 
 
-# ── request_data (Ninja API JSON body) ─────────────────────────────────────────
+# ── request_data_or_error (Ninja API JSON body) ──────────────────────────────────
 
 
-class TestRequestData:
-    """Tests for blog.api.utils.request_data."""
+class TestRequestDataOrError:
+    """Tests for blog.api.utils.request_data_or_error."""
 
-    def test_invalid_utf8_body_raises_malformed_json_value_error(self):
-        """Bytes that are not valid UTF-8 for JSON decoding map to the same 400 path as bad JSON."""
-        factory = RequestFactory()
-        req = factory.post("/", data=b'\xff\x00{"a": 1}', content_type="application/json")
-        with pytest.raises(ValueError, match="Malformed JSON body"):
-            request_data(req)
+    @pytest.fixture
+    def factory(self):
+        return RequestFactory()
+
+    def test_empty_body_returns_empty_dict_without_error(self, factory):
+        """No body is treated as an empty object payload (same as many handlers expect)."""
+        req = factory.post("/", data=b"", content_type="application/json")
+        data, error = request_data_or_error(req)
+        assert data == {}
+        assert error is None
+
+    def test_valid_json_object_returns_parsed_dict(self, factory):
+        req = factory.post(
+            "/",
+            data=b'{"a": 1, "b": "x"}',
+            content_type="application/json",
+        )
+        data, error = request_data_or_error(req)
+        assert data == {"a": 1, "b": "x"}
+        assert error is None
+
+    def test_invalid_json_syntax_returns_400_json_decode_error_path(self, factory):
+        """Truncated / invalid syntax hits json.loads → JSONDecodeError → same 400 detail."""
+        req = factory.post("/", data=b"{not-json", content_type="application/json")
+        data, error = request_data_or_error(req)
+        assert data == {}
+        assert error is not None
+        assert error.status_code == 400
+        assert json.loads(error.content) == {"detail": "Malformed JSON body."}
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            pytest.param(b"[]", id="array"),
+            pytest.param(b'"just a string"', id="string"),
+            pytest.param(b"42", id="number"),
+            pytest.param(b"null", id="null"),
+            pytest.param(b'\xff\x00{"a": 1}', id="invalid_utf8_bytes"),
+        ],
+    )
+    def test_non_object_or_unreadable_body_returns_same_400_detail(self, factory, body):
+        """Non-object JSON and bad bytes use the same Malformed JSON body response."""
+        req = factory.post("/", data=body, content_type="application/json")
+        data, error = request_data_or_error(req)
+        assert data == {}
+        assert error is not None
+        assert error.status_code == 400
+        assert json.loads(error.content) == {"detail": "Malformed JSON body."}
 
 
 # ── build_unique_slug ──────────────────────────────────────────────────────────
