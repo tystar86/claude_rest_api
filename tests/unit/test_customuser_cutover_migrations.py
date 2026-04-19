@@ -3,6 +3,8 @@ from types import SimpleNamespace
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.db import connection
+from django.db.migrations.loader import MigrationLoader
 
 
 def test_accounts_repair_migration_copies_auth_memberships():
@@ -140,3 +142,15 @@ def test_repoint_migrations_skip_when_fk_already_points_to_customuser(monkeypatc
     migration._repoint_foreign_keys(apps=None, schema_editor=schema_editor)
 
     assert executed_sql == []
+
+
+@pytest.mark.django_db
+def test_legacy_accounts_migration_path_builds_customuser_profile_state():
+    loader = MigrationLoader(connection, replace_migrations=False)
+
+    state = loader.project_state(nodes=[("accounts", "0005_repoint_non_blog_user_fks")])
+    custom_user = state.apps.get_model("accounts", "CustomUser")
+    profile = state.apps.get_model("accounts", "Profile")
+
+    assert custom_user is not None
+    assert profile._meta.get_field("user").remote_field.model is custom_user

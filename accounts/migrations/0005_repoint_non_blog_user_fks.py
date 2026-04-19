@@ -1,4 +1,6 @@
+import django.db.models.deletion
 from django.db import migrations
+from django.db import models
 
 
 USER_FK_TARGETS = (
@@ -84,5 +86,19 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AlterField(
+                    model_name="profile",
+                    name="user",
+                    field=models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="profile",
+                        to="accounts.customuser",
+                    ),
+                ),
+            ],
+            database_operations=[],
+        ),
         migrations.RunPython(_repoint_foreign_keys, migrations.RunPython.noop),
     ]
