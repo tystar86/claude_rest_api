@@ -54,8 +54,14 @@ Dashboard Stats Are Present And Numeric
 Dashboard Returns Latest Posts And Tags
     ${resp}=    GET On Session    api    /api/dashboard/
     ${json}=    Set Variable    ${resp.json()}
-    Dictionary Should Contain Key    ${json}    activity
     Dictionary Should Contain Key    ${json}    latest_posts
     Dictionary Should Contain Key    ${json}    most_liked_posts
     Dictionary Should Contain Key    ${json}    most_used_tags
     Dictionary Should Contain Key    ${json}    top_authors
+
+Activity Endpoint Returns Ticker Fields
+    ${resp}=    GET On Session    api    /api/activity/
+    Should Be Equal As Integers    ${resp.status_code}    200
+    ${json}=    Set Variable    ${resp.json()}
+    Dictionary Should Contain Key    ${json}    latest_post_title
+    Dictionary Should Contain Key    ${json}    latest_user_joined_at

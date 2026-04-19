@@ -27,26 +27,12 @@ class TestDashboardView:
         """Response includes all expected top-level sections."""
         data = api_client.get("/api/dashboard/").json()
         assert "stats" in data
-        assert "activity" in data
         assert "latest_posts" in data
         assert "most_commented_posts" in data
         assert "most_liked_posts" in data
         assert "most_used_tags" in data
         assert "top_authors" in data
-
-    def test_activity_has_expected_fields(self, api_client):
-        """activity block exposes ticker-friendly nullable fields."""
-        activity = api_client.get("/api/dashboard/").json()["activity"]
-        for key in (
-            "latest_post_title",
-            "latest_post_at",
-            "latest_comment_author",
-            "latest_comment_at",
-            "latest_comment_post_title",
-            "latest_user_username",
-            "latest_user_joined_at",
-        ):
-            assert key in activity
+        assert "activity" not in data
 
     def test_stats_contains_expected_fields(self, api_client):
         """stats section exposes all expected counters."""
@@ -64,7 +50,8 @@ class TestDashboardView:
         assert stats["total_posts"] >= 1
         assert stats["new_posts_7d"] >= 1
         assert stats["comments"] >= 1
-        act = data["activity"]
+        assert "activity" not in data
+        act = api_client.get("/api/activity/").json()
         assert act["latest_post_title"] == post.title
         assert act["latest_comment_author"] == comment.author.username
 
@@ -117,7 +104,8 @@ class TestDashboardView:
         assert stats["authors"] == 0
         assert stats["active_tags"] == 0
         assert stats["new_posts_7d"] == 0
-        act = data["activity"]
+        assert "activity" not in data
+        act = api_client.get("/api/activity/").json()
         assert act["latest_post_title"] is None
         assert act["latest_comment_at"] is None
         assert act["latest_user_username"] is None

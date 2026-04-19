@@ -87,7 +87,7 @@ class DashboardStatsResponse(Schema):
     new_posts_7d: int
 
 
-class DashboardActivityResponse(Schema):
+class ActivityResponse(Schema):
     """Recent public activity for the header ticker (nullable when no data)."""
 
     latest_post_title: str | None = None
@@ -101,7 +101,6 @@ class DashboardActivityResponse(Schema):
 
 class DashboardResponse(Schema):
     stats: DashboardStatsResponse
-    activity: DashboardActivityResponse
     latest_posts: list[PostSummaryResponse]
     most_commented_posts: list[PostSummaryResponse]
     most_liked_posts: list[PostSummaryResponse]

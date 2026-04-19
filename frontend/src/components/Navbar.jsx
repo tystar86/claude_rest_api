@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { fetchDashboard } from "../api/client";
+import { fetchActivity } from "../api/client";
 import { useEffect, useRef, useState } from "react";
 import { useNarrowHeader } from "../hooks/useNarrowHeader";
 
@@ -28,10 +28,10 @@ function fmtTickerWhen(iso) {
   });
 }
 
-/** Build scrolling headline lines from dashboard `activity` (news-style). */
-function buildTickerLinesFromDashboard(data) {
+/** Build scrolling headline lines from `/api/activity/` payload (news-style). */
+function buildTickerLinesFromActivity(data) {
   if (!data || data.failed) return null;
-  const a = data.activity ?? {};
+  const a = data;
   const lines = [];
   if (a.latest_post_title && a.latest_post_at) {
     const title = truncTickerLabel(a.latest_post_title, 48);
@@ -69,7 +69,7 @@ export default function Navbar() {
   const prevNarrowRef = useRef(null);
 
   useEffect(() => {
-    fetchDashboard()
+    fetchActivity()
       .then((data) => setTickerSource(data ?? { failed: true }))
       .catch(() => setTickerSource({ failed: true }));
   }, []);
@@ -115,7 +115,7 @@ export default function Navbar() {
     return false;
   };
 
-  const tickerItems = buildTickerLinesFromDashboard(tickerSource);
+  const tickerItems = buildTickerLinesFromActivity(tickerSource);
 
   const primaryNavList = (variant) => (
     <ul className={variant === "desktop" ? "nb-nav" : "nb-nav-mobile-list"}>

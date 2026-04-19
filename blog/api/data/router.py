@@ -30,6 +30,7 @@ from ..constants import AUTHENTICATION_REQUIRED_DETAIL
 from ..throttling import READ_THROTTLES, WRITE_THROTTLES
 from ..utils import request_data_or_error as _request_data_or_error
 from .schemas import (
+    ActivityResponse,
     DashboardResponse,
     NotFoundResponse,
     PaginatedCommentsResponse,
@@ -69,7 +70,16 @@ def _post_detail_queryset():
     )
 
 
-# ── Dashboard ────────────────────────────────────────────────────────────────
+# ── Dashboard & activity (ticker) ───────────────────────────────────────────
+
+
+@router.api_operation(["GET", "HEAD"], "/activity/", response=ActivityResponse)
+def activity(request: HttpRequest):
+    data = cache.get(api_views._ACTIVITY_CACHE_KEY)
+    if data is None:
+        data = api_views.build_activity_payload()
+        cache.set(api_views._ACTIVITY_CACHE_KEY, data, api_views._ACTIVITY_CACHE_TTL)
+    return JsonResponse(data, status=200)
 
 
 @router.api_operation(["GET", "HEAD"], "/dashboard/", response=DashboardResponse)

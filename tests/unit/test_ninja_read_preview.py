@@ -15,10 +15,16 @@ class TestNinjaRead:
         data = resp.json()
         assert resp.status_code == 200
         assert "stats" in data
-        assert "activity" in data
         assert "latest_posts" in data
         assert "most_liked_posts" in data
         assert "most_used_tags" in data
+
+    def test_activity_returns_ticker_shape(self, api_client):
+        resp = api_client.get("/api/activity/")
+        data = resp.json()
+        assert resp.status_code == 200
+        assert "latest_post_title" in data
+        assert "latest_user_joined_at" in data
 
     def test_post_list_is_paginated(self, api_client, post):
         resp = api_client.get("/api/posts/")

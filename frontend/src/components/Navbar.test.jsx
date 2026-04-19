@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation, useSearchParams } from "react-router-dom";
 import { vi } from "vitest";
-import { fetchDashboard } from "../api/client";
+import { fetchActivity } from "../api/client";
 import { mockDesktopViewport, mockMobileViewport } from "../test/viewport";
 vi.mock("../api/client", () => import("../test/mocks/client.js"));
 
@@ -36,39 +36,21 @@ describe("Navbar", () => {
   beforeEach(() => {
     mockDesktopViewport();
     authStore.user = { username: "alice", profile: { role: "user" } };
-    vi.mocked(fetchDashboard).mockResolvedValue({
-      stats: {
-        total_posts: 1,
-        authors: 1,
-        active_tags: 1,
-        comments: 0,
-        new_posts_7d: 0,
-      },
-      activity: {
-        latest_post_title: "Hello",
-        latest_post_at: "2026-04-01T12:00:00.000Z",
-      },
+    vi.mocked(fetchActivity).mockResolvedValue({
+      latest_post_title: "Hello",
+      latest_post_at: "2026-04-01T12:00:00.000Z",
     });
   });
 
-  it("ticker shows news-style lines from dashboard activity", async () => {
-    vi.mocked(fetchDashboard).mockResolvedValue({
-      stats: {
-        total_posts: 2,
-        authors: 1,
-        active_tags: 1,
-        comments: 1,
-        new_posts_7d: 1,
-      },
-      activity: {
-        latest_post_title: "Alpha Post",
-        latest_post_at: "2026-04-10T08:00:00.000Z",
-        latest_comment_author: "bob",
-        latest_comment_at: "2026-04-11T09:00:00.000Z",
-        latest_comment_post_title: "Beta Thread",
-        latest_user_username: "carol",
-        latest_user_joined_at: "2026-04-12T10:00:00.000Z",
-      },
+  it("ticker shows news-style lines from activity endpoint", async () => {
+    vi.mocked(fetchActivity).mockResolvedValue({
+      latest_post_title: "Alpha Post",
+      latest_post_at: "2026-04-10T08:00:00.000Z",
+      latest_comment_author: "bob",
+      latest_comment_at: "2026-04-11T09:00:00.000Z",
+      latest_comment_post_title: "Beta Thread",
+      latest_user_username: "carol",
+      latest_user_joined_at: "2026-04-12T10:00:00.000Z",
     });
     render(
       <MemoryRouter>
@@ -102,7 +84,7 @@ describe("Navbar", () => {
         <Navbar />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(vi.mocked(fetchDashboard)).toHaveBeenCalled());
+    await waitFor(() => expect(vi.mocked(fetchActivity)).toHaveBeenCalled());
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
     expect(within(nav).getByRole("link", { name: "Posts" })).toHaveAttribute("href", "/posts");
@@ -129,7 +111,7 @@ describe("Navbar", () => {
       </MemoryRouter>,
     );
     expect(screen.queryByRole("link", { name: "+ New Post" })).toBeNull();
-    await waitFor(() => expect(vi.mocked(fetchDashboard)).toHaveBeenCalled());
+    await waitFor(() => expect(vi.mocked(fetchActivity)).toHaveBeenCalled());
   });
 
   it("navigates to /posts with openCreate when + New Post is used from another page", async () => {
@@ -197,7 +179,7 @@ describe("Navbar", () => {
         <Navbar />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(vi.mocked(fetchDashboard)).toHaveBeenCalled());
+    await waitFor(() => expect(vi.mocked(fetchActivity)).toHaveBeenCalled());
     expect(screen.queryByRole("navigation", { name: "Primary" })).toBeNull();
     expect(
       screen.getByRole("button", { name: "Open navigation menu" }),
@@ -212,7 +194,7 @@ describe("Navbar", () => {
         <Navbar />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(vi.mocked(fetchDashboard)).toHaveBeenCalled());
+    await waitFor(() => expect(vi.mocked(fetchActivity)).toHaveBeenCalled());
     await user.click(screen.getByRole("button", { name: "Open navigation menu" }));
     expect(await screen.findByRole("link", { name: "Posts" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Tags" })).toBeInTheDocument();
@@ -227,7 +209,7 @@ describe("Navbar", () => {
         <Navbar />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(vi.mocked(fetchDashboard)).toHaveBeenCalled());
+    await waitFor(() => expect(vi.mocked(fetchActivity)).toHaveBeenCalled());
     await user.click(screen.getByRole("button", { name: "Open navigation menu" }));
     expect(await screen.findByRole("link", { name: "Posts" })).toBeInTheDocument();
     await user.keyboard("{Escape}");
