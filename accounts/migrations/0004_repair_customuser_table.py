@@ -29,6 +29,7 @@ def _copy_missing_users(apps, schema_editor):
     existing_ids = set(CustomUser.objects.using(db_alias).values_list("id", flat=True))
     profile_by_user_id = _load_profile_rows(schema_editor)
     auth_user_rows = _load_auth_user_rows(schema_editor)
+    existing_profile_ids = existing_ids & set(profile_by_user_id)
 
     missing_users = []
     for user_row in auth_user_rows:
@@ -53,6 +54,19 @@ def _copy_missing_users(apps, schema_editor):
                 bio=bio,
             )
         )
+
+    if existing_profile_ids:
+        existing_users = CustomUser.objects.using(db_alias).in_bulk(existing_profile_ids)
+        users_to_update = []
+        for user_id, user in existing_users.items():
+            role, bio = profile_by_user_id[user_id]
+            if user.role == role and user.bio == bio:
+                continue
+            user.role = role
+            user.bio = bio
+            users_to_update.append(user)
+        if users_to_update:
+            CustomUser.objects.using(db_alias).bulk_update(users_to_update, ["role", "bio"])
 
     if missing_users:
         CustomUser.objects.using(db_alias).bulk_create(missing_users)

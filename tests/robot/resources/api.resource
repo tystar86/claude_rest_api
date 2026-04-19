@@ -39,7 +39,7 @@ Register Test User
 
 Ensure Moderator User
     # First try host-based seeding (works when backend uses host Python env).
-    &{seed_env}=    Create Dictionary    MOD_USERNAME=${MOD_USERNAME}    MOD_EMAIL=${MOD_EMAIL}    MOD_PASSWORD=${MOD_PASSWORD}
+    &{seed_env}=    Create Dictionary    MOD_USERNAME=${MOD_USERNAME}    MOD_EMAIL=${MOD_EMAIL}    MOD_PASSWORD=${MOD_PASSWORD}    PATH=%{PATH}
     ${result}=    Run Process
     ...    uv
     ...    run
@@ -53,22 +53,20 @@ Ensure Moderator User
     ${status}=    Try Moderator Login
     IF    ${status} != 200
         # Fallback for dockerized local stacks where backend DB is in container.
+        ${docker_bootstrap_cmd}=    Catenate
+        ...    SEPARATOR=
+        ...    export MOD_USERNAME='${MOD_USERNAME}';
+        ...     export MOD_EMAIL='${MOD_EMAIL}';
+        ...     export MOD_PASSWORD='${MOD_PASSWORD}';
+        ...     python manage.py shell -c "${MODERATOR_BOOTSTRAP_CMD}"
         ${docker_result}=    Run Process
         ...    docker-compose
         ...    exec
         ...    -T
-        ...    -e
-        ...    MOD_USERNAME=${MOD_USERNAME}
-        ...    -e
-        ...    MOD_EMAIL=${MOD_EMAIL}
-        ...    -e
-        ...    MOD_PASSWORD=${MOD_PASSWORD}
         ...    backend
-        ...    python
-        ...    manage.py
-        ...    shell
-        ...    -c
-        ...    ${MODERATOR_BOOTSTRAP_CMD}
+        ...    sh
+        ...    -lc
+        ...    ${docker_bootstrap_cmd}
         ...    cwd=${CURDIR}/../../..
         ${status}=    Try Moderator Login
     END
