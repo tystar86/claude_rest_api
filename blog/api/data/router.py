@@ -19,7 +19,6 @@ from blog.api_views import (
     paginate,
     has_elevated_post_access,
     can_access_comment,
-    published_posts_list_qs,
     can_manage_tags,
 )
 from blog.models import Comment, CommentVote, Post, Tag
@@ -105,7 +104,7 @@ def dashboard(request: HttpRequest):
 
 @router.api_operation(["GET", "HEAD"], "/posts/", response=PaginatedPostsResponse)
 def post_list(request: HttpRequest):
-    qs = published_posts_list_qs().order_by("-created_at")
+    qs = Post.published.list_qs()
     return JsonResponse(paginate(qs, request, PostSerializer), status=200)
 
 
@@ -193,7 +192,7 @@ def delete_post(request: HttpRequest, slug: str):
 @router.api_operation(["GET", "HEAD"], "/comments/", response=PaginatedCommentsResponse)
 def comment_list(request: HttpRequest):
     qs = (
-        Comment.objects.filter(post__status=Post.Status.PUBLISHED)
+        Comment.objects.filter(post__in=Post.published.values("id"))
         .select_related("author", "post")
         .prefetch_related("votes")
         .order_by("-created_at")
@@ -352,7 +351,7 @@ def comment_delete(request: HttpRequest, comment_id: int):
 @router.api_operation(["GET", "HEAD"], "/tags/", response=PaginatedTagsResponse)
 def tag_list(request: HttpRequest):
     qs = Tag.objects.annotate(
-        post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+        post_count=Count("posts", filter=Q(posts__in=Post.published.values("id")))
     ).order_by("name")
     return JsonResponse(paginate(qs, request, TagSerializer), status=200)
 
@@ -393,12 +392,12 @@ def create_tag(request: HttpRequest):
 def tag_detail(request: HttpRequest, slug: str):
     try:
         tag = Tag.objects.annotate(
-            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+            post_count=Count("posts", filter=Q(posts__in=Post.published.values("id")))
         ).get(slug=slug)
     except Tag.DoesNotExist:
         return JsonResponse({"detail": "Not found."}, status=404)
 
-    posts_qs = published_posts_list_qs().filter(tags=tag).order_by("-created_at")
+    posts_qs = Post.published.list_qs().filter(tags=tag)
     payload = {
         "tag": _serialize(TagSerializer, tag, request=request),
         **paginate(
@@ -421,7 +420,7 @@ def update_tag(request: HttpRequest, slug: str):
 
     try:
         tag = Tag.objects.annotate(
-            post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
+            post_count=Count("posts", filter=Q(posts__in=Post.published.values("id")))
         ).get(slug=slug)
     except Tag.DoesNotExist:
         return JsonResponse({"detail": "Not found."}, status=404)
@@ -471,7 +470,7 @@ def delete_tag(request: HttpRequest, slug: str):
 def user_list(request: HttpRequest):
     qs = (
         User.objects.select_related("profile")
-        .annotate(post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED)))
+        .annotate(post_count=Count("posts", filter=Q(posts__in=Post.published.values("id"))))
         .order_by("-date_joined")
     )
     return JsonResponse(paginate(qs, request, UserSerializer), status=200)
@@ -486,13 +485,13 @@ def user_detail(request: HttpRequest, username: str):
     try:
         user = (
             User.objects.select_related("profile")
-            .annotate(post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED)))
+            .annotate(post_count=Count("posts", filter=Q(posts__in=Post.published.values("id"))))
             .get(username=username)
         )
     except User.DoesNotExist:
         return JsonResponse({"detail": "Not found."}, status=404)
 
-    posts_qs = published_posts_list_qs().filter(author=user).order_by("-created_at")
+    posts_qs = Post.published.list_qs().filter(author=user)
     payload = {
         "user": _serialize(UserSerializer, user, request=request),
         **paginate(
@@ -517,7 +516,7 @@ def user_comments(request: HttpRequest, username: str):
         return JsonResponse({"detail": "Not found."}, status=404)
 
     qs = (
-        Comment.objects.filter(author=user, post__status=Post.Status.PUBLISHED)
+        Comment.objects.filter(author=user, post__in=Post.published.values("id"))
         .select_related("author", "post")
         .prefetch_related("votes")
         .order_by("-created_at")

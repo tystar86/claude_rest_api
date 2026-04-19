@@ -196,7 +196,7 @@ class Command(BaseCommand):
         verbose = options["verbose"]
 
         # -- Resolve sample data from the local DB ---------------------------
-        post = Post.objects.filter(status=Post.Status.PUBLISHED).first()
+        post = Post.published.first()
         tag = Tag.objects.first()
         user = User.objects.first()
         comment = Comment.objects.first()

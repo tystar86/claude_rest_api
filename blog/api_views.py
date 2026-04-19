@@ -5,9 +5,8 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 
 from django.db import connection
-from django.db.models import Count, IntegerField, OuterRef, Q, Subquery, QuerySet
+from django.db.models import Count, Q
 from django.utils import timezone
-from django.db.models.functions import Coalesce
 
 from .models import Comment, CommentVote, Post, Tag
 from .serializers import (
@@ -42,26 +41,6 @@ def paginate(qs, request, serializer_class, *, total_count: int | None = None):
         "page": page,
         "results": items,
     }
-
-
-def published_posts_list_qs() -> QuerySet[Post]:
-    """Queryset for PostSerializer list cards: skip heavy body, count comments on published posts."""
-    comment_count_sq = (
-        Comment.objects.filter(post=OuterRef("pk"))
-        .order_by()
-        .values("post")
-        .annotate(cnt=Count("id"))
-        .values("cnt")
-    )
-    return (
-        Post.objects.filter(status=Post.Status.PUBLISHED)
-        .defer("body")
-        .select_related("author")
-        .prefetch_related("tags")
-        .annotate(
-            comment_count=Coalesce(Subquery(comment_count_sq, output_field=IntegerField()), 0)
-        )
-    )
 
 
 def can_manage_tags(user: User) -> bool:
@@ -167,13 +146,12 @@ def build_activity_payload() -> dict:
 
 def build_dashboard_payload():
     """Assemble dashboard JSON (no caching); used by Ninja read routes."""
-    published = Post.objects.filter(status=Post.Status.PUBLISHED)
+    published = Post.published.all()
+    published_ids = published.values("id")
     total_posts_count = published.count()
-    total_comments_count = Comment.objects.filter(post__status=Post.Status.PUBLISHED).count()
-    total_authors_count = (
-        User.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
-    )
-    active_tags_count = Tag.objects.filter(posts__status=Post.Status.PUBLISHED).distinct().count()
+    total_comments_count = Comment.objects.filter(post__in=published_ids).count()
+    total_authors_count = User.objects.filter(posts__in=published_ids).distinct().count()
+    active_tags_count = Tag.objects.filter(posts__in=published_ids).distinct().count()
     cutoff_7d = timezone.now() - timedelta(days=7)
     new_posts_7d_count = published.filter(
         Q(published_at__gte=cutoff_7d)
@@ -189,15 +167,15 @@ def build_dashboard_payload():
             "new_posts_7d": new_posts_7d_count,
         },
         "latest_posts": PostSerializer(
-            published_posts_list_qs().order_by("-created_at")[:10],
+            Post.published.list_qs()[:10],
             many=True,
         ).data,
         "most_commented_posts": PostSerializer(
-            published_posts_list_qs().order_by("-comment_count")[:10],
+            Post.published.list_qs().order_by("-comment_count")[:10],
             many=True,
         ).data,
         "most_liked_posts": PostSerializer(
-            published_posts_list_qs()
+            Post.published.list_qs()
             .annotate(
                 comment_like_count=Count(
                     "comments__votes",
@@ -209,16 +187,14 @@ def build_dashboard_payload():
             many=True,
         ).data,
         "most_used_tags": TagSerializer(
-            Tag.objects.annotate(
-                post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED))
-            )
+            Tag.objects.annotate(post_count=Count("posts", filter=Q(posts__in=published_ids)))
             .filter(post_count__gt=0)
             .order_by("-post_count")[:10],
             many=True,
         ).data,
         "top_authors": UserSerializer(
             User.objects.select_related("profile")
-            .annotate(post_count=Count("posts", filter=Q(posts__status=Post.Status.PUBLISHED)))
+            .annotate(post_count=Count("posts", filter=Q(posts__in=published_ids)))
             .filter(post_count__gt=0)
             .order_by("-post_count")[:10],
             many=True,
