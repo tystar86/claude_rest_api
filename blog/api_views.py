@@ -108,7 +108,14 @@ _ACTIVITY_CACHE_TTL = 300  # seconds — header ticker; short DB/query load
 def build_activity_payload():
     """Recent public activity for the navbar ticker (no caching); used by /api/activity/."""
     published = Post.objects.filter(status=Post.Status.PUBLISHED)
-    latest_post = published.order_by("-published_at", "-created_at").defer("body").first()
+    # Effective sort key avoids Postgres NULLS FIRST on -published_at ranking unset
+    # published posts ahead of newer-timestamp posts that have a real published_at.
+    latest_post = (
+        published.annotate(_activity_pub_at=Coalesce("published_at", "created_at"))
+        .order_by("-_activity_pub_at")
+        .defer("body")
+        .first()
+    )
     latest_comment = (
         Comment.objects.filter(post__status=Post.Status.PUBLISHED)
         .select_related("author", "post")

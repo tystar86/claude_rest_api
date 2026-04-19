@@ -32,6 +32,7 @@ class TestDashboardView:
         assert "most_liked_posts" in data
         assert "most_used_tags" in data
         assert "top_authors" in data
+        assert "activity" not in data
 
     def test_stats_contains_expected_fields(self, api_client):
         """stats section exposes all expected counters."""
@@ -49,6 +50,7 @@ class TestDashboardView:
         assert stats["total_posts"] >= 1
         assert stats["new_posts_7d"] >= 1
         assert stats["comments"] >= 1
+        assert "activity" not in data
         act = api_client.get("/api/activity/").json()
         assert act["latest_post_title"] == post.title
         assert act["latest_comment_author"] == comment.author.username
@@ -102,6 +104,7 @@ class TestDashboardView:
         assert stats["authors"] == 0
         assert stats["active_tags"] == 0
         assert stats["new_posts_7d"] == 0
+        assert "activity" not in data
         act = api_client.get("/api/activity/").json()
         assert act["latest_post_title"] is None
         assert act["latest_comment_at"] is None

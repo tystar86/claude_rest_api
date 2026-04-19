@@ -57,7 +57,7 @@ Typical API flow:
 ### Public read endpoints
 
 - `GET /api/dashboard/`
-- `GET /api/activity/`
+- `GET /api/activity/` (also `HEAD /api/activity/`)
 - `GET /api/comments/`
 - `GET /api/posts/`
 - `GET /api/posts/<slug>/`
