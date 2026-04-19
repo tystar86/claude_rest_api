@@ -5,7 +5,7 @@ Library    Process
 Resource   common.resource
 
 *** Variables ***
-${MODERATOR_BOOTSTRAP_CMD}    from django.contrib.auth import get_user_model; User=get_user_model(); u,_=User.objects.get_or_create(username='${MOD_USERNAME}',defaults={'email':'${MOD_EMAIL}','role':'moderator'}); u.email='${MOD_EMAIL}'; u.set_password('${MOD_PASSWORD}'); u.role='moderator'; u.save()
+${MODERATOR_BOOTSTRAP_CMD}    import os; from django.contrib.auth import get_user_model; User=get_user_model(); username=os.environ['MOD_USERNAME']; email=os.environ['MOD_EMAIL']; password=os.environ['MOD_PASSWORD']; u,_=User.objects.get_or_create(username=username,defaults={'email':email,'role':'moderator'}); u.email=email; u.set_password(password); u.role='moderator'; u.save()
 
 *** Keywords ***
 Create API Session
@@ -39,6 +39,7 @@ Register Test User
 
 Ensure Moderator User
     # First try host-based seeding (works when backend uses host Python env).
+    &{seed_env}=    Create Dictionary    MOD_USERNAME=${MOD_USERNAME}    MOD_EMAIL=${MOD_EMAIL}    MOD_PASSWORD=${MOD_PASSWORD}
     ${result}=    Run Process
     ...    uv
     ...    run
@@ -48,6 +49,7 @@ Ensure Moderator User
     ...    -c
     ...    ${MODERATOR_BOOTSTRAP_CMD}
     ...    cwd=${CURDIR}/../../..
+    ...    env=${seed_env}
     ${status}=    Try Moderator Login
     IF    ${status} != 200
         # Fallback for dockerized local stacks where backend DB is in container.
@@ -55,6 +57,12 @@ Ensure Moderator User
         ...    docker-compose
         ...    exec
         ...    -T
+        ...    -e
+        ...    MOD_USERNAME=${MOD_USERNAME}
+        ...    -e
+        ...    MOD_EMAIL=${MOD_EMAIL}
+        ...    -e
+        ...    MOD_PASSWORD=${MOD_PASSWORD}
         ...    backend
         ...    python
         ...    manage.py

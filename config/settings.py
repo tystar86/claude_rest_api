@@ -135,9 +135,6 @@ USE_TZ: bool = True
 STATIC_URL: str = "static/"
 STATIC_ROOT: Path = BASE_DIR / "staticfiles"
 
-MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
 STORAGES: dict[str, Any] = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",

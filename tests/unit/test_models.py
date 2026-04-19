@@ -133,11 +133,11 @@ class TestCommentVoteModel:
         assert CommentVote.VoteType.DISLIKE == "dislike"
 
 
-# ── Profile ────────────────────────────────────────────────────────────────────
+# ── CustomUser ─────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.django_db
-class TestProfileModel:
+class TestCustomUserModel:
     """Tests for the CustomUser role/bio fields."""
 
     def test_default_role_is_user(self, user):

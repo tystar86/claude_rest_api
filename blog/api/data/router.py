@@ -41,7 +41,8 @@ from ..constants import (
     DASHBOARD_CACHE_TTL,
 )
 from ..throttling import READ_THROTTLES, WRITE_THROTTLES
-from ..utils import build_unique_slug, request_data_or_error
+from ...utils import build_unique_slug
+from ..utils import request_data_or_error
 from .schemas import (
     ActivityResponse,
     DashboardResponse,

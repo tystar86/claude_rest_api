@@ -364,7 +364,7 @@ class TestUpdateProfileView:
 class TestUserProfileAndSessionAuth:
     """Regression tests formerly grouped with OAuth-specific cases."""
 
-    def test_new_user_gets_profile_via_signal(self, db):
+    def test_create_user_is_persisted(self, db):
         """Saving a new CustomUser persists it to the database."""
         u = User.objects.create_user(
             username="prof_user",

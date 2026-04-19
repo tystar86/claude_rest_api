@@ -10,7 +10,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from blog.models import Post, Tag
-from blog.api.utils import build_unique_slug
+from blog.utils import build_unique_slug
 
 User = get_user_model()
 
