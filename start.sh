@@ -32,6 +32,9 @@ sys.exit(1)
 echo "Ensuring sites migrations consistency..."
 python manage.py ensure_sites_migrations
 
+echo "Repairing accounts migration history if needed..."
+python manage.py repair_accounts_migration_history
+
 echo "Running migrations..."
 python manage.py migrate --noinput
 
