@@ -9,7 +9,10 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+        # swappable_dependency() maps to accounts.__first__ (0001_initial), but
+        # CustomUser first appears in migration state at accounts.0004. Depend on
+        # that migration so blog never runs before CustomUser exists.
+        ("accounts", "0004_repair_customuser_table"),
     ]
 
     operations = [

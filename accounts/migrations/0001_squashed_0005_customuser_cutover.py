@@ -24,14 +24,6 @@ class Migration(migrations.Migration):
         ("sites", "0002_alter_domain_unique"),
     ]
 
-    # Keep in sync with 0004_repair_customuser_table (replaced migration): ensure
-    # admin/blog initial migrations are not ordered before CustomUser exists in
-    # the historical state when this squash is not used as a single node.
-    run_before = [
-        ("admin", "0001_initial"),
-        ("blog", "0001_initial"),
-    ]
-
     operations = [
         migrations.CreateModel(
             name="CustomUser",
