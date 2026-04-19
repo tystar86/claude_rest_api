@@ -9,10 +9,12 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        # swappable_dependency() maps to accounts.__first__ (0001_initial), but
-        # CustomUser first appears in migration state at accounts.0004. Depend on
-        # that migration so blog never runs before CustomUser exists.
-        ("accounts", "0004_repair_customuser_table"),
+        # CustomUser first appears in accounts state inside the squashed 0001–0005
+        # chain (and in 0004 when unsquashed). Depending on 0004 breaks databases
+        # that only record the squashed migration in django_migrations. The squash
+        # replaces 0001–0005, so this dependency matches both fresh installs and
+        # production history without requiring a separate 0004 row.
+        ("accounts", "0001_squashed_0005_customuser_cutover"),
     ]
 
     operations = [

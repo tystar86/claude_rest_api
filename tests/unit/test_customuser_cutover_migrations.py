@@ -158,16 +158,15 @@ def test_legacy_accounts_migration_path_builds_customuser_profile_state():
 
 @pytest.mark.django_db
 def test_blog_initial_follows_accounts_customuser_migration():
-    """blog.0001_initial depends on accounts.0004 so the planner never applies
-    blog before CustomUser exists in migration state (swappable_dependency alone
-    only pins accounts.__first__)."""
+    """blog.0001_initial depends on the accounts squash so blog never runs before
+    CustomUser exists in migration state, and django_migrations rows match (squash
+    replaces 0004; a bare dependency on 0004 breaks squash-only databases)."""
     loader = MigrationLoader(connection, replace_migrations=False)
     graph = loader.graph
     target = ("blog", "0001_initial")
     plan = graph.forwards_plan(target)
-    if ("accounts", "0004_repair_customuser_table") in plan:
-        assert plan.index(("accounts", "0004_repair_customuser_table")) < plan.index(target)
-    else:
-        squashed = ("accounts", "0001_squashed_0005_customuser_cutover")
-        assert squashed in plan
+    squashed = ("accounts", "0001_squashed_0005_customuser_cutover")
+    if squashed in plan:
         assert plan.index(squashed) < plan.index(target)
+    else:
+        assert plan.index(("accounts", "0004_repair_customuser_table")) < plan.index(target)
