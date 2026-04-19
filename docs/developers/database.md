@@ -39,11 +39,16 @@ This means:
 
 ## Models and Relationships
 
+### `accounts.CustomUser`
+
+- swapped in for Django `auth.User`
+- stores `role` and `bio` directly on the user record
+- roles are `user`, `moderator`, and `admin`
+
 ### `accounts.Profile`
 
-- One-to-one with Django `User`
-- Adds `role` and `bio`
-- Roles are `user`, `moderator`, and `admin`
+- one-to-one compatibility record for user profile data
+- mirrors `role` and `bio` for legacy/admin-oriented paths
 
 ### `blog.Tag`
 
@@ -54,7 +59,7 @@ Used to categorize posts through a many-to-many relationship.
 
 ### `blog.Post`
 
-- belongs to a `User` author
+- belongs to a `CustomUser` author
 - has `title`, `slug`, `body`, `excerpt`
 - has `status` of `draft` or `published`
 - has many-to-many tags
@@ -63,7 +68,7 @@ Used to categorize posts through a many-to-many relationship.
 ### `blog.Comment`
 
 - belongs to a `Post`
-- belongs to a `User` author
+- belongs to a `CustomUser` author
 - can reference a parent comment for threaded replies
 - has moderation state via `is_approved`
 
@@ -76,10 +81,10 @@ Used to categorize posts through a many-to-many relationship.
 
 ## Relationship Summary
 
-- User -> Profile: one-to-one
-- User -> Post: one-to-many
-- User -> Comment: one-to-many
-- User -> CommentVote: one-to-many
+- CustomUser -> Profile: one-to-one
+- CustomUser -> Post: one-to-many
+- CustomUser -> Comment: one-to-many
+- CustomUser -> CommentVote: one-to-many
 - Post -> Tag: many-to-many
 - Post -> Comment: one-to-many
 - Comment -> Comment: parent/replies self-reference
@@ -145,6 +150,8 @@ Preferred local dataset:
 ### Fixture file
 
 - `blog/fixtures/initial_data.json`
+- seeds `accounts.CustomUser` and content records directly
+- does not include `accounts.Profile` compatibility rows
 
 This looks like a starter/demo fixture, but there is no main documented workflow in the repo for when contributors should load it.
 
@@ -221,5 +228,5 @@ python manage.py migrate
 - SQLite test behavior is convenient but not identical to PostgreSQL
 - The deploy path assumes PostgreSQL and includes extra migration safety logic
 - Data visibility is shaped by both post publication status and comment approval state
-- If you are debugging auth-related data, inspect Django `auth_user` and `accounts_profile`, not only content tables
-- If you need a privileged human test account, `createsuperuser` plus an explicit `Profile.role` update is more reliable than relying on fixtures or bulk seed data
+- If you are debugging auth-related data, inspect `accounts_customuser` first and `accounts_profile` only when you are checking compatibility data
+- If you need a privileged human test account, `createsuperuser` plus an explicit `CustomUser.role` update is more reliable than relying on fixtures or bulk seed data

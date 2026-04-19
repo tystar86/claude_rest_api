@@ -6,9 +6,11 @@ failure means the two layers have drifted and the API contract is at risk.
 """
 
 import pytest
-from django.contrib.auth.models import AnonymousUser, User
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.db.models import Count, Q
 from django.test import RequestFactory
+
 
 from blog.api.auth.schemas import CurrentUserResponse
 from blog.api.data.schemas import (
@@ -38,6 +40,8 @@ from blog.serializers import (
     UserSerializer,
 )
 from blog import api_views
+
+User = get_user_model()
 
 
 def _anon_request():
@@ -135,7 +139,7 @@ class TestPaginationSchemaContract:
 
     def test_paginated_users_validates(self, user):
         request = self._make_request()
-        qs = User.objects.select_related("profile").annotate(
+        qs = User.objects.annotate(
             post_count=Count("posts", filter=Q(posts__in=Post.published.values("id")))
         )
         data = api_views.paginate(qs, request, UserSerializer)
@@ -191,11 +195,9 @@ class TestTagDetailSchemaContract:
 class TestUserDetailSchemaContract:
     def test_user_detail_validates(self, user, post):
         request = _anon_request()
-        annotated_user = (
-            User.objects.select_related("profile")
-            .annotate(post_count=Count("posts", filter=Q(posts__in=Post.published.values("id"))))
-            .get(pk=user.pk)
-        )
+        annotated_user = User.objects.annotate(
+            post_count=Count("posts", filter=Q(posts__in=Post.published.values("id")))
+        ).get(pk=user.pk)
         user_data = UserSerializer(annotated_user).data
         posts_data = api_views.paginate(
             Post.published.filter(author=user),

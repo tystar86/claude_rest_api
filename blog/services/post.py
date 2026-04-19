@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from blog.models import Post, Tag
-from blog.api.utils import build_unique_slug
+from blog.utils import build_unique_slug
+
+User = get_user_model()
 
 _MAX_SLUG_INTEGRITY_RETRIES = 10
 

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from accounts.models import Profile
 from .models import Comment, CommentVote, Post, Tag
+
+User = get_user_model()
 
 
 def _dt(value):
@@ -44,11 +45,6 @@ class _ReadSerializer:
         raise NotImplementedError
 
 
-class ProfileSerializer(_ReadSerializer):
-    def to_representation(self, obj: Profile) -> dict:
-        return {"role": obj.role, "bio": obj.bio or ""}
-
-
 class UserSerializer(_ReadSerializer):
     def to_representation(self, obj: User) -> dict:
         if hasattr(obj, "post_count"):
@@ -59,7 +55,7 @@ class UserSerializer(_ReadSerializer):
             "id": obj.id,
             "username": obj.username,
             "date_joined": _dt(obj.date_joined),
-            "profile": ProfileSerializer(obj.profile).data,
+            "profile": {"role": obj.role, "bio": obj.bio or ""},
             "post_count": post_count,
         }
 
@@ -67,7 +63,7 @@ class UserSerializer(_ReadSerializer):
 class CurrentUserSerializer(UserSerializer):
     def to_representation(self, obj: User) -> dict:
         data = super().to_representation(obj)
-        role = getattr(getattr(obj, "profile", None), "role", "user")
+        role = obj.role
         data["email"] = obj.email
         data["can_manage_tags"] = bool(
             obj.is_superuser or obj.is_staff or role in ("moderator", "admin")

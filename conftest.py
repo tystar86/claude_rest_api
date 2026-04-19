@@ -1,11 +1,12 @@
 """Root pytest configuration and shared fixtures for the entire test suite."""
 
 import pytest
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.test import Client
 
-from accounts.models import Profile
 from blog.models import Comment, Post, Tag
+
+User = get_user_model()
 
 
 # ── API clients ────────────────────────────────────────────────────────────────
@@ -43,46 +44,34 @@ def admin_client(api_client, admin_user):
 
 @pytest.fixture
 def user(db):
-    """Regular user with an associated Profile."""
-    u = User.objects.create_user(
+    """Regular user."""
+    return User.objects.create_user(
         username="testuser",
         email="test@example.com",
         password="testpass123",
     )
-    Profile.objects.get_or_create(user=u)
-    return u
 
 
 @pytest.fixture
 def moderator(db):
-    """User with the moderator role.
-
-    Uses a bulk UPDATE + re-fetch to bypass the Django ORM cache that
-    accounts/signals.py places on the user instance at creation time.
-    """
-    u = User.objects.create_user(
+    """User with the moderator role."""
+    return User.objects.create_user(
         username="moduser",
         email="mod@example.com",
         password="modpass123",
+        role="moderator",
     )
-    Profile.objects.filter(user=u).update(role=Profile.Role.MODERATOR)
-    return User.objects.select_related("profile").get(pk=u.pk)
 
 
 @pytest.fixture
 def admin_user(db):
-    """User with the admin role.
-
-    Uses a bulk UPDATE + re-fetch to bypass the Django ORM cache that
-    accounts/signals.py places on the user instance at creation time.
-    """
-    u = User.objects.create_user(
+    """User with the admin role."""
+    return User.objects.create_user(
         username="adminuser",
         email="admin@example.com",
         password="adminpass123",
+        role="admin",
     )
-    Profile.objects.filter(user=u).update(role=Profile.Role.ADMIN)
-    return User.objects.select_related("profile").get(pk=u.pk)
 
 
 # ── Content ────────────────────────────────────────────────────────────────────

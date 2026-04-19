@@ -3,11 +3,12 @@
 from unittest.mock import patch
 
 import pytest
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 
-from accounts.models import Profile
 from blog.models import Post, Tag
+
+User = get_user_model()
 
 
 # ── Tag List ───────────────────────────────────────────────────────────────────
@@ -281,7 +282,6 @@ class TestCanManageTagsSerializerField:
             email="super@example.com",
             password="pass",  # noqa: S106
         )
-        Profile.objects.get_or_create(user=su)
         api_client.force_login(su)
         data = self._get_user_data(api_client)
         assert data["can_manage_tags"] is True
@@ -294,7 +294,6 @@ class TestCanManageTagsSerializerField:
             password="pass",  # noqa: S106
             is_staff=True,
         )
-        Profile.objects.get_or_create(user=staff)
         api_client.force_login(staff)
         data = self._get_user_data(api_client)
         assert data["can_manage_tags"] is True

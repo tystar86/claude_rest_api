@@ -50,6 +50,8 @@ INSTALLED_APPS: list[str] = [
 if ENABLE_SILK:
     INSTALLED_APPS.insert(INSTALLED_APPS.index("corsheaders") + 1, "silk")
 
+AUTH_USER_MODEL = "accounts.CustomUser"
+
 MIDDLEWARE: list[str | None] = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",

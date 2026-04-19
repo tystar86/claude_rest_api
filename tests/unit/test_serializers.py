@@ -11,36 +11,31 @@ from blog.serializers import (
     CurrentUserSerializer,
     PostDetailSerializer,
     PostSerializer,
-    ProfileSerializer,
     TagSerializer,
     UserSerializer,
 )
 from blog.services import PostService
 
 
-# ── ProfileSerializer ──────────────────────────────────────────────────────────
+# ── Profile shape via UserSerializer ──────────────────────────────────────────
 
 
 @pytest.mark.django_db
 class TestProfileSerializer:
-    """Tests for ProfileSerializer."""
+    """Profile role/bio are inlined into UserSerializer.data["profile"]."""
 
     def test_exposes_role_and_bio(self, user):
-        """Serialized profile exposes exactly role and bio fields."""
-        data = ProfileSerializer(user.profile).data
+        data = UserSerializer(user).data["profile"]
         assert set(data.keys()) == {"role", "bio"}
 
     def test_default_role_is_user(self, user):
-        """A freshly created profile serializes with role='user'."""
-        assert ProfileSerializer(user.profile).data["role"] == "user"
+        assert UserSerializer(user).data["profile"]["role"] == "user"
 
     def test_moderator_role_serialized(self, moderator):
-        """A moderator profile serializes with role='moderator'."""
-        assert ProfileSerializer(moderator.profile).data["role"] == "moderator"
+        assert UserSerializer(moderator).data["profile"]["role"] == "moderator"
 
     def test_bio_defaults_to_empty_string(self, user):
-        """bio field serializes to an empty string when not set."""
-        assert ProfileSerializer(user.profile).data["bio"] == ""
+        assert UserSerializer(user).data["profile"]["bio"] == ""
 
 
 # ── UserSerializer ─────────────────────────────────────────────────────────────

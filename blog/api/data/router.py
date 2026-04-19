@@ -6,7 +6,8 @@ separate URL patterns per Router, and Django's resolver stops at the first
 match.
 """
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
 from django.core.cache import cache
 from django.db import IntegrityError
 from django.db.models import Count, Q
@@ -40,7 +41,8 @@ from ..constants import (
     DASHBOARD_CACHE_TTL,
 )
 from ..throttling import READ_THROTTLES, WRITE_THROTTLES
-from ..utils import build_unique_slug, request_data_or_error
+from ...utils import build_unique_slug
+from ..utils import request_data_or_error
 from .schemas import (
     ActivityResponse,
     DashboardResponse,
@@ -53,6 +55,8 @@ from .schemas import (
     TagDetailResponse,
     UserDetailResponse,
 )
+
+User = get_user_model()
 
 router = Router(tags=["Data"], throttle=READ_THROTTLES)
 
@@ -468,11 +472,9 @@ def delete_tag(request: HttpRequest, slug: str):
 
 @router.api_operation(["GET", "HEAD"], "/users/", response=PaginatedUsersResponse)
 def user_list(request: HttpRequest):
-    qs = (
-        User.objects.select_related("profile")
-        .annotate(post_count=Count("posts", filter=Q(posts__in=Post.published.values("id"))))
-        .order_by("-date_joined")
-    )
+    qs = User.objects.annotate(
+        post_count=Count("posts", filter=Q(posts__in=Post.published.values("id")))
+    ).order_by("-date_joined")
     return JsonResponse(paginate(qs, request, UserSerializer), status=200)
 
 
@@ -483,11 +485,9 @@ def user_list(request: HttpRequest):
 )
 def user_detail(request: HttpRequest, username: str):
     try:
-        user = (
-            User.objects.select_related("profile")
-            .annotate(post_count=Count("posts", filter=Q(posts__in=Post.published.values("id"))))
-            .get(username=username)
-        )
+        user = User.objects.annotate(
+            post_count=Count("posts", filter=Q(posts__in=Post.published.values("id")))
+        ).get(username=username)
     except User.DoesNotExist:
         return JsonResponse({"detail": "Not found."}, status=404)
 

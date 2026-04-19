@@ -1,6 +1,6 @@
 [
   {
-    "model": "auth.user",
+    "model": "accounts.customuser",
     "pk": 1,
     "fields": {
       "username": "alex_chen",
@@ -11,20 +11,13 @@
       "is_active": true,
       "is_staff": true,
       "is_superuser": true,
-      "date_joined": "2024-09-01T08:00:00Z"
-    }
-  },
-  {
-    "model": "accounts.profile",
-    "pk": 1,
-    "fields": {
-      "user": 1,
+      "date_joined": "2024-09-01T08:00:00Z",
       "role": "admin",
       "bio": "Lead developer and site administrator. 10+ years building distributed systems at scale. Passionate about Python, PostgreSQL, and well-crafted APIs."
     }
   },
   {
-    "model": "auth.user",
+    "model": "accounts.customuser",
     "pk": 2,
     "fields": {
       "username": "sarah_miller",
@@ -35,20 +28,13 @@
       "is_active": true,
       "is_staff": true,
       "is_superuser": false,
-      "date_joined": "2024-09-05T09:00:00Z"
-    }
-  },
-  {
-    "model": "accounts.profile",
-    "pk": 2,
-    "fields": {
-      "user": 2,
+      "date_joined": "2024-09-05T09:00:00Z",
       "role": "moderator",
       "bio": "DevOps engineer at a SaaS startup. Obsessed with CI/CD, platform engineering, and Kubernetes. CNCF ambassador."
     }
   },
   {
-    "model": "auth.user",
+    "model": "accounts.customuser",
     "pk": 3,
     "fields": {
       "username": "harris_dev",
@@ -59,20 +45,13 @@
       "is_active": true,
       "is_staff": true,
       "is_superuser": false,
-      "date_joined": "2024-09-10T10:00:00Z"
-    }
-  },
-  {
-    "model": "accounts.profile",
-    "pk": 3,
-    "fields": {
-      "user": 3,
+      "date_joined": "2024-09-10T10:00:00Z",
       "role": "moderator",
       "bio": "Senior backend engineer. Rust enthusiast. Previously at Mozilla on the Firefox performance team. Strong opinions about database design."
     }
   },
   {
-    "model": "auth.user",
+    "model": "accounts.customuser",
     "pk": 4,
     "fields": {
       "username": "jsmith_dev",
@@ -83,20 +62,13 @@
       "is_active": true,
       "is_staff": false,
       "is_superuser": false,
-      "date_joined": "2024-10-01T11:00:00Z"
-    }
-  },
-  {
-    "model": "accounts.profile",
-    "pk": 4,
-    "fields": {
-      "user": 4,
+      "date_joined": "2024-10-01T11:00:00Z",
       "role": "user",
       "bio": "Full-stack developer. React on the frontend, Django on the back. Five years shipping products at early-stage startups."
     }
   },
   {
-    "model": "auth.user",
+    "model": "accounts.customuser",
     "pk": 5,
     "fields": {
       "username": "mike_reynolds",
@@ -107,20 +79,13 @@
       "is_active": true,
       "is_staff": false,
       "is_superuser": false,
-      "date_joined": "2024-10-05T09:30:00Z"
-    }
-  },
-  {
-    "model": "accounts.profile",
-    "pk": 5,
-    "fields": {
-      "user": 5,
+      "date_joined": "2024-10-05T09:30:00Z",
       "role": "user",
       "bio": "Data engineer. Python, Spark, and Airflow by day. Hobby electronics and 3D printing by night."
     }
   },
   {
-    "model": "auth.user",
+    "model": "accounts.customuser",
     "pk": 6,
     "fields": {
       "username": "anna_k",
@@ -131,20 +96,13 @@
       "is_active": true,
       "is_staff": false,
       "is_superuser": false,
-      "date_joined": "2024-10-10T14:00:00Z"
-    }
-  },
-  {
-    "model": "accounts.profile",
-    "pk": 6,
-    "fields": {
-      "user": 6,
+      "date_joined": "2024-10-10T14:00:00Z",
       "role": "user",
       "bio": "Frontend engineer with a passion for TypeScript and accessibility. Core contributor to two open-source React component libraries."
     }
   },
   {
-    "model": "auth.user",
+    "model": "accounts.customuser",
     "pk": 7,
     "fields": {
       "username": "carlos_duran",
@@ -155,20 +113,13 @@
       "is_active": true,
       "is_staff": false,
       "is_superuser": false,
-      "date_joined": "2024-10-15T10:00:00Z"
-    }
-  },
-  {
-    "model": "accounts.profile",
-    "pk": 7,
-    "fields": {
-      "user": 7,
+      "date_joined": "2024-10-15T10:00:00Z",
       "role": "user",
       "bio": "Cloud architect. AWS and GCP certified. Building resilient infrastructure for fintech applications."
     }
   },
   {
-    "model": "auth.user",
+    "model": "accounts.customuser",
     "pk": 8,
     "fields": {
       "username": "priya_patel",
@@ -179,20 +130,13 @@
       "is_active": true,
       "is_staff": false,
       "is_superuser": false,
-      "date_joined": "2024-11-01T09:00:00Z"
-    }
-  },
-  {
-    "model": "accounts.profile",
-    "pk": 8,
-    "fields": {
-      "user": 8,
+      "date_joined": "2024-11-01T09:00:00Z",
       "role": "user",
       "bio": "Security engineer and OWASP contributor. Specialises in API security, threat modelling, and secure SDLC practices."
     }
   },
   {
-    "model": "auth.user",
+    "model": "accounts.customuser",
     "pk": 9,
     "fields": {
       "username": "tom_walker",
@@ -203,20 +147,13 @@
       "is_active": true,
       "is_staff": false,
       "is_superuser": false,
-      "date_joined": "2024-11-05T11:00:00Z"
-    }
-  },
-  {
-    "model": "accounts.profile",
-    "pk": 9,
-    "fields": {
-      "user": 9,
+      "date_joined": "2024-11-05T11:00:00Z",
       "role": "user",
       "bio": "Backend developer focused on Go and PostgreSQL. Writes about concurrency, query optimisation, and building boring-but-reliable systems."
     }
   },
   {
-    "model": "auth.user",
+    "model": "accounts.customuser",
     "pk": 10,
     "fields": {
       "username": "lisa_brooks",
@@ -227,20 +164,13 @@
       "is_active": true,
       "is_staff": false,
       "is_superuser": false,
-      "date_joined": "2024-11-10T08:30:00Z"
-    }
-  },
-  {
-    "model": "accounts.profile",
-    "pk": 10,
-    "fields": {
-      "user": 10,
+      "date_joined": "2024-11-10T08:30:00Z",
       "role": "user",
       "bio": "Engineering manager, former SRE. Writes about on-call culture, incident retrospectives, and the human side of software reliability."
     }
   },
   {
-    "model": "auth.user",
+    "model": "accounts.customuser",
     "pk": 11,
     "fields": {
       "username": "ray_voronov",
@@ -251,20 +181,13 @@
       "is_active": true,
       "is_staff": false,
       "is_superuser": false,
-      "date_joined": "2024-11-20T12:00:00Z"
-    }
-  },
-  {
-    "model": "accounts.profile",
-    "pk": 11,
-    "fields": {
-      "user": 11,
+      "date_joined": "2024-11-20T12:00:00Z",
       "role": "user",
       "bio": "ML engineer. Python and PyTorch daily. Interested in making machine learning systems production-ready, not just notebook-ready."
     }
   },
   {
-    "model": "auth.user",
+    "model": "accounts.customuser",
     "pk": 12,
     "fields": {
       "username": "naomi_t",
@@ -275,14 +198,7 @@
       "is_active": true,
       "is_staff": false,
       "is_superuser": false,
-      "date_joined": "2024-12-01T10:00:00Z"
-    }
-  },
-  {
-    "model": "accounts.profile",
-    "pk": 12,
-    "fields": {
-      "user": 12,
+      "date_joined": "2024-12-01T10:00:00Z",
       "role": "user",
       "bio": "Platform engineer. Terraform, Kubernetes, and GitOps. Building the developer platform so product teams can ship without worrying about infra."
     }
@@ -457,7 +373,11 @@
       "body": "## Why FastAPI?\n\nFastAPI has become the default choice for new Python REST APIs, and for good reason. It is built on Starlette (async web) and Pydantic (data validation), giving you automatic request validation, serialisation, and interactive OpenAPI docs at `/docs` with zero configuration.\n\nBenchmarks consistently put FastAPI 2\u20134x faster than Flask and Django REST Framework on I/O-bound workloads, on par with Node.js Express.\n\n## Your First Endpoint\n\n```python\nfrom fastapi import FastAPI\nfrom pydantic import BaseModel\n\napp = FastAPI()\n\nclass Item(BaseModel):\n    name: str\n    price: float\n    in_stock: bool = True\n\n@app.post('/items/', status_code=201)\nasync def create_item(item: Item):\n    return {'name': item.name, 'status': 'created'}\n```\n\nSend `price: 'abc'` and you get a clear 422 Unprocessable Entity back\u2014Pydantic handles validation before your function is even called.\n\n## Dependency Injection\n\nFastAPI's DI system is one of its most underrated features. Database sessions, auth tokens, and feature flags are all injected cleanly:\n\n```python\nfrom fastapi import Depends\nfrom sqlalchemy.orm import Session\n\ndef get_db():\n    db = SessionLocal()\n    try:\n        yield db\n    finally:\n        db.close()\n\n@app.get('/posts/{post_id}')\nasync def get_post(post_id: int, db: Session = Depends(get_db)):\n    post = db.query(Post).filter(Post.id == post_id).first()\n    if not post:\n        raise HTTPException(status_code=404, detail='Not found')\n    return post\n```\n\nDependencies are composable\u2014stack auth on top of the DB session, then stack rate limiting on top of auth.\n\n## Background Tasks\n\nFor fire-and-forget work (sending emails, writing audit logs) use `BackgroundTasks`:\n\n```python\nfrom fastapi import BackgroundTasks\n\ndef send_welcome_email(email: str):\n    # your email logic here\n    pass\n\n@app.post('/users/')\nasync def create_user(user: UserCreate, background_tasks: BackgroundTasks):\n    db_user = create_user_in_db(user)\n    background_tasks.add_task(send_welcome_email, user.email)\n    return db_user\n```\n\n## Verdict\n\nFastAPI is an excellent default for new Python APIs in 2025. Type safety, automatic docs, and async performance are hard to beat. Start with a single router and grow from there.",
       "excerpt": "FastAPI combines Python type hints, Pydantic validation, and async support to give you a modern, high-performance REST API framework with zero boilerplate.",
       "status": "published",
-      "tags": [1, 12, 18],
+      "tags": [
+        1,
+        12,
+        18
+      ],
       "created_at": "2025-01-10T09:00:00Z",
       "updated_at": "2025-01-10T09:45:00Z",
       "published_at": "2025-01-10T10:00:00Z"
@@ -473,7 +393,10 @@
       "body": "## The Problem\n\nWithout containers, local dev setups drift. One engineer runs Postgres 14, another runs 16. One has Redis, another doesn\u2019t. Docker Compose solves this: everyone runs the same stack, reproducibly, with one command.\n\n## A Typical Stack\n\n```yaml\nservices:\n  backend:\n    build: .\n    ports:\n      - '8000:8000'\n    env_file: .env.local\n    volumes:\n      - .:/app\n    depends_on:\n      db:\n        condition: service_healthy\n\n  db:\n    image: postgres:16-alpine\n    environment:\n      POSTGRES_DB: myapp\n      POSTGRES_USER: devuser\n      POSTGRES_PASSWORD: devpass\n    volumes:\n      - postgres_data:/var/lib/postgresql/data\n    healthcheck:\n      test: ['CMD-SHELL', 'pg_isready -U devuser -d myapp']\n      interval: 5s\n      retries: 5\n\n  redis:\n    image: redis:7-alpine\n    ports:\n      - '6379:6379'\n\nvolumes:\n  postgres_data:\n```\n\n## Key Patterns\n\n**Use health checks on your database.** Without them, your app container starts before Postgres is ready to accept connections, and you get a cryptic connection refused error. The `condition: service_healthy` in `depends_on` fixes this.\n\n**Bind-mount your source code.** The `volumes: - .:/app` line means file changes on your host are immediately visible inside the container. Combined with a hot-reload server, you get instant feedback without rebuilding.\n\n**Use override files for local extras.** Keep `docker-compose.yml` clean and add dev-only config (like exposing the database port to the host) in `docker-compose.override.yml`, which Compose merges automatically.\n\n## Useful Commands\n\n```bash\n# Rebuild and start in the background\ndocker compose up --build -d\n\n# Shell into the running backend container\ndocker compose exec backend bash\n\n# Tail logs from all services\ndocker compose logs -f\n\n# Tear everything down including volumes (wipes the database)\ndocker compose down -v\n```\n\n## Tips for CI\n\nIn CI pipelines, add `--wait` to `docker compose up` so your pipeline waits until all health checks pass before running tests. No more flaky test failures caused by Postgres not being ready.",
       "excerpt": "Stop the 'works on my machine' problem for good. Here's how to build a reliable local dev environment with Docker Compose, health checks, and override files.",
       "status": "published",
-      "tags": [6, 9],
+      "tags": [
+        6,
+        9
+      ],
       "created_at": "2025-01-18T10:00:00Z",
       "updated_at": "2025-01-18T10:30:00Z",
       "published_at": "2025-01-18T11:00:00Z"
@@ -489,7 +412,9 @@
       "body": "## Start With Diagnostics\n\nBefore adding a single index, find your slow queries. Enable `pg_stat_statements` in `postgresql.conf` and then:\n\n```sql\nSELECT query, mean_exec_time, calls, total_exec_time\nFROM pg_stat_statements\nORDER BY total_exec_time DESC\nLIMIT 10;\n```\n\nThis shows you where time is actually being spent. Fix the top offenders first.\n\n## The EXPLAIN ANALYZE Loop\n\nFor each suspect query, run:\n\n```sql\nEXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)\nSELECT * FROM posts\nWHERE author_id = 42 AND status = 'published'\nORDER BY created_at DESC\nLIMIT 20;\n```\n\nA `Seq Scan` on a large table is the main warning sign. Rows removed by filter is the number that shows you how inefficient the scan is.\n\n## Composite Indexes: Column Order Matters\n\nFor a filter + sort like the query above:\n\n```sql\nCREATE INDEX idx_posts_author_status_created\nON posts (author_id, status, created_at DESC);\n```\n\nRule: equality columns first, then range or sort columns. Putting `created_at` first would make the index useless for the `author_id = 42` filter.\n\n## Partial Indexes\n\nIf 95% of your queries only care about published posts:\n\n```sql\nCREATE INDEX idx_published_posts_created\nON posts (created_at DESC)\nWHERE status = 'published';\n```\n\nThis index is much smaller and faster to scan than a full index. The query planner will use it for any query with `WHERE status = 'published'`.\n\n## Covering Indexes\n\nAvoid heap fetches entirely with `INCLUDE`:\n\n```sql\nCREATE INDEX idx_posts_author_covering\nON posts (author_id, created_at DESC)\nINCLUDE (title, slug, excerpt);\n```\n\nNow a listing query can be satisfied from the index alone\u2014no table lookups.\n\n## What to Avoid\n\n- Over-indexing. Every index slows down inserts and updates and consumes disk space.\n- Indexing low-cardinality columns like boolean flags in isolation.\n- Forgetting `ANALYZE` after bulk data loads\u2014stale statistics lead to bad query plans.",
       "excerpt": "Bad indexes (or missing ones) are behind most slow PostgreSQL queries. Here's a systematic approach: from diagnostics to composite, partial, and covering indexes.",
       "status": "published",
-      "tags": [13],
+      "tags": [
+        13
+      ],
       "created_at": "2025-01-25T08:00:00Z",
       "updated_at": "2025-01-25T08:40:00Z",
       "published_at": "2025-01-25T09:00:00Z"
@@ -505,7 +430,10 @@
       "body": "## Why GitHub Actions?\n\nGitHub Actions is now the default CI for most open-source and many private projects. It\u2019s tightly integrated with GitHub, has a huge marketplace of reusable actions, and the free tier covers most small teams comfortably.\n\n## A Solid Django Pipeline\n\n```yaml\nname: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n\njobs:\n  test:\n    runs-on: ubuntu-latest\n\n    services:\n      postgres:\n        image: postgres:16-alpine\n        env:\n          POSTGRES_DB: test_db\n          POSTGRES_USER: test_user\n          POSTGRES_PASSWORD: test_pass\n        options: >-\n          --health-cmd pg_isready\n          --health-interval 5s\n          --health-retries 5\n\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Set up Python\n        uses: actions/setup-python@v5\n        with:\n          python-version: '3.12'\n          cache: pip\n\n      - name: Install dependencies\n        run: pip install -r requirements.txt\n\n      - name: Run tests\n        env:\n          DATABASE_URL: postgres://test_user:test_pass@localhost/test_db\n        run: pytest --tb=short -q\n```\n\n## Security: Pin Actions to a Commit SHA\n\nDo not use `@v4` tags in production pipelines. Tags are mutable and can be changed by the action author (or an attacker who compromises their account). Pin to a specific commit:\n\n```yaml\n- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2\n```\n\nUse Dependabot to keep these SHAs updated automatically.\n\n## Caching Dependencies\n\nCache `pip` or `npm` installs to cut job time significantly:\n\n```yaml\n- uses: actions/setup-python@v5\n  with:\n    python-version: '3.12'\n    cache: pip\n```\n\nFor a medium-sized Python project this alone cuts install time from ~60s to ~5s.\n\n## Deploy Step\n\nGate deploys on a successful test run and target the main branch only:\n\n```yaml\n  deploy:\n    needs: test\n    if: github.ref == 'refs/heads/main'\n    runs-on: ubuntu-latest\n    steps:\n      - name: Deploy to Render\n        run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}\n```\n\nStore secrets in GitHub repository or organisation secrets\u2014never hardcode them in the workflow file.",
       "excerpt": "A step-by-step guide to building a GitHub Actions CI/CD pipeline for a Django application, with Postgres services, dependency caching, and secure deployments.",
       "status": "published",
-      "tags": [15, 9],
+      "tags": [
+        15,
+        9
+      ],
       "created_at": "2025-02-03T09:00:00Z",
       "updated_at": "2025-02-03T09:50:00Z",
       "published_at": "2025-02-03T10:00:00Z"
@@ -521,7 +449,10 @@
       "body": "## Why Generics?\n\nGenerics let you write functions and types that work across many types without losing type information. Without them, you end up with `any` everywhere\u2014which defeats the whole point of TypeScript.\n\n## The Basics\n\n```typescript\nfunction first<T>(arr: T[]): T | undefined {\n  return arr[0];\n}\n\nconst n = first([1, 2, 3]);   // n: number | undefined\nconst s = first(['a', 'b']); // s: string | undefined\n```\n\nThe type variable `T` is inferred from the argument. You rarely need to specify it explicitly.\n\n## Constraints\n\nUse `extends` to restrict what types are allowed:\n\n```typescript\nfunction getProperty<T, K extends keyof T>(obj: T, key: K): T[K] {\n  return obj[key];\n}\n\nconst user = { id: 1, name: 'Alex' };\nconst name = getProperty(user, 'name'); // string\n// getProperty(user, 'email') \u2014 compile error\n```\n\n## Conditional Types\n\nThis is where TypeScript generics get genuinely powerful:\n\n```typescript\ntype NonNullable<T> = T extends null | undefined ? never : T;\n\ntype ApiResponse<T> = T extends Array<infer U>\n  ? { items: U[]; total: number }\n  : { data: T };\n\ntype UserList = ApiResponse<User[]>;   // { items: User[]; total: number }\ntype UserDetail = ApiResponse<User>;   // { data: User }\n```\n\n## The `infer` Keyword\n\n`infer` lets you extract type information within a conditional type:\n\n```typescript\ntype ReturnType<T> = T extends (...args: any[]) => infer R ? R : never;\n\nasync function fetchUser(): Promise<User> { /* ... */ }\ntype FetchResult = ReturnType<typeof fetchUser>; // Promise<User>\n```\n\n## Practical Utility Types\n\nBuild reusable utilities for your domain:\n\n```typescript\ntype DeepPartial<T> = {\n  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];\n};\n\ntype Awaited<T> = T extends Promise<infer U> ? Awaited<U> : T;\n```\n\n## Verdict\n\nMaster generics and you stop fighting TypeScript and start having it work for you. The investment pays off quickly in fewer runtime surprises.",
       "excerpt": "Generics are the feature that separates beginner TypeScript from expert TypeScript. Here's a practical guide from basic type variables through conditional types and infer.",
       "status": "published",
-      "tags": [3, 2],
+      "tags": [
+        3,
+        2
+      ],
       "created_at": "2025-02-10T10:00:00Z",
       "updated_at": "2025-02-10T11:00:00Z",
       "published_at": "2025-02-10T12:00:00Z"
@@ -537,7 +468,11 @@
       "body": "## Why Cache?\n\nA well-placed cache can reduce database load by 90% on read-heavy endpoints. The key word is well-placed\u2014cache incorrectly and you ship stale data to users.\n\n## Setting Up django-redis\n\n```python\n# settings.py\nCACHES = {\n    'default': {\n        'BACKEND': 'django_redis.cache.RedisCache',\n        'LOCATION': 'redis://localhost:6379/1',\n        'OPTIONS': {\n            'CLIENT_CLASS': 'django_redis.client.DefaultClient',\n            'KEY_PREFIX': 'myapp_v1',  # bump on breaking schema changes\n        },\n        'TIMEOUT': 300,  # 5 minutes default\n    }\n}\n```\n\nThe `KEY_PREFIX` is important. Bump it when your cached data schema changes and you need an instant, zero-downtime cache invalidation.\n\n## Pattern 1: Cache-Aside\n\nThe most common pattern. Check the cache first; on miss, populate from the database:\n\n```python\nfrom django.core.cache import cache\n\ndef get_post_detail(post_id: int) -> dict:\n    key = f'post:{post_id}'\n    data = cache.get(key)\n    if data is None:\n        post = Post.objects.select_related('author').get(pk=post_id)\n        data = PostDetailSerializer(post).data\n        cache.set(key, data, timeout=600)\n    return data\n```\n\n## Pattern 2: Cache Invalidation on Write\n\nWhen the post is updated, delete the cached version:\n\n```python\nfrom django.db.models.signals import post_save\nfrom django.dispatch import receiver\n\n@receiver(post_save, sender=Post)\ndef invalidate_post_cache(sender, instance, **kwargs):\n    cache.delete(f'post:{instance.pk}')\n    cache.delete('post_list_page_1')  # also clear list pages\n```\n\n## Pattern 3: Versioned Keys for Rolling Deploys\n\nDuring a rolling deploy, old and new app instances run simultaneously. If your serializer output changes, old instances may write stale keys that new instances then read:\n\n```python\nAPP_VERSION = os.environ.get('APP_VERSION', 'dev')\n\ndef cache_key(name: str) -> str:\n    return f'{APP_VERSION}:{name}'\n```\n\n## What Not to Cache\n\n- User-specific data in a shared key (data leaks)\n- Data that changes on every request\n- Results of non-idempotent operations\n\nStart with the slowest, most-read endpoints and measure before and after. Cache strategically.",
       "excerpt": "A practical guide to Redis caching patterns in Django: cache-aside, write-through invalidation, versioned keys for rolling deploys, and what not to cache.",
       "status": "published",
-      "tags": [14, 11, 1],
+      "tags": [
+        14,
+        11,
+        1
+      ],
       "created_at": "2025-02-17T09:00:00Z",
       "updated_at": "2025-02-17T09:45:00Z",
       "published_at": "2025-02-17T10:00:00Z"
@@ -553,7 +488,10 @@
       "body": "## The Mental Model\n\nKubernetes is a system for running containers reliably at scale. At its core: you describe the desired state, and Kubernetes continuously works to match reality to that description. The key objects to know are Pods, Deployments, Services, and ConfigMaps.\n\n## A Deployment\n\n```yaml\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: backend\n  labels:\n    app: backend\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: backend\n  template:\n    metadata:\n      labels:\n        app: backend\n    spec:\n      containers:\n        - name: backend\n          image: myapp/backend:1.4.2\n          ports:\n            - containerPort: 8000\n          resources:\n            requests:\n              cpu: 100m\n              memory: 128Mi\n            limits:\n              cpu: 500m\n              memory: 256Mi\n          readinessProbe:\n            httpGet:\n              path: /api/health/\n              port: 8000\n            initialDelaySeconds: 5\n            periodSeconds: 10\n```\n\n## Resource Requests and Limits Are Not Optional\n\nLeaving them out is the most common mistake. Without `requests`, the scheduler has no information for placing pods. Without `limits`, a runaway process can starve other pods on the same node. Set both.\n\n## Readiness vs Liveness Probes\n\n**Readiness** controls when a pod receives traffic. If it fails, the pod is removed from the Service endpoint list but kept running.\n\n**Liveness** controls when a pod is restarted. If it fails repeatedly, the kubelet kills and restarts the pod.\n\nDo not reuse the same endpoint for both. Your readiness probe might check upstream dependencies (database, cache), while liveness should only check that the process itself is alive.\n\n## PodDisruptionBudgets\n\nFor stateful workloads, always define a PDB to protect against voluntary disruptions during node maintenance:\n\n```yaml\napiVersion: policy/v1\nkind: PodDisruptionBudget\nmetadata:\n  name: backend-pdb\nspec:\n  minAvailable: 2\n  selector:\n    matchLabels:\n      app: backend\n```\n\nThis ensures at least 2 replicas stay running during a node drain.",
       "excerpt": "A developer's guide to Kubernetes: the mental model, Deployments, resource limits (don't skip them), readiness vs liveness probes, and PodDisruptionBudgets.",
       "status": "published",
-      "tags": [7, 6],
+      "tags": [
+        7,
+        6
+      ],
       "created_at": "2025-02-24T10:00:00Z",
       "updated_at": "2025-02-24T11:00:00Z",
       "published_at": "2025-02-24T12:00:00Z"
@@ -569,7 +507,10 @@
       "body": "## The Threat Landscape\n\nAPIs are now the primary attack surface for most web applications. The OWASP API Security Top 10 identifies the most critical risks. Here are the ones I see mishandled most often.\n\n## API1: Broken Object Level Authorization (BOLA)\n\nThe most common and most damaging API vulnerability. You check authentication but forget to check whether the authenticated user is allowed to access *this specific object*:\n\n```python\n# VULNERABLE\n@api_view(['GET'])\n@permission_classes([IsAuthenticated])\ndef get_document(request, doc_id):\n    doc = Document.objects.get(pk=doc_id)  # any user can access any doc\n    return Response(DocumentSerializer(doc).data)\n\n# CORRECT\n@api_view(['GET'])\n@permission_classes([IsAuthenticated])\ndef get_document(request, doc_id):\n    doc = Document.objects.get(pk=doc_id, owner=request.user)\n    return Response(DocumentSerializer(doc).data)\n```\n\nAlways filter by the authenticated user when querying user-owned resources.\n\n## API3: Broken Object Property Level Authorization\n\nReturning more fields than the client should see. Use explicit serializer fields\u2014never `fields = '__all__'` on sensitive models. An API response showing `password_hash`, `internal_notes`, or `stripe_customer_id` to regular users is a common misconfiguration.\n\n## API2: Broken Authentication\n\n- Enforce strong password policies at the API layer, not just the frontend\n- Rate-limit login endpoints aggressively (OWASP recommends max 5 attempts per 15 minutes)\n- Implement account lockout and alerting on repeated failures\n- Never return different error messages for 'user not found' vs 'wrong password'\u2014this enables user enumeration\n\n## API8: Security Misconfiguration\n\n- Disable debug mode in production (`DEBUG=False` in Django)\n- Remove default admin credentials and sample routes\n- Set strict CORS origins; `Access-Control-Allow-Origin: *` on an authenticated API is a bug\n- Rotate secrets regularly and audit who has access\n\n## Logging Authorization Failures\n\nLog every 401 and 403 response with the user ID, endpoint, and timestamp. Individually they look like noise; aggregated over an hour, an IDOR scan becomes obvious.",
       "excerpt": "The OWASP API Security Top 10 explains what attackers target in your API. Here's what BOLA, broken auth, and security misconfiguration look like in Django code, and how to fix them.",
       "status": "published",
-      "tags": [16, 18],
+      "tags": [
+        16,
+        18
+      ],
       "created_at": "2025-03-03T09:00:00Z",
       "updated_at": "2025-03-03T09:55:00Z",
       "published_at": "2025-03-03T10:00:00Z"
@@ -585,7 +526,10 @@
       "body": "## The Default Should Be Monolith\n\nEvery microservices architecture I\u2019ve worked on started as an attempt to scale development velocity. Most of them slowed it down instead. Start with a well-structured monolith. Split only when you have a concrete reason.\n\n## When Microservices Actually Help\n\n**Independently scalable bottlenecks.** If your image processing service needs 50 CPU cores but your API needs 2, separating them makes sense.\n\n**Independent deployment requirements.** A payment processor that needs PCI-DSS isolation from the rest of your stack.\n\n**Truly separate teams.** Conway's Law is real: your architecture will mirror your organisation. Separate services only make sense when separate teams own them end-to-end.\n\n**Different language requirements.** An ML inference service in Python sitting behind a Go API is a legitimate split.\n\n## The Hidden Costs\n\n- **Network latency and failures.** Every synchronous call across a service boundary can fail in ways an in-process call cannot.\n- **Distributed tracing.** You cannot tail a single log file. You need Jaeger, Zipkin, or equivalent to follow a request across services.\n- **Data consistency.** Transactions don't span service boundaries. You're writing event-driven sagas instead of `BEGIN; ... COMMIT;`.\n- **Local development complexity.** `docker compose` helps, but simulating service interactions locally is never as clean as running one process.\n\n## The Modular Monolith\n\nA well-structured monolith with clear module boundaries is often the best of both worlds. Enforce boundaries at the code level (Django apps, Python packages), share a single database, and deploy as one process. Split into services later if and when you hit a genuine bottleneck.\n\n```\nmyapp/\n  payments/       # strict boundary: never imported by other modules directly\n  notifications/  # communicates via internal events\n  core/           # shared models and utilities\n```\n\n## The Migration Path\n\nIf you do split, the Strangler Fig pattern works well: build the new service alongside the monolith, route a fraction of traffic to it, migrate gradually, then retire the monolith code. Never do a big-bang rewrite.",
       "excerpt": "Microservices are not a default. They are a solution to specific scaling and organisational problems that most teams don't have yet. Here's a framework for making the call.",
       "status": "published",
-      "tags": [19, 20],
+      "tags": [
+        19,
+        20
+      ],
       "created_at": "2025-03-10T09:00:00Z",
       "updated_at": "2025-03-10T10:00:00Z",
       "published_at": "2025-03-10T10:30:00Z"
@@ -601,7 +545,10 @@
       "body": "## The First Rule: Profile Before Optimising\n\nMost React performance advice is applied in the wrong place. Before adding `useMemo` or `useCallback` to anything, open React DevTools Profiler and record a slow interaction. Find the actual bottleneck. More often than not it\u2019s a missing key, a missing list virtualisation, or a network waterfall\u2014not a missing memo.\n\n## When useMemo Actually Helps\n\n`useMemo` is for expensive computations that run on every render:\n\n```tsx\n// Worth memoising: O(n log n) sort on a large list\nconst sortedItems = useMemo(\n  () => [...items].sort((a, b) => a.name.localeCompare(b.name)),\n  [items]\n);\n\n// Not worth memoising: trivial calculation\nconst total = useMemo(() => items.length * price, [items.length, price]);\n// Just do: const total = items.length * price;\n```\n\n`useMemo` itself has overhead. Only use it when the computation cost exceeds the memo overhead.\n\n## Virtualise Long Lists\n\nRendering 1000 DOM nodes when only 20 are visible is the most common React performance issue. Use `@tanstack/react-virtual` or `react-window`:\n\n```tsx\nimport { useVirtualizer } from '@tanstack/react-virtual';\n\nfunction VirtualList({ items }) {\n  const parentRef = React.useRef(null);\n  const virtualizer = useVirtualizer({\n    count: items.length,\n    getScrollElement: () => parentRef.current,\n    estimateSize: () => 60,\n  });\n\n  return (\n    <div ref={parentRef} style={{ height: '400px', overflow: 'auto' }}>\n      <div style={{ height: virtualizer.getTotalSize() }}>\n        {virtualizer.getVirtualItems().map(virtualRow => (\n          <div key={virtualRow.key} style={{ transform: `translateY(${virtualRow.start}px)` }}>\n            {items[virtualRow.index].name}\n          </div>\n        ))}\n      </div>\n    </div>\n  );\n}\n```\n\n## Avoid Unnecessary Context Re-renders\n\nEvery component that reads from a context re-renders when the context value changes. Split contexts by update frequency:\n\n```tsx\n// Bad: one context that holds both auth (rarely changes) and theme (often changes)\nconst AppContext = createContext({ user, theme, setTheme });\n\n// Good: separate contexts\nconst AuthContext = createContext(user);\nconst ThemeContext = createContext({ theme, setTheme });\n```\n\n## Code Splitting With lazy()\n\nLoad large feature modules only when they\u2019re needed:\n\n```tsx\nconst AdminDashboard = React.lazy(() => import('./AdminDashboard'));\n\nfunction App() {\n  return (\n    <Suspense fallback={<Spinner />}>\n      <Routes>\n        <Route path='/admin' element={<AdminDashboard />} />\n      </Routes>\n    </Suspense>\n  );\n}\n```\n\nThis keeps your initial bundle small and only loads the admin code when a user navigates there.",
       "excerpt": "Profile before you optimise. Then: virtualise long lists, split contexts by update frequency, and use code splitting. useMemo and useCallback are for later.",
       "status": "published",
-      "tags": [10, 2],
+      "tags": [
+        10,
+        2
+      ],
       "created_at": "2025-03-17T10:00:00Z",
       "updated_at": "2025-03-17T11:00:00Z",
       "published_at": "2025-03-17T12:00:00Z"
@@ -617,7 +564,9 @@
       "body": "## The Event Loop\n\nPython\u2019s asyncio is single-threaded. There is one event loop running on one OS thread. When your coroutine hits an `await`, it suspends and yields control back to the event loop, which can then run another coroutine. This is cooperative multitasking, not parallel execution.\n\nImplication: CPU-bound work in async code blocks the entire event loop. Use `asyncio.run_in_executor` to offload it to a thread pool.\n\n## Coroutines vs Tasks\n\nA coroutine is just a function defined with `async def`. It does nothing until you await it or schedule it as a Task:\n\n```python\nimport asyncio\n\nasync def fetch(url: str) -> str:\n    await asyncio.sleep(1)  # simulates I/O\n    return f'response from {url}'\n\n# Sequential: ~3 seconds\nasync def sequential():\n    a = await fetch('url1')\n    b = await fetch('url2')\n    c = await fetch('url3')\n\n# Concurrent: ~1 second\nasync def concurrent():\n    a, b, c = await asyncio.gather(\n        fetch('url1'),\n        fetch('url2'),\n        fetch('url3'),\n    )\n```\n\nYou have to explicitly make things concurrent with `gather`, `TaskGroup`, or `create_task`.\n\n## TaskGroup (Python 3.11+)\n\n`asyncio.TaskGroup` is the modern way to run concurrent tasks with better error handling than `gather`:\n\n```python\nasync def fetch_all(urls: list[str]) -> list[str]:\n    results = []\n    async with asyncio.TaskGroup() as tg:\n        tasks = [tg.create_task(fetch(url)) for url in urls]\n    return [t.result() for t in tasks]\n```\n\nIf any task raises, the group cancels all remaining tasks\u2014unlike `gather`, which leaves orphaned tasks running.\n\n## The Blocking Code Trap\n\n```python\n# This blocks the event loop for the entire duration of the sleep\nasync def bad():\n    import time\n    time.sleep(5)  # blocks everything\n\n# Correct: yield control to the event loop\nasync def good():\n    await asyncio.sleep(5)  # non-blocking\n```\n\nCommon blocking culprits: `requests` (use `httpx`), `psycopg2` (use `asyncpg`), standard `open()` for large files (use `aiofiles`).\n\n## Verdict\n\nAsync Python shines for I/O-bound concurrency: HTTP clients, database queries, file I/O. For CPU-bound work, reach for `multiprocessing` or a compiled extension.",
       "excerpt": "Understanding Python's async/await from the ground up: the event loop, coroutines vs tasks, asyncio.gather vs TaskGroup, and the blocking code traps to avoid.",
       "status": "published",
-      "tags": [1],
+      "tags": [
+        1
+      ],
       "created_at": "2025-03-24T09:00:00Z",
       "updated_at": "2025-03-24T10:00:00Z",
       "published_at": "2025-03-24T10:30:00Z"
@@ -633,7 +582,10 @@
       "body": "## Why Infrastructure as Code?\n\nClickOps\u2014manually configuring AWS resources through the console\u2014is fast to start and impossible to maintain. After six months you have no idea what you provisioned, why, or how to reproduce it. Terraform gives you version-controlled, reviewable, repeatable infrastructure.\n\n## Project Structure\n\n```\ninfra/\n  environments/\n    staging/\n      main.tf\n      terraform.tfvars\n    production/\n      main.tf\n      terraform.tfvars\n  modules/\n    ecs-service/\n    rds-postgres/\n    vpc/\n```\n\nSeparate state files per environment prevent a staging change from accidentally affecting production.\n\n## A Basic ECS Service\n\n```hcl\nmodule 'api_service' {\n  source = '../modules/ecs-service'\n\n  name          = 'api'\n  image         = 'myapp/api:${var.image_tag}'\n  cpu           = 256\n  memory        = 512\n  desired_count = 2\n\n  environment_variables = {\n    DATABASE_URL = data.aws_ssm_parameter.db_url.value\n    REDIS_URL    = data.aws_ssm_parameter.redis_url.value\n  }\n}\n```\n\n## Remote State\n\nAlways store state remotely. Local state files are a disaster waiting to happen:\n\n```hcl\nterraform {\n  backend 's3' {\n    bucket         = 'myapp-terraform-state'\n    key            = 'production/terraform.tfstate'\n    region         = 'us-east-1'\n    dynamodb_table = 'terraform-locks'\n    encrypt        = true\n  }\n}\n```\n\nThe DynamoDB table provides state locking so two engineers can\u2019t run `terraform apply` simultaneously.\n\n## The Plan/Apply Workflow\n\n```bash\n# Always review the plan before applying\nterraform plan -out=tfplan\n\n# Apply the reviewed plan\nterraform apply tfplan\n```\n\nIn CI, post the plan output as a PR comment so your team can review infrastructure changes the same way they review code.\n\n## What to Avoid\n\n- Hardcoding secrets in `.tf` files. Use AWS SSM Parameter Store or Secrets Manager.\n- `terraform apply` directly on production without a plan review.\n- Sharing a single state file across environments.",
       "excerpt": "Stop clicking around the AWS console. Here's how to structure Terraform projects, manage remote state, and build a plan/apply workflow your team can trust.",
       "status": "published",
-      "tags": [8, 9],
+      "tags": [
+        8,
+        9
+      ],
       "created_at": "2025-03-31T09:00:00Z",
       "updated_at": "2025-03-31T09:50:00Z",
       "published_at": "2025-03-31T10:00:00Z"
@@ -649,7 +601,11 @@
       "body": "## The Gap Between Demo and Production\n\nEvery LLM demo looks impressive. Production LLM features are a different story: latency is unpredictable, outputs are non-deterministic, and models hallucinate. Here\u2019s what I\u2019ve learned shipping LLM features in anger.\n\n## Structured Output Is Non-Negotiable\n\nFree-form text output from an LLM is nearly impossible to reliably parse downstream. Use the model\u2019s structured output / JSON mode:\n\n```python\nfrom openai import OpenAI\nfrom pydantic import BaseModel\n\nclient = OpenAI()\n\nclass PostSummary(BaseModel):\n    title: str\n    key_points: list[str]\n    estimated_read_time_minutes: int\n\ndef summarise_post(content: str) -> PostSummary:\n    response = client.beta.chat.completions.parse(\n        model='gpt-4o-mini',\n        messages=[{'role': 'user', 'content': f'Summarise this post: {content}'}],\n        response_format=PostSummary,\n    )\n    return response.choices[0].message.parsed\n```\n\nWith structured output, reliability goes from ~85% to 99%+.\n\n## Prompt Injection Defence\n\nIf any user-provided text reaches your prompt, you are vulnerable to prompt injection. Run a classifier on user input before passing it to the model:\n\n```python\ndef is_prompt_injection(text: str) -> bool:\n    # Simple heuristic; replace with a trained classifier in production\n    injection_patterns = [\n        'ignore previous instructions',\n        'you are now',\n        'disregard your',\n    ]\n    lower = text.lower()\n    return any(pattern in lower for pattern in injection_patterns)\n```\n\nThis adds ~50ms latency but is worth it.\n\n## Latency Management\n\nLLM calls are slow (500ms\u201310s). Never block a user-facing request on an LLM call unless it\u2019s the core feature. Use background tasks for non-blocking work:\n\n```python\n@app.post('/posts/')\nasync def create_post(post: PostCreate, background_tasks: BackgroundTasks):\n    db_post = await create_post_in_db(post)\n    background_tasks.add_task(generate_seo_metadata, db_post.id)\n    return db_post\n```\n\n## Observability\n\nLog every LLM call: input tokens, output tokens, latency, model version, and the full prompt. Token costs compound quickly at scale, and you can\u2019t optimise what you can\u2019t see.\n\n## Caching\n\nFor deterministic inputs (e.g. generating a summary of a specific post), cache the LLM response. Most post content doesn\u2019t change, so you pay the LLM cost once and cache for hours.",
       "excerpt": "LLM demos are easy. Production LLM features are hard. Structured output, prompt injection defence, latency management, and observability are the four things that matter.",
       "status": "published",
-      "tags": [17, 1, 18],
+      "tags": [
+        17,
+        1,
+        18
+      ],
       "created_at": "2025-04-07T09:00:00Z",
       "updated_at": "2025-04-07T10:00:00Z",
       "published_at": "2025-04-07T10:30:00Z"
@@ -665,7 +621,11 @@
       "body": "## Requirements\n\n**Functional:** Given a long URL, return a short code. Given a short code, redirect to the original URL. Custom aliases optional.\n\n**Non-functional:** 100M URLs created/month. 10B redirects/month (read-heavy, ~100:1 read:write ratio). 99.99% redirect availability. <50ms p99 redirect latency.\n\n## Short Code Generation\n\nUse base62 encoding (a-z, A-Z, 0-9) on a distributed counter or random ID. Six characters gives 62^6 \u2248 56 billion unique codes\u2014more than enough.\n\n```python\nimport string\nimport secrets\n\nALPHABET = string.ascii_letters + string.digits  # base62\n\ndef generate_code(length: int = 6) -> str:\n    return ''.join(secrets.choice(ALPHABET) for _ in range(length))\n\ndef encode_base62(num: int) -> str:\n    if num == 0:\n        return ALPHABET[0]\n    result = []\n    while num:\n        result.append(ALPHABET[num % 62])\n        num //= 62\n    return ''.join(reversed(result))\n```\n\n## Data Model\n\n```sql\nCREATE TABLE short_urls (\n    code        VARCHAR(10) PRIMARY KEY,\n    long_url    TEXT        NOT NULL,\n    owner_id    INTEGER     REFERENCES users(id),\n    created_at  TIMESTAMPTZ DEFAULT NOW(),\n    expires_at  TIMESTAMPTZ,\n    click_count BIGINT      DEFAULT 0\n);\n\nCREATE INDEX idx_short_urls_owner ON short_urls (owner_id, created_at DESC);\n```\n\n## Caching Strategy\n\nAt 10B redirects/month, every redirect hitting Postgres would need ~3,900 QPS sustained. Cache hot codes in Redis:\n\n```python\nasync def resolve(code: str) -> str | None:\n    # L1: Redis cache (sub-millisecond)\n    cached = await redis.get(f'url:{code}')\n    if cached:\n        return cached.decode()\n\n    # L2: Database\n    row = await db.fetchrow('SELECT long_url FROM short_urls WHERE code = $1', code)\n    if row:\n        await redis.setex(f'url:{code}', 3600, row['long_url'])\n        return row['long_url']\n\n    return None\n```\n\nWith a 95% cache hit rate (very achievable for a power-law URL distribution), you need only 195 QPS from Postgres.\n\n## Collision Handling\n\nFor random code generation, check for collisions before inserting. A Bloom filter pre-screens used codes at memory cost of ~1.2 bytes/code\u2014far cheaper than a DB roundtrip:\n\n```python\nfrom bloomfilter import BloomFilter\n\nbloom = BloomFilter(capacity=100_000_000, error_rate=0.001)\n\ndef find_available_code() -> str:\n    while True:\n        code = generate_code()\n        if code not in bloom:  # probably available\n            return code\n        # If bloom says it's there, check DB to confirm (rare)\n```\n\n## Scaling Reads\n\nFor 10B redirects/month at p99 <50ms: a single Redis node handles ~100K QPS. Add read replicas if needed. Behind that, Postgres with connection pooling (PgBouncer) handles the cache misses easily.",
       "excerpt": "A step-by-step system design for a URL shortener that handles 10 billion redirects per month: base62 encoding, Redis caching, Bloom filters, and Postgres at scale.",
       "status": "published",
-      "tags": [20, 13, 14],
+      "tags": [
+        20,
+        13,
+        14
+      ],
       "created_at": "2025-04-14T09:00:00Z",
       "updated_at": "2025-04-14T10:00:00Z",
       "published_at": "2025-04-14T10:30:00Z"
@@ -681,7 +641,11 @@
       "body": "## The Problem\n\nOur notification fan-out service\u2014the part that takes one event and pushes it to N subscriber feeds\u2014was written in Django. At 50K events/second it was consuming 40 CPU cores, adding 800ms of median latency, and costing $12K/month in compute.\n\nWe needed a 10x improvement. Python wasn\u2019t going to give us that.\n\n## Why Rust?\n\nWe evaluated Go first. Go would have solved the performance problem. We chose Rust because:\n\n1. **Memory safety without GC.** Fan-out is latency-sensitive. Go\u2019s GC pauses were acceptable on average but showed up badly in p99.\n2. **Zero-cost abstractions.** We could write readable code without paying a performance penalty for the abstraction layers.\n3. **Fearless concurrency.** The borrow checker catches data races at compile time. For a highly concurrent fan-out system this is a huge safety net.\n\n## The Architecture\n\nWe kept Django for everything else. The Rust service exposes a single gRPC endpoint that Django calls. It owns the fan-out logic, the Redis write pipeline, and the WebSocket push.\n\n```rust\nuse tokio::sync::mpsc;\n\nasync fn fan_out(event: Event, subscribers: Vec<UserId>) {\n    let (tx, mut rx) = mpsc::channel(1024);\n\n    for user_id in subscribers {\n        let tx = tx.clone();\n        let event = event.clone();\n        tokio::spawn(async move {\n            if let Ok(feed_key) = push_to_feed(user_id, &event).await {\n                let _ = tx.send(feed_key).await;\n            }\n        });\n    }\n    drop(tx);\n\n    while let Some(key) = rx.recv().await {\n        notify_websocket_clients(key).await;\n    }\n}\n```\n\n## Results\n\n- CPU: 40 cores \u2192 4 cores\n- Median latency: 800ms \u2192 12ms\n- p99 latency: 4.2s \u2192 45ms\n- Monthly compute cost: $12K \u2192 $900\n\n## What We Kept in Python\n\nEverything. Auth, admin, REST API, background jobs, migrations\u2014all Django. The Rust service is a single, isolated hot path. We write new features in Python and only reach for Rust when profiling shows a genuine bottleneck that Python cannot solve.",
       "excerpt": "We replaced one Django service with Rust: CPU dropped 10x, latency dropped 60x. Here's why we chose Rust over Go, how we designed the boundary, and what we kept in Python.",
       "status": "published",
-      "tags": [4, 1, 11],
+      "tags": [
+        4,
+        1,
+        11
+      ],
       "created_at": "2025-04-20T09:00:00Z",
       "updated_at": "2025-04-21T15:00:00Z",
       "published_at": "2025-04-20T09:00:00Z"
