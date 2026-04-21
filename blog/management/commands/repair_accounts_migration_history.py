@@ -37,7 +37,6 @@ ACCOUNTS_0004 = "0004_repair_customuser_table"
 ACCOUNTS_0003 = "0003_enforce_sites_dependency"
 ACCOUNTS_SQUASH = "0001_squashed_0005_customuser_cutover"
 BLOG_0001 = "0001_initial"
-
 CUSTOMUSER_TABLE = "accounts_customuser"
 
 
