@@ -82,11 +82,9 @@ class Command(BaseCommand):
         if not recorder.has_table():
             return
 
-        if recorder.migration_qs.filter(app="accounts", name=ACCOUNTS_0005).exists():
-            return
-
         applied = recorder.applied_migrations()
         has_0004 = ("accounts", ACCOUNTS_0004) in applied
+        has_0005 = ("accounts", ACCOUNTS_0005) in applied
         has_squash = ("accounts", ACCOUNTS_SQUASH) in applied
         has_0003 = ("accounts", ACCOUNTS_0003) in applied
         blog_0001 = ("blog", BLOG_0001) in applied
@@ -94,12 +92,30 @@ class Command(BaseCommand):
         record_0004 = False
         record_0005 = False
 
-        if has_0004 or has_squash:
-            record_0005 = True
-        elif blog_0001 and has_0003:
-            # Partial squash: graph parent is 0005 but 0004 row may also be missing.
-            record_0004 = not has_0004
-            record_0005 = True
+        if not has_0005:
+            if has_0004 or has_squash:
+                record_0005 = True
+            elif blog_0001 and has_0003:
+                # Partial squash: graph parent is 0005 but 0004 row may also be missing.
+                record_0004 = not has_0004
+                record_0005 = True
+
+        # Self-heal: whenever the 0004 (or squash) row is present — or about
+        # to be recorded — but ``accounts_customuser`` is physically missing,
+        # run the idempotent RunPython bodies so the schema matches the
+        # history rows. Covers:
+        #   (a) fresh partial-squash repairs on pre-cutover databases (the
+        #       case the prior revision of this command already handled), and
+        #   (b) self-recovery from an earlier buggy deploy that faked 0004
+        #       (and 0005) without running their RunPython bodies — the state
+        #       where ``has_0005`` is already True but the table never got
+        #       created. Without this, we would early-return and migrate
+        #       would crash on blog.0006_repoint_user_foreign_keys forever.
+        if (record_0004 or has_0004 or has_squash) and not _customuser_table_exists():
+            _run_customuser_creation(self.stdout)
+
+        if has_0005:
+            return
 
         if not record_0005:
             self.stdout.write(
@@ -108,13 +124,6 @@ class Command(BaseCommand):
                 f"has_0004={has_0004}, has_squash={has_squash})."
             )
             return
-
-        # Faking these migrations is only safe when the schema work they wrap
-        # has already happened. If accounts_customuser is missing, run the
-        # idempotent RunPython bodies first so the physical schema matches the
-        # history rows we're about to write.
-        if record_0004 and not _customuser_table_exists():
-            _run_customuser_creation(self.stdout)
 
         if record_0004:
             self.stdout.write(
