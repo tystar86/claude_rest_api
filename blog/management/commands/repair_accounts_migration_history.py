@@ -8,14 +8,28 @@ node and repoints blog onto the unsquashed tail (0005). The DB may list 0003 as
 applied but not 0004/0005; we must record 0004 before 0005 so check_consistent_history
 passes.
 
+Subtle bug this guards against: accounts.0004 wraps CustomUser creation inside a
+``SeparateDatabaseAndState`` with ``database_operations=[]`` plus a ``RunPython``
+(``_ensure_customuser_schema`` / ``_copy_missing_users``). Faking 0004 skips the
+RunPython, so on a database that never had ``accounts_customuser`` (pre-cutover
+deploys), marking 0004 applied without running the schema work leaves the table
+missing — and the next migration in the chain (blog.0006_repoint_user_foreign_keys)
+crashes with ``relation "accounts_customuser" does not exist``. To prevent that,
+we detect the missing table and invoke the idempotent RunPython bodies directly
+before recording the history rows.
+
 Safe to run every deploy: no-op if 0005 is already recorded or prerequisites
-are absent.
+are absent; table-creation path is idempotent (``_ensure_customuser_schema`` and
+``_repoint_foreign_keys`` both check before mutating).
 
 See: django.db.migrations.loader.MigrationLoader.replace_migration (#25945)
 """
 
+from importlib import import_module
+
 from django.core.management.base import BaseCommand
 from django.db import connection
+from django.db.migrations.loader import MigrationLoader
 from django.db.migrations.recorder import MigrationRecorder
 
 ACCOUNTS_0005 = "0005_repoint_non_blog_user_fks"
@@ -23,6 +37,40 @@ ACCOUNTS_0004 = "0004_repair_customuser_table"
 ACCOUNTS_0003 = "0003_enforce_sites_dependency"
 ACCOUNTS_SQUASH = "0001_squashed_0005_customuser_cutover"
 BLOG_0001 = "0001_initial"
+CUSTOMUSER_TABLE = "accounts_customuser"
+
+
+def _customuser_table_exists() -> bool:
+    with connection.cursor() as cursor:
+        return CUSTOMUSER_TABLE in connection.introspection.table_names(cursor)
+
+
+def _run_customuser_creation(stdout) -> None:
+    """
+    Execute the idempotent bodies of accounts.0004 and 0005 against the live
+    schema. Creates ``accounts_customuser`` (copying from ``auth_user``/
+    ``accounts_profile`` when present) and repoints non-blog user FKs — which
+    is exactly what the RunPython operations in those migrations would do if
+    run unfaked.
+    """
+    m0004 = import_module("accounts.migrations.0004_repair_customuser_table")
+    m0005 = import_module("accounts.migrations.0005_repoint_non_blog_user_fks")
+
+    loader = MigrationLoader(connection, ignore_no_migrations=True)
+    # CustomUser enters the historical state via 0004's state_operations, so
+    # the RunPython in 0004 must see state_after_0004; 0005's repoint needs
+    # state_after_0005 (AlterField repointing profile.user at customuser).
+    state_after_0004 = loader.project_state(("accounts", ACCOUNTS_0004), at_end=True)
+    state_after_0005 = loader.project_state(("accounts", ACCOUNTS_0005), at_end=True)
+
+    with connection.schema_editor() as schema_editor:
+        stdout.write(
+            f"{CUSTOMUSER_TABLE} missing — running accounts.0004 data migration "
+            "to create the table and copy users."
+        )
+        m0004._copy_missing_users(state_after_0004.apps, schema_editor)
+        stdout.write("Running accounts.0005 data migration to repoint non-blog user FKs.")
+        m0005._repoint_foreign_keys(state_after_0005.apps, schema_editor)
 
 
 class Command(BaseCommand):
@@ -33,11 +81,9 @@ class Command(BaseCommand):
         if not recorder.has_table():
             return
 
-        if recorder.migration_qs.filter(app="accounts", name=ACCOUNTS_0005).exists():
-            return
-
         applied = recorder.applied_migrations()
         has_0004 = ("accounts", ACCOUNTS_0004) in applied
+        has_0005 = ("accounts", ACCOUNTS_0005) in applied
         has_squash = ("accounts", ACCOUNTS_SQUASH) in applied
         has_0003 = ("accounts", ACCOUNTS_0003) in applied
         blog_0001 = ("blog", BLOG_0001) in applied
@@ -45,12 +91,30 @@ class Command(BaseCommand):
         record_0004 = False
         record_0005 = False
 
-        if has_0004 or has_squash:
-            record_0005 = True
-        elif blog_0001 and has_0003:
-            # Partial squash: graph parent is 0005 but 0004 row may also be missing.
-            record_0004 = not has_0004
-            record_0005 = True
+        if not has_0005:
+            if has_0004 or has_squash:
+                record_0005 = True
+            elif blog_0001 and has_0003:
+                # Partial squash: graph parent is 0005 but 0004 row may also be missing.
+                record_0004 = not has_0004
+                record_0005 = True
+
+        # Self-heal: whenever the 0004 (or squash) row is present — or about
+        # to be recorded — but ``accounts_customuser`` is physically missing,
+        # run the idempotent RunPython bodies so the schema matches the
+        # history rows. Covers:
+        #   (a) fresh partial-squash repairs on pre-cutover databases (the
+        #       case the prior revision of this command already handled), and
+        #   (b) self-recovery from an earlier buggy deploy that faked 0004
+        #       (and 0005) without running their RunPython bodies — the state
+        #       where ``has_0005`` is already True but the table never got
+        #       created. Without this, we would early-return and migrate
+        #       would crash on blog.0006_repoint_user_foreign_keys forever.
+        if (record_0004 or has_0004 or has_squash) and not _customuser_table_exists():
+            _run_customuser_creation(self.stdout)
+
+        if has_0005:
+            return
 
         if not record_0005:
             self.stdout.write(
