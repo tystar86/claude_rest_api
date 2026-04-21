@@ -24,6 +24,8 @@ Docker local uses:
 - DB name `claude_rest_api`
 - DB user/password `claude_rest_api`
 
+For a **new** Compose database (empty data directory), run `docker compose down -v` to remove the `postgres_data` volume, then bring the stack up again. To load the large demo dataset, run `python manage.py seed_large` inside the backend container, or set `SEED_LARGE_ON_START=1` when starting Compose (see `README.md` and `docs/developers/tooling-testing.md`).
+
 ### Tests
 
 Pytest behavior is important:
@@ -136,8 +138,7 @@ Preferred local dataset:
 ### Fixture file
 
 - `blog/fixtures/initial_data.json`
-- seeds `accounts.CustomUser` and content records directly
-- seeds content records directly without requiring a separate profile table
+- seeds `accounts.CustomUser` and content records directly without requiring a separate profile table
 
 This looks like a starter/demo fixture, but there is no main documented workflow in the repo for when contributors should load it.
 

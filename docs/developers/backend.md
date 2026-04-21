@@ -188,4 +188,3 @@ Purpose:
 - `blog/serializers.py`
 - `blog/models.py`
 - `accounts/models.py`
-- `accounts/signals.py`

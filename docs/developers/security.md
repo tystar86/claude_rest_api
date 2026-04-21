@@ -24,7 +24,7 @@ The repo uses a combination of:
 
 - ownership checks
 - Django staff/superuser checks
-- custom profile roles
+- custom user roles
 
 Notable helper functions in `blog/api_views.py`:
 

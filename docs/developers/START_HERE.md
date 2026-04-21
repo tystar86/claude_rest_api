@@ -63,6 +63,8 @@ What Docker does for you:
 - Runs backend migrations automatically
 - Runs the Vite dev server in the frontend container
 
+For a fresh Docker Postgres volume and the `seed_large` dataset, see the **Fresh Postgres volume and `seed_large`** subsection in the root `README.md` (Docker section).
+
 **Production vs Compose:** this project does **not** deploy with Docker Compose. The live backend is built from `Dockerfile.backend` and runs Gunicorn through `start.sh`; `render.yaml` describes the Render service. Use `docker-compose.yml` only for local full-stack development (Compose overrides the backend container to use `runserver`, not Gunicorn).
 
 To debug the backend with `pdb` / `breakpoint()` while using Compose, use a **detached** `up` and **`docker attach`** in a second terminal — see [Debugging the backend with pdb in Docker Compose](./tooling-testing.md#debugging-the-backend-with-pdb-in-docker-compose) in `tooling-testing.md`.
@@ -166,7 +168,7 @@ If you need to:
 - Add or change an API endpoint: edit `blog/api/` routers (and `blog/api_urls.py` if mount paths change); reuse helpers from `blog/api_views.py` when applicable
 - Change serialization: start in `blog/serializers.py`
 - Change data shape or relationships: start in `blog/models.py` or `accounts/models.py`
-- Change auth/profile behavior: inspect `blog/api/auth/router.py`, `accounts/models.py`, and `accounts/signals.py`
+- Change auth/profile behavior: inspect `blog/api/auth/router.py` and `CustomUser` in `accounts/models.py` (role, bio, and related fields)
 - Change page behavior: start in the matching file under `frontend/src/pages/`
 - Change API calls or CSRF behavior: start in `frontend/src/api/client.js`
 - Change shared navigation/auth bootstrap: inspect `frontend/src/components/Navbar.jsx` and `frontend/src/context/AuthContext.jsx`
