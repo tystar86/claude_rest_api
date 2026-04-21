@@ -18,18 +18,30 @@ crashes with ``relation "accounts_customuser" does not exist``. To prevent that,
 we detect the missing table and invoke the idempotent RunPython bodies directly
 before recording the history rows.
 
-Safe to run every deploy: no-op if 0005 is already recorded or prerequisites
-are absent; table-creation path is idempotent (``_ensure_customuser_schema`` and
-``_repoint_foreign_keys`` both check before mutating).
+Safe to run every deploy: no-op when the schema matches the history, whether
+or not 0005 is already recorded; table-creation path is idempotent
+(``_ensure_customuser_schema`` and ``_repoint_foreign_keys`` both check before
+mutating). When ``accounts_customuser`` is missing but the 0004 row is already
+present (self-recovery from an earlier buggy deploy), we also run the schema
+work before short-circuiting on ``has_0005``.
+
+Implementation note: the RunPython bodies are invoked with the *live* Django
+app registry rather than historical apps from ``MigrationLoader.project_state``.
+Once ``accounts.0004`` and ``0005`` are both recorded as applied, Django's
+loader treats the squash's ``replaces`` list as fully applied and collapses
+those nodes out of the graph, making ``project_state(("accounts", "0004_..."))``
+raise ``NodeNotFoundError``. The live registry works because there are no
+post-0004 schema changes to ``CustomUser`` and ``_repoint_foreign_keys`` never
+consults ``apps``.
 
 See: django.db.migrations.loader.MigrationLoader.replace_migration (#25945)
 """
 
 from importlib import import_module
 
+from django.apps import apps as global_apps
 from django.core.management.base import BaseCommand
 from django.db import connection
-from django.db.migrations.loader import MigrationLoader
 from django.db.migrations.recorder import MigrationRecorder
 
 ACCOUNTS_0005 = "0005_repoint_non_blog_user_fks"
@@ -52,25 +64,30 @@ def _run_customuser_creation(stdout) -> None:
     ``accounts_profile`` when present) and repoints non-blog user FKs — which
     is exactly what the RunPython operations in those migrations would do if
     run unfaked.
+
+    We pass the *live* Django app registry instead of the historical apps
+    returned by ``MigrationLoader.project_state``. Rationale: once a prior
+    deploy has recorded both 0004 and 0005 in ``django_migrations``, Django's
+    loader considers the squash's ``replaces`` list fully applied and collapses
+    the graph, dropping nodes ``accounts.0004`` / ``accounts.0005``. Calling
+    ``project_state(("accounts", "0004_..."))`` then raises ``NodeNotFoundError``.
+    The live registry is safe to use here because there are no post-0004
+    schema changes to ``CustomUser`` (migration 0005 only alters ``profile.user``),
+    so the live model matches what 0004 would historically produce; and
+    ``_repoint_foreign_keys`` does not consult ``apps`` at all (only raw SQL
+    and ``schema_editor``).
     """
     m0004 = import_module("accounts.migrations.0004_repair_customuser_table")
     m0005 = import_module("accounts.migrations.0005_repoint_non_blog_user_fks")
-
-    loader = MigrationLoader(connection, ignore_no_migrations=True)
-    # CustomUser enters the historical state via 0004's state_operations, so
-    # the RunPython in 0004 must see state_after_0004; 0005's repoint needs
-    # state_after_0005 (AlterField repointing profile.user at customuser).
-    state_after_0004 = loader.project_state(("accounts", ACCOUNTS_0004), at_end=True)
-    state_after_0005 = loader.project_state(("accounts", ACCOUNTS_0005), at_end=True)
 
     with connection.schema_editor() as schema_editor:
         stdout.write(
             f"{CUSTOMUSER_TABLE} missing — running accounts.0004 data migration "
             "to create the table and copy users."
         )
-        m0004._copy_missing_users(state_after_0004.apps, schema_editor)
+        m0004._copy_missing_users(global_apps, schema_editor)
         stdout.write("Running accounts.0005 data migration to repoint non-blog user FKs.")
-        m0005._repoint_foreign_keys(state_after_0005.apps, schema_editor)
+        m0005._repoint_foreign_keys(global_apps, schema_editor)
 
 
 class Command(BaseCommand):
