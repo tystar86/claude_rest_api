@@ -170,3 +170,57 @@ def test_blog_initial_follows_accounts_customuser_migration():
         assert plan.index(squashed) < plan.index(target)
     else:
         assert plan.index(("accounts", "0004_repair_customuser_table")) < plan.index(target)
+
+
+def test_repair_command_uses_live_apps_registry_not_collapsed_graph(monkeypatch):
+    """
+    Regression: when both accounts.0004 and 0005 are recorded in
+    django_migrations, the squash's ``replaces`` list is considered fully
+    applied and Django collapses the migration graph — dropping the individual
+    0004/0005 nodes. ``MigrationLoader.project_state(("accounts", "0004_..."))``
+    then raises ``NodeNotFoundError``. The repair command must pass the *live*
+    Django app registry to the RunPython bodies instead of historical state
+    apps. Render deploy trace:
+        NodeNotFoundError: Node ('accounts', '0004_repair_customuser_table')
+        not a valid node
+    """
+    from django.apps import apps as global_apps
+    from django.db import connection as db_connection
+
+    repair = importlib.import_module("blog.management.commands.repair_accounts_migration_history")
+    m0004 = importlib.import_module("accounts.migrations.0004_repair_customuser_table")
+    m0005 = importlib.import_module("accounts.migrations.0005_repoint_non_blog_user_fks")
+
+    captured_apps: list[object] = []
+
+    def fake_copy_missing_users(apps, schema_editor):
+        captured_apps.append(("0004", apps))
+
+    def fake_repoint(apps, schema_editor):
+        captured_apps.append(("0005", apps))
+
+    class DummySchemaEditor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc):
+            return False
+
+    monkeypatch.setattr(m0004, "_copy_missing_users", fake_copy_missing_users)
+    monkeypatch.setattr(m0005, "_repoint_foreign_keys", fake_repoint)
+    # Avoid opening a real schema editor (SQLite rejects it mid-transaction,
+    # Postgres would DDL against the test DB). The RunPython bodies are mocked
+    # above so the editor is never actually used.
+    monkeypatch.setattr(db_connection, "schema_editor", lambda: DummySchemaEditor())
+
+    class DummyStdout:
+        def write(self, _msg):
+            pass
+
+    repair._run_customuser_creation(DummyStdout())
+
+    assert [tag for tag, _ in captured_apps] == ["0004", "0005"]
+    # Both RunPython bodies must receive the live ``django.apps.apps`` registry.
+    # This is what sidesteps the collapsed-graph NodeNotFoundError.
+    for _tag, apps_arg in captured_apps:
+        assert apps_arg is global_apps
