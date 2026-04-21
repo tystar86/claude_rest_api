@@ -28,15 +28,14 @@ This is the main application:
 - `api_views.py`: shared pagination, dashboard payload, and permission helpers for Ninja
 - `api_urls.py`: mounts the Ninja API (`blog.api.api`)
 - `api/`: Ninja routers (`auth/`, `data/`), Pydantic schemas, throttling, CSRF helpers
-- `management/commands/`: operational commands for seeding and migration repair
+- `management/commands/`: operational commands for seeding
 
 ### `accounts/`
 
 This app is smaller than the name suggests:
 
-- `models.py`: `Profile` with `user`, `moderator`, and `admin` roles
-- `signals.py`: auto-create a `Profile` when a Django `User` is created
-- `apps.py`: imports signals at startup
+- `models.py`: `CustomUser` — role and bio stored directly on the user record
+- `apps.py`: app config
 
 Important note:
 
@@ -161,14 +160,6 @@ Default behavior:
 - Production: optional `EMAIL_BACKEND` / `DEFAULT_FROM_EMAIL` via environment (defaults to console)
 
 ## Management Commands
-
-### `ensure_sites_migrations`
-
-Purpose:
-
-- Repairs split migration state for the `django_site` table (`django.contrib.sites`)
-- Safe to run repeatedly
-- Called automatically in `start.sh`
 
 ### `seed_large`
 

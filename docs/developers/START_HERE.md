@@ -136,7 +136,7 @@ Use `loaddata` only when you specifically want a smaller static demo dataset.
 
 - `config/` holds Django settings, root URLs, ASGI, and WSGI
 - `blog/` holds models, serializers, shared API helpers, URLs, Ninja routers under `blog/api/`, and management commands
-- `accounts/` holds the `Profile` model and the signal that auto-creates a profile for each Django user
+- `accounts/` holds `CustomUser` (role and bio live directly on the user record)
 
 Important onboarding note:
 
@@ -224,4 +224,3 @@ uv run python tests/security/load_burst.py --url http://localhost:8000/api/dashb
 - CSRF is required for session-authenticated write requests. The frontend handles this in `frontend/src/api/client.js`.
 - Fixture and large-seed users are useful for data shape and load testing, but they are not a clean source of login-ready accounts.
 - A Django `is_staff` or `is_superuser` account is privileged on the backend even if its `CustomUser.role` still says `user`, so UI role badges can look misleading until the user role is updated.
-- Production deploys run `ensure_sites_migrations` before `migrate` to repair rare split state for `django.contrib.sites` (`django_site`) before normal migrations run.

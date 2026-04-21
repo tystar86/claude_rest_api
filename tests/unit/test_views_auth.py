@@ -1,11 +1,10 @@
 """Unit tests for authentication API endpoints."""
 
-import io
 from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError, connection
+from django.db import IntegrityError
 from django.test import Client
 
 User = get_user_model()
@@ -392,13 +391,3 @@ class TestUserProfileAndSessionAuth:
         client = Client()
         resp = client.get("/api/auth/user/")
         assert resp.status_code == 403
-
-    @pytest.mark.skipif(
-        connection.vendor != "postgresql",
-        reason="ensure_sites_migrations uses PostgreSQL information_schema",
-    )
-    def test_ensure_sites_migrations_is_idempotent(self, db):
-        """Running ensure_sites_migrations on a healthy PostgreSQL DB produces no error."""
-        from django.core.management import call_command
-
-        call_command("ensure_sites_migrations", stdout=io.StringIO())

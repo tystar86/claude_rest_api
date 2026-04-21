@@ -60,7 +60,6 @@ jobs:
 
       - name: Apply migrations
         run: |
-          uv run python manage.py ensure_sites_migrations
           uv run python manage.py migrate --run-syncdb
 
       - name: Start Django server

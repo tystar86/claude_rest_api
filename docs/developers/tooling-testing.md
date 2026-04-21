@@ -178,10 +178,9 @@ When you use **Docker Compose**, the `command` in `docker-compose.yml` **overrid
 `start.sh` then:
 
 1. waits for PostgreSQL
-2. runs `ensure_sites_migrations`
-3. runs `migrate`
-4. runs `collectstatic`
-5. starts Gunicorn
+2. runs `migrate`
+3. runs `collectstatic`
+4. starts Gunicorn
 
 ### Debugging the backend with pdb in Docker Compose
 
