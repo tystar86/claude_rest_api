@@ -165,7 +165,7 @@ This is a controlled burst tool for local/staging verification, not an aggressiv
 
 ## Security-Sensitive Operational Notes
 
-- `start.sh` runs `ensure_sites_migrations`, `migrate`, and `collectstatic` before Gunicorn starts
+- `start.sh` runs `migrate` and `collectstatic` before Gunicorn starts
 - Outbound email is optional; default is the Django console backend unless `EMAIL_BACKEND` is set
 - Production session and CSRF cookies are expected to be `Secure`
 - Cross-origin session auth requires careful coordination between frontend origin, backend origin, and cookie SameSite settings

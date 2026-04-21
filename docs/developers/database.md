@@ -35,7 +35,6 @@ Pytest behavior is important:
 This means:
 
 - Some migration or PostgreSQL-specific behavior may not appear in the default fast local test path
-- `ensure_sites_migrations` tests are explicitly marked to require PostgreSQL behavior
 
 ## Models and Relationships
 
@@ -44,11 +43,6 @@ This means:
 - swapped in for Django `auth.User`
 - stores `role` and `bio` directly on the user record
 - roles are `user`, `moderator`, and `admin`
-
-### `accounts.Profile`
-
-- one-to-one compatibility record for user profile data
-- mirrors `role` and `bio` for legacy/admin-oriented paths
 
 ### `blog.Tag`
 
@@ -81,7 +75,6 @@ Used to categorize posts through a many-to-many relationship.
 
 ## Relationship Summary
 
-- CustomUser -> Profile: one-to-one
 - CustomUser -> Post: one-to-many
 - CustomUser -> Comment: one-to-many
 - CustomUser -> CommentVote: one-to-many
@@ -134,13 +127,6 @@ Important repo rule:
 - Generate migrations with Django commands
 - Do not hand-edit migration files
 
-There is also a repo-specific migration repair mechanism:
-
-- `accounts/migrations/0003_enforce_sites_dependency.py`
-- `blog/management/commands/ensure_sites_migrations.py`
-
-Those exist because `django.contrib.sites` has occasionally shown split migration state in deployed environments.
-
 ## Fixtures and Seed Data
 
 Preferred local dataset:
@@ -151,7 +137,7 @@ Preferred local dataset:
 
 - `blog/fixtures/initial_data.json`
 - seeds `accounts.CustomUser` and content records directly
-- does not include `accounts.Profile` compatibility rows
+- seeds content records directly without requiring a separate profile table
 
 This looks like a starter/demo fixture, but there is no main documented workflow in the repo for when contributors should load it.
 
@@ -216,17 +202,10 @@ Generate a large demo dataset:
 python manage.py seed_large
 ```
 
-Repair sites migration state before or during deploy troubleshooting:
-
-```bash
-python manage.py ensure_sites_migrations
-python manage.py migrate
-```
-
 ## What New Developers Should Keep In Mind
 
 - SQLite test behavior is convenient but not identical to PostgreSQL
 - The deploy path assumes PostgreSQL and includes extra migration safety logic
 - Data visibility is shaped by both post publication status and comment approval state
-- If you are debugging auth-related data, inspect `accounts_customuser` first and `accounts_profile` only when you are checking compatibility data
+- If you are debugging auth-related data, inspect `accounts_customuser` — role and bio live directly on that table
 - If you need a privileged human test account, `createsuperuser` plus an explicit `CustomUser.role` update is more reliable than relying on fixtures or bulk seed data

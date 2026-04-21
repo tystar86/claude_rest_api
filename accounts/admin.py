@@ -8,7 +8,7 @@ from .models import CustomUser
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
         (
-            "Profile",
+            "Role and bio",
             {
                 "fields": ("role", "bio"),
             },
@@ -16,7 +16,7 @@ class CustomUserAdmin(UserAdmin):
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
         (
-            "Profile",
+            "Role and bio",
             {
                 "fields": ("email", "role", "bio"),
             },
