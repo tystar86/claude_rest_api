@@ -128,7 +128,7 @@ AUTH_PASSWORD_VALIDATORS: list[dict[str, Any]] = [
 ]
 
 LANGUAGE_CODE: str = "en-us"
-TIME_ZONE: str = "UTC"
+TIME_ZONE: str = "Europe/Prague"
 USE_I18N: bool = True
 USE_TZ: bool = True
 
