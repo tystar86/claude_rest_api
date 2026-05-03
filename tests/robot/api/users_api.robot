@@ -55,6 +55,7 @@ Dashboard Returns Latest Posts And Tags
     ${resp}=    GET On Session    api    /api/dashboard/
     ${json}=    Set Variable    ${resp.json()}
     Dictionary Should Contain Key    ${json}    latest_posts
+    Dictionary Should Contain Key    ${json}    most_commented_posts
     Dictionary Should Contain Key    ${json}    most_liked_posts
     Dictionary Should Contain Key    ${json}    most_used_tags
     Dictionary Should Contain Key    ${json}    top_authors
@@ -64,4 +65,9 @@ Activity Endpoint Returns Ticker Fields
     Should Be Equal As Integers    ${resp.status_code}    200
     ${json}=    Set Variable    ${resp.json()}
     Dictionary Should Contain Key    ${json}    latest_post_title
+    Dictionary Should Contain Key    ${json}    latest_post_at
+    Dictionary Should Contain Key    ${json}    latest_comment_author
+    Dictionary Should Contain Key    ${json}    latest_comment_at
+    Dictionary Should Contain Key    ${json}    latest_comment_post_title
+    Dictionary Should Contain Key    ${json}    latest_user_username
     Dictionary Should Contain Key    ${json}    latest_user_joined_at
