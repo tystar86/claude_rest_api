@@ -10,6 +10,8 @@
   --nb-stat-cell-pad-x: clamp(6px, 1.5vw, 14px);
   /* Centered “frame” for main chrome (was 1400px full-bleed feel on large monitors). */
   --nb-frame-max-width: min(1080px, calc(100vw - 2 * var(--nb-page-edge)));
+  /* Reserve space in main-column min-heights so header + content + footer fits the viewport. */
+  --nb-footer-height: 48px;
   --black: #0a0a0a;
   --white: #fefefe;
   --bg: #E8E2D8;
@@ -319,7 +321,34 @@ h1, h2, h3, h4, h5, h6 {
 /* ─── App Shell ─── */
 .app-shell {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: var(--bg);
+}
+
+.app-shell-body {
+  flex: 1 1 auto;
+}
+
+/* ─── Site footer (global) ─── */
+.nb-site-footer {
+  flex-shrink: 0;
+  border-top: var(--border);
+  background: var(--bg);
+  padding: 12px var(--nb-page-edge);
+  text-align: center;
+}
+
+.nb-site-footer-text {
+  display: block;
+  margin: 0;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--black);
+  opacity: 0.72;
 }
 
 /* ─── Header / Navbar ─── */
@@ -637,7 +666,7 @@ h1, h2, h3, h4, h5, h6 {
   border-left: var(--border);
   border-right: var(--border);
   border-bottom: var(--border);
-  min-height: calc(100vh - 95px);
+  min-height: calc(100vh - 95px - var(--nb-footer-height));
 }
 
 .nb-main {
@@ -651,7 +680,7 @@ h1, h2, h3, h4, h5, h6 {
   border-left: var(--border);
   border-right: var(--border);
   border-bottom: var(--border);
-  min-height: calc(100vh - 95px);
+  min-height: calc(100vh - 95px - var(--nb-footer-height));
 }
 
 /* Dashboard: full-bleed main column (viewport-wide strip under the header). */
@@ -1212,7 +1241,7 @@ h1, h2, h3, h4, h5, h6 {
   border-left: var(--border);
   border-right: var(--border);
   border-bottom: var(--border);
-  min-height: calc(100vh - 95px);
+  min-height: calc(100vh - 95px - var(--nb-footer-height));
   background: var(--bg);
 }
 
@@ -1222,7 +1251,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ─── Auth Pages ─── */
 .nb-auth-page {
-  min-height: calc(100vh - 95px);
+  min-height: calc(100vh - 95px - var(--nb-footer-height));
   display: flex;
   align-items: center;
   justify-content: center;

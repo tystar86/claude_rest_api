@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
+import SiteFooter from "./components/SiteFooter";
 import Dashboard from "./pages/Dashboard";
 import CommentList from "./pages/CommentList";
 import PostList from "./pages/PostList";
@@ -18,20 +19,23 @@ export default function App() {
     <AuthProvider>
       <div className="app-shell">
         <Navbar />
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/comments" element={<CommentList />} />
-          <Route path="/posts" element={<PostList />} />
-          <Route path="/posts/:slug" element={<PostDetail />} />
-          <Route path="/tags" element={<TagList />} />
-          <Route path="/tags/:slug" element={<TagDetail />} />
-          <Route path="/users" element={<UserList />} />
-          <Route path="/users/:username" element={<UserDetail />} />
-          <Route path="/profile" element={<UserProfile />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-        </Routes>
+        <div className="app-shell-body">
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/comments" element={<CommentList />} />
+            <Route path="/posts" element={<PostList />} />
+            <Route path="/posts/:slug" element={<PostDetail />} />
+            <Route path="/tags" element={<TagList />} />
+            <Route path="/tags/:slug" element={<TagDetail />} />
+            <Route path="/users" element={<UserList />} />
+            <Route path="/users/:username" element={<UserDetail />} />
+            <Route path="/profile" element={<UserProfile />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+          </Routes>
+        </div>
+        <SiteFooter />
       </div>
     </AuthProvider>
   );
