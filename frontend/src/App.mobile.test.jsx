@@ -136,6 +136,7 @@ describe("App mobile layout (narrow viewport)", () => {
 
     await waitFor(() => expect(screen.getByText("Hello")).toBeInTheDocument());
     expect(document.querySelector(".app-shell")).not.toBeNull();
+    expect(screen.getByRole("contentinfo")).toHaveTextContent(/created by tystar/i);
     expect(
       screen.getByRole("button", { name: "Open navigation menu" }),
     ).toBeInTheDocument();
