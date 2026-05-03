@@ -127,8 +127,9 @@ The frontend defaults to:
 
 ### Production
 
-- Vercel uses `frontend/vercel.json`
-- The production frontend expects `VITE_API_URL` to include `/api`
+- The production frontend image is `frontend/Dockerfile.frontend.production`
+- The production frontend is served by nginx inside the container and proxied by Caddy
+- Production should use same-origin `/api` calls; `VITE_API_URL` can still override that when needed
 ## Frontend Tests
 
 Current test setup:

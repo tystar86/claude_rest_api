@@ -11,12 +11,12 @@ The repo currently points to:
 Source of truth examples:
 
 - `.python-version` pins Python to `3.14`
-- `frontend/Dockerfile.frontend` and GitHub Actions pin Node 22
+- `frontend/Dockerfile.frontend.local` and GitHub Actions pin Node 22
 
 If local tooling and README text disagree, prefer the actual repo configs:
 
 - `Dockerfile.backend`
-- `frontend/Dockerfile.frontend`
+- `frontend/Dockerfile.frontend.local`
 - `.github/workflows/*.yml`
 - `pyproject.toml`
 - `frontend/package.json`
@@ -167,13 +167,13 @@ This starts:
 - Django on `8000`
 - Vite on `5173`
 
-That full-stack path is **local development only**. Production does not use Docker Compose; the hosted backend is built from `Dockerfile.backend` and runs Gunicorn via `start.sh`, as configured in `render.yaml`.
+That full-stack path is **local development only**. Production does not use `docker-compose.local.yml`; the VPS deploy uses `docker-compose.production.yml`, `Dockerfile.backend`, and Gunicorn via `start.sh`.
 
 ### Backend container behavior
 
 `Dockerfile.backend` installs dependencies with `uv`.
 
-When you use **Docker Compose**, the `command` in `docker-compose.yml` **overrides** the image default and runs Django’s `runserver` (with migrations) instead of `start.sh`. A **production** deploy uses the Dockerfile `CMD` / `start.sh` and Gunicorn.
+When you use **Docker Compose**, the `command` in `docker-compose.local.yml` **overrides** the image default and runs Django’s `runserver` (with migrations) instead of `start.sh`. A **production** deploy uses the Dockerfile `CMD` / `start.sh` and Gunicorn through `docker-compose.production.yml`.
 
 `start.sh` then:
 
@@ -189,10 +189,10 @@ The local `backend` service uses Django’s `runserver` with `--nothreading` and
 1. Start the stack in the background (rebuild if you changed the image):
 
    ```bash
-   docker compose up -d --build
+   docker compose -f docker-compose.local.yml up -d --build
    ```
 
-   (`docker-compose up -d --build` is the same with the legacy CLI.)
+   (`docker-compose -f docker-compose.local.yml up -d --build` is the same with the legacy CLI.)
 
 2. In **another** terminal, attach to the backend container **before** you hit the breakpoint, or as soon as execution stops:
 
@@ -208,7 +208,7 @@ The local `backend` service uses Django’s `runserver` with `--nothreading` and
 
 ### Frontend container behavior
 
-`frontend/Dockerfile.frontend` installs dependencies with `npm ci` and runs Vite.
+`frontend/Dockerfile.frontend.local` installs dependencies with `npm ci` and runs Vite.
 
 ## CI Workflows
 

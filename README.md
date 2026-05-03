@@ -6,9 +6,7 @@ A full-stack blog platform with a Django + Django Ninja API backend and a React 
 
 ## Live Preview
 
-**https://claude-rest-api.vercel.app/**
-
-> The backend runs on Render's free tier and spins down after inactivity. **Allow up to 60 seconds** on the first load for the server to wake up. Subsequent requests are fast.
+**https://blog-it.tystar.cz/**
 
 ## Status Page
 
@@ -27,10 +25,10 @@ New contributors should start with [`docs/developers/START_HERE.md`](docs/develo
 |---|---|
 | Language | Python 3.14 |
 | Framework | Django 6.0 + Django Ninja (`django-ninja`) |
-| Database | PostgreSQL 16 (Neon) |
+| Database | PostgreSQL 16 |
 | Auth | Session-based email/password (Django Ninja `/api/auth/`) |
 | Rate limiting | Django Ninja throttling (per-user, per-endpoint, global) |
-| Server | Gunicorn (Render) |
+| Server | Gunicorn |
 
 ### Frontend
 | | |
@@ -49,7 +47,7 @@ New contributors should start with [`docs/developers/START_HERE.md`](docs/develo
 | Linting | Ruff (Python) · ESLint 9 (JS) |
 | Testing | pytest + Robot Framework + Vitest + Testing Library |
 | CI hooks | pre-commit (Ruff, YAML/JSON/TOML, secrets detection) |
-| Hosting | Render (backend) · Vercel (frontend) · Neon (database) |
+| Hosting | Hetzner VPS · Caddy · per-app Docker Compose |
 
 ---
 
@@ -82,7 +80,7 @@ docker-compose up
 
 Backend → `http://localhost:8000` | Frontend → `http://localhost:5173`
 
-**Docker Compose** is for **local development** only. It runs Postgres, Django’s `runserver`, and the Vite dev server. Production does **not** use Compose: the backend image (`Dockerfile.backend`) runs **Gunicorn** via `start.sh`, and this repository’s hosted backend is configured in **`render.yaml`** (Render).
+**Docker Compose** is for **local development** only. It runs Postgres, Django’s `runserver`, and the Vite dev server through `docker-compose.local.yml`. Production uses the Hetzner VPS rollout described in [docs/deployment/vps-phase1-caddy.md](docs/deployment/vps-phase1-caddy.md) and [docs/deployment/blogit-vps-rollout.md](docs/deployment/blogit-vps-rollout.md), with Gunicorn started via `start.sh` and `docker-compose.production.yml`.
 
 ### Standalone
 
@@ -114,9 +112,9 @@ npm run dev
 | `DB_NAME / DB_USER / DB_PASSWORD / DB_HOST / DB_PORT` | PostgreSQL connection |
 | `CORS_ALLOWED_ORIGINS` | Frontend origin |
 | `CSRF_TRUSTED_ORIGINS` | CSRF whitelist |
-Files: `.env.local` (dev) · `.env.testing` (tests) · `.env.production` (prod template)
+Files: `.env.local` (dev) · `.env.testing` (tests) · `.env.production.example` (production template) · `.env.vps` (server runtime, untracked)
 
-Never commit real secrets. Keep only placeholder/template values in tracked env files and load live credentials from your local shell, CI secrets, or deployment platform secret store.
+Never commit real secrets. Keep only placeholder/template values in tracked env files and load live credentials from your local shell or the VPS runtime env file.
 
 ---
 
@@ -190,7 +188,8 @@ claude_rest_api/
 ├── tests/
 │   ├── robot/       # E2E tests (API + UI)
 │   └── security/    # Smoke + load tests
-├── docker-compose.yml
+├── docker-compose.local.yml
+├── docker-compose.production.yml
 ├── Dockerfile.backend
 └── pyproject.toml
 ```

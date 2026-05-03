@@ -25,10 +25,11 @@ Recommended reading order:
 ## Operational Links
 
 - Status page: [https://tystar.betteruptime.com/](https://tystar.betteruptime.com/)
+- Optional **single-VPS** layout (Caddy, per-app Compose): [VPS phase 1 — Caddy](../deployment/vps-phase1-caddy.md) ([Linear TYS-194](https://linear.app/tystar/issue/TYS-194/design-single-vps-deployment-architecture-for-tystarcz-blog-ittystarcz))
 
 ## What Is Intentionally Separated
 
-- Production deploy runbooks are only summarized here. The source-of-truth **production** deploy files are `render.yaml`, `Dockerfile.backend`, and `frontend/vercel.json`. `docker-compose.yml` is for **local** full-stack development only (it overrides the backend image to use `runserver`, not Gunicorn).
+- Production deploy runbooks are only summarized here. The source-of-truth **production** deploy files are `docker-compose.production.yml`, `Dockerfile.backend`, `frontend/Dockerfile.frontend.production`, and the runbooks in `docs/deployment/`. `docker-compose.local.yml` is for **local** full-stack development only (it overrides the backend image to use `runserver`, not Gunicorn).
 - Feature-by-feature API docs are not broken into a separate reference yet. The best source for endpoint behavior is `blog/api_urls.py`, `blog/api/`, and shared helpers in `blog/api_views.py`.
 
 ## Known Documentation Notes

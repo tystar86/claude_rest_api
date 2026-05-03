@@ -6,8 +6,8 @@ The intended primary database is PostgreSQL 16.
 
 Where that shows up:
 
-- `docker-compose.yml` uses `postgres:16-alpine` for **local** Docker Compose stacks (not used for production deploy)
-- `render.yaml` is configured for a production PostgreSQL service
+- `docker-compose.local.yml` uses `postgres:16-alpine` for **local** Docker Compose stacks (not used for production deploy)
+- `docker-compose.production.yml` uses `postgres:16-alpine` for the current Blogit VPS deployment
 - `start.sh` uses `psycopg` to wait for database readiness
 - Django settings build a PostgreSQL connection unless tests intentionally switch to SQLite
 

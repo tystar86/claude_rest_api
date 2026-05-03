@@ -97,7 +97,7 @@ Why this matters:
 
 ## Secure Settings
 
-Production-relevant settings in `config/settings.py` and `.env.production.example` include:
+Production-relevant settings in `config/settings.py`, `.env.production.example`, and `.env.vps` include:
 
 - `SECURE_SSL_REDIRECT`
 - `SECURE_HSTS_SECONDS`
@@ -122,7 +122,8 @@ Backend:
 
 Frontend deploy:
 
-- `frontend/vercel.json` adds `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, and a Content Security Policy
+- the production frontend is served by nginx in `frontend/Dockerfile.frontend.production`
+- Caddy terminates TLS in front of the frontend and backend containers
 
 ## Logging
 

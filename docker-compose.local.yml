@@ -1,8 +1,8 @@
 # Local development only — full stack: Postgres + Django runserver + Vite dev server.
 #
-# Production does not use this file. The hosted backend is built from Dockerfile.backend
-# and runs Gunicorn via start.sh; deployment for this repo is defined in render.yaml
-# (Render). See docs/developers/START_HERE.md and the root README.
+# Production does not use this file. The VPS deployment uses docker-compose.production.yml,
+# Dockerfile.backend, frontend/Dockerfile.frontend.production, and the docs under
+# docs/deployment/. See docs/developers/START_HERE.md and the root README.
 #
 services:
   db:
@@ -56,7 +56,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.frontend
+      dockerfile: Dockerfile.frontend.local
     container_name: claude_rest_api_frontend
     depends_on:
       - backend
