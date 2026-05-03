@@ -46,7 +46,7 @@ Why Node 22:
 ### Option A: Docker
 
 ```bash
-docker-compose up
+docker compose -f docker-compose.local.yml up
 ```
 
 Services:
@@ -59,13 +59,13 @@ What Docker does for you:
 
 - Starts Postgres 16
 - Builds the backend image from `Dockerfile.backend`
-- Builds the frontend image from `frontend/Dockerfile.frontend`
+- Builds the frontend image from `frontend/Dockerfile.frontend.local`
 - Runs backend migrations automatically
 - Runs the Vite dev server in the frontend container
 
 For a fresh Docker Postgres volume and the `seed_large` dataset, see the **Fresh Postgres volume and `seed_large`** subsection in the root `README.md` (Docker section).
 
-**Production vs Compose:** this project does **not** deploy with Docker Compose. The live backend is built from `Dockerfile.backend` and runs Gunicorn through `start.sh`; `render.yaml` describes the Render service. Use `docker-compose.yml` only for local full-stack development (Compose overrides the backend container to use `runserver`, not Gunicorn).
+**Production vs Compose:** this project does **not** deploy with `docker-compose.local.yml`. The live VPS deployment uses `docker-compose.production.yml`, `Dockerfile.backend`, `frontend/Dockerfile.frontend.production`, and Caddy on the Hetzner host. Use `docker-compose.local.yml` only for local full-stack development (it overrides the backend container to use `runserver`, not Gunicorn).
 
 To debug the backend with `pdb` / `breakpoint()` while using Compose, use a **detached** `up` and **`docker attach`** in a second terminal — see [Debugging the backend with pdb in Docker Compose](./tooling-testing.md#debugging-the-backend-with-pdb-in-docker-compose) in `tooling-testing.md`.
 
@@ -177,14 +177,14 @@ If you need to:
 
 - `.env.local.example`: local standalone baseline
 - `.env.testing.example`: fast test defaults
-- `.env.production.example`: production template
-- `frontend/.env.production`: expected Vercel env shape for `VITE_API_URL`
+- `.env.example`: tracked production template
+- `.env.production`: production runtime env file copied from `.env.example` and kept untracked
 
 Runtime behavior:
 
 - Django loads `.env.<DJANGO_ENV>`
 - If `DJANGO_ENV` is missing, settings default to `testing` when invoked by pytest and `local` otherwise
-- `.env.example` is a generic template, but it is not the file Django auto-loads by default
+- `.env.example` is the tracked template for production-style settings, but Django still does not auto-load it directly
 
 ## Useful Commands
 

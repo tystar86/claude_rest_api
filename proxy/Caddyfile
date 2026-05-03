@@ -1,0 +1,34 @@
+{
+    email {$CADDY_ACME_EMAIL}
+}
+
+# Phase-1 bootstrap state:
+# `tystar.cz` and `eat-it.tystar.cz` still use placeholder `respond` blocks so
+# DNS, HTTPS, and the shared proxy can be verified before those app stacks are
+# deployed. `blog-it.tystar.cz` is already wired to reverse_proxy targets on the
+# shared `edge` network.
+
+tystar.cz, www.tystar.cz {
+    @www host www.tystar.cz
+    redir @www https://tystar.cz{uri}
+    respond "tystar.cz proxy is online. App stack not deployed yet." 200
+}
+
+blog-it.tystar.cz {
+    encode gzip
+
+    handle /api/* {
+        reverse_proxy blogit_backend:8000
+    }
+    handle /admin* {
+        reverse_proxy blogit_backend:8000
+    }
+    handle {
+        reverse_proxy blogit_frontend:80
+    }
+}
+
+eat-it.tystar.cz {
+    encode gzip
+    respond "eat-it.tystar.cz proxy is online. EatIt app stack not deployed yet." 200
+}
