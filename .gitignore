@@ -16,6 +16,8 @@ wheels/
 .env.local
 .env.testing
 .env.production
+.env.production.example
+.env.vps
 
 # Django
 staticfiles/
