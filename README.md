@@ -75,7 +75,7 @@ git clone https://github.com/tystar86/claude_rest_api.git
 cd claude_rest_api
 
 cp .env.local.example .env.local   # fill in your own non-secret local values
-docker-compose up
+docker compose -f docker-compose.local.yml up
 ```
 
 Backend → `http://localhost:8000` | Frontend → `http://localhost:5173`
@@ -112,9 +112,10 @@ npm run dev
 | `DB_NAME / DB_USER / DB_PASSWORD / DB_HOST / DB_PORT` | PostgreSQL connection |
 | `CORS_ALLOWED_ORIGINS` | Frontend origin |
 | `CSRF_TRUSTED_ORIGINS` | CSRF whitelist |
-Files: `.env.local` (dev) · `.env.testing` (tests) · `.env.production.example` (production template) · `.env.vps` (server runtime, untracked)
 
-Never commit real secrets. Keep only placeholder/template values in tracked env files and load live credentials from your local shell or the VPS runtime env file.
+Files: `.env.local` (dev) · `.env.testing` (tests) · `.env.production.example` (production template) · `.env.production` (runtime env, untracked)
+
+Never commit real secrets. Keep only placeholder/template values in tracked env files and load live credentials from your local shell or the real `.env.production` runtime file on the server.
 
 ---
 

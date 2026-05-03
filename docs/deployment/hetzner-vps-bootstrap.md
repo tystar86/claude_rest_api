@@ -156,8 +156,8 @@ docker network ls | grep edge
 
 Copy the tracked proxy files from this repo into `/srv/proxy`:
 
-- [proxy/docker-compose.yml](/Users/tystar/Codes/tystar/claude_rest_api/proxy/docker-compose.yml:1)
-- [proxy/Caddyfile](/Users/tystar/Codes/tystar/claude_rest_api/proxy/Caddyfile:1)
+- [proxy/docker-compose.yml](../../proxy/docker-compose.yml)
+- [proxy/Caddyfile](../../proxy/Caddyfile)
 
 Recommended target names on the server:
 

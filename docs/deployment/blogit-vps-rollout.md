@@ -13,9 +13,9 @@ It assumes:
 
 This rollout uses:
 
-- [docker-compose.production.yml](/Users/tystar/Codes/tystar/claude_rest_api/docker-compose.production.yml:1)
-- [.env.production](/Users/tystar/Codes/tystar/claude_rest_api/.env.production:1)
-- [frontend/Dockerfile.frontend.production](/Users/tystar/Codes/tystar/claude_rest_api/frontend/Dockerfile.frontend.production:1)
+- [docker-compose.production.yml](../../docker-compose.production.yml)
+- [.env.production.example](../../.env.production.example)
+- [frontend/Dockerfile.frontend.production](../../frontend/Dockerfile.frontend.production)
 
 ## 1. Clone The Repo On The VPS
 
@@ -34,8 +34,8 @@ If `/srv/blogit` is truly empty and has no existing `.git` directory, a plain cl
 ## 2. Create The Production Env File
 
 ```bash
-cp .env.production.example .env.vps
-nano .env.vps
+cp .env.production.example .env.production
+nano .env.production
 ```
 
 Set at least:
@@ -52,14 +52,14 @@ Keep `DB_HOST=blogit_db` and `DB_PORT=5432`.
 ## 3. Build And Start Blogit
 
 ```bash
-docker compose -f docker-compose.production.yml --env-file .env.vps up -d --build
-docker compose -f docker-compose.production.yml --env-file .env.vps ps
+docker compose -f docker-compose.production.yml --env-file .env.production up -d --build
+docker compose -f docker-compose.production.yml --env-file .env.production ps
 ```
 
 If you want logs while the stack settles:
 
 ```bash
-docker compose -f docker-compose.production.yml --env-file .env.vps logs --tail=200
+docker compose -f docker-compose.production.yml --env-file .env.production logs --tail=200
 ```
 
 ## 4. Verify The Blogit Containers
@@ -73,9 +73,9 @@ Expected services:
 Useful checks:
 
 ```bash
-docker compose -f docker-compose.production.yml --env-file .env.vps ps
-docker compose -f docker-compose.production.yml --env-file .env.vps logs blogit_backend --tail=100
-docker compose -f docker-compose.production.yml --env-file .env.vps logs blogit_frontend --tail=100
+docker compose -f docker-compose.production.yml --env-file .env.production ps
+docker compose -f docker-compose.production.yml --env-file .env.production logs blogit_backend --tail=100
+docker compose -f docker-compose.production.yml --env-file .env.production logs blogit_frontend --tail=100
 ```
 
 ## 5. Replace The Caddy Placeholder Block

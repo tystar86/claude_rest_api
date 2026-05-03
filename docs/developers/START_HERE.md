@@ -178,7 +178,7 @@ If you need to:
 - `.env.local.example`: local standalone baseline
 - `.env.testing.example`: fast test defaults
 - `.env.production.example`: production template
-- `.env.vps`: VPS runtime env file copied from `.env.production.example` and kept untracked
+- `.env.production`: production runtime env file copied from `.env.production.example` and kept untracked
 
 Runtime behavior:
 

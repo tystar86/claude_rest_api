@@ -158,7 +158,7 @@ uv run python tests/security/load_burst.py --url http://localhost:8000/api/dashb
 ### Full stack local
 
 ```bash
-docker-compose up
+docker compose -f docker-compose.local.yml up
 ```
 
 This starts:

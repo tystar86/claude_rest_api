@@ -150,6 +150,9 @@ DEFAULT_AUTO_FIELD: str = "django.db.models.BigAutoField"
 CSRF_FAILURE_VIEW: str = "blog.api.csrf.csrf_failure_view"
 X_FRAME_OPTIONS: str = os.environ.get("X_FRAME_OPTIONS", "DENY")
 SECURE_CONTENT_TYPE_NOSNIFF: bool = True
+# Trust the reverse proxy's forwarded scheme so HTTPS-terminated requests do not
+# loop back through SECURE_SSL_REDIRECT when Django sits behind Caddy.
+SECURE_PROXY_SSL_HEADER: tuple[str, str] = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT: bool = os.environ.get("SECURE_SSL_REDIRECT", "False") == "True"
 SECURE_HSTS_SECONDS: int = int(os.environ.get("SECURE_HSTS_SECONDS", 0))
 SECURE_HSTS_INCLUDE_SUBDOMAINS: bool = (

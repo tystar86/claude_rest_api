@@ -2,7 +2,7 @@
 
 This document turns [Linear TYS-194](https://linear.app/tystar/issue/TYS-194/design-single-vps-deployment-architecture-for-tystarcz-blog-ittystarcz) into a concrete server layout. It matches the **one VPS**, **shared reverse proxy**, **one Compose project per app**, and **same-origin `/api`** choices described there.
 
-If you are bootstrapping a fresh Hetzner Ubuntu VPS, follow [hetzner-vps-bootstrap.md](./hetzner-vps-bootstrap.md) first. The tracked proxy source-of-truth lives under [proxy/](/Users/tystar/Codes/tystar/claude_rest_api/proxy/).
+If you are bootstrapping a fresh Hetzner Ubuntu VPS, follow [hetzner-vps-bootstrap.md](./hetzner-vps-bootstrap.md) first. The tracked proxy source-of-truth lives under [proxy/](../../proxy/).
 For the first real app deployment on this host, follow [blogit-vps-rollout.md](./blogit-vps-rollout.md).
 
 ## Goal

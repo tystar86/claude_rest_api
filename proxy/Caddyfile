@@ -2,11 +2,11 @@
     email {$CADDY_ACME_EMAIL}
 }
 
-# Phase-1 bootstrap version:
-# Start with placeholder responses so DNS, HTTPS, and the shared proxy can be
-# verified before each app stack is deployed. Replace these `respond` blocks
-# with the reverse_proxy targets from docs/deployment/vps-phase1-caddy.md once
-# the corresponding containers exist on the `edge` network.
+# Phase-1 bootstrap state:
+# `tystar.cz` and `eat-it.tystar.cz` still use placeholder `respond` blocks so
+# DNS, HTTPS, and the shared proxy can be verified before those app stacks are
+# deployed. `blog-it.tystar.cz` is already wired to reverse_proxy targets on the
+# shared `edge` network.
 
 tystar.cz, www.tystar.cz {
     @www host www.tystar.cz

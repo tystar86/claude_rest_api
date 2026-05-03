@@ -12,7 +12,7 @@ The project needs a simple production deployment shape for three public hosts on
 - `blog-it.tystar.cz`
 - `eat-it.tystar.cz`
 
-Linear issue [TYS-194](https://linear.app/tystar/issue/TYS-194/design-single-vps-deployment-architecture-for-tystarcz-blog-ittystarcz) defines the initial direction: one VPS, shared reverse proxy, and one deploy boundary per app. This repo already runs a Django backend behind Gunicorn via [start.sh](/Users/tystar/Codes/tystar/claude_rest_api/start.sh:1) and exposes Django under `/api/` and `/admin/` in [config/urls.py](/Users/tystar/Codes/tystar/claude_rest_api/config/urls.py:1). The current frontend Dockerfile is dev-oriented, so a production frontend container is a follow-up concern rather than a reason to complicate the overall topology today.
+Linear issue [TYS-194](https://linear.app/tystar/issue/TYS-194/design-single-vps-deployment-architecture-for-tystarcz-blog-ittystarcz) defines the initial direction: one VPS, shared reverse proxy, and one deploy boundary per app. This repo already runs a Django backend behind Gunicorn via [start.sh](../../start.sh) and exposes Django under `/api/` and `/admin/` in [config/urls.py](../../config/urls.py). The current frontend Dockerfile is dev-oriented, so a production frontend container is a follow-up concern rather than a reason to complicate the overall topology today.
 
 ## Decision
 
@@ -25,7 +25,7 @@ We will use a **single VPS** in phase 1 with these boundaries:
 - A **static-first `tystar.cz`** deployment unless that site later proves it needs its own backend and database.
 - A **dedicated Postgres instance per app** on the VPS for phase 1, with the option to migrate an app to managed Postgres later.
 
-The companion operational note is [docs/deployment/vps-phase1-caddy.md](/Users/tystar/Codes/tystar/claude_rest_api/docs/deployment/vps-phase1-caddy.md:1).
+The companion operational note is [docs/deployment/vps-phase1-caddy.md](../deployment/vps-phase1-caddy.md).
 
 ## Consequences
 
