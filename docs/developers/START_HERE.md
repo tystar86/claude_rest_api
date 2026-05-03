@@ -177,14 +177,14 @@ If you need to:
 
 - `.env.local.example`: local standalone baseline
 - `.env.testing.example`: fast test defaults
-- `.env.production.example`: production template
-- `.env.production`: production runtime env file copied from `.env.production.example` and kept untracked
+- `.env.example`: tracked production template
+- `.env.production`: production runtime env file copied from `.env.example` and kept untracked
 
 Runtime behavior:
 
 - Django loads `.env.<DJANGO_ENV>`
 - If `DJANGO_ENV` is missing, settings default to `testing` when invoked by pytest and `local` otherwise
-- `.env.example` is a generic template, but it is not the file Django auto-loads by default
+- `.env.example` is the tracked template for production-style settings, but Django still does not auto-load it directly
 
 ## Useful Commands
 

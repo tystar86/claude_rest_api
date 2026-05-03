@@ -97,7 +97,7 @@ Why this matters:
 
 ## Secure Settings
 
-Production-relevant settings in `config/settings.py`, `.env.production.example`, and `.env.production` include:
+Production-relevant settings in `config/settings.py`, `.env.example`, and `.env.production` include:
 
 - `SECURE_SSL_REDIRECT`
 - `SECURE_HSTS_SECONDS`

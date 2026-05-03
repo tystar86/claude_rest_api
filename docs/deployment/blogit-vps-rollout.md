@@ -14,7 +14,7 @@ It assumes:
 This rollout uses:
 
 - [docker-compose.production.yml](../../docker-compose.production.yml)
-- [.env.production.example](../../.env.production.example)
+- [.env.example](../../.env.example)
 - [frontend/Dockerfile.frontend.production](../../frontend/Dockerfile.frontend.production)
 
 ## 1. Clone The Repo On The VPS
@@ -34,7 +34,7 @@ If `/srv/blogit` is truly empty and has no existing `.git` directory, a plain cl
 ## 2. Create The Production Env File
 
 ```bash
-cp .env.production.example .env.production
+cp .env.example .env.production
 nano .env.production
 ```
 

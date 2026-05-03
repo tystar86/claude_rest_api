@@ -160,7 +160,7 @@ The implementation slice should add:
 
 - a production frontend Dockerfile at `frontend/Dockerfile.frontend.production`
 - a Blogit VPS compose file at repo root named `docker-compose.production.yml`
-- a production env template at repo root named `.env.production.example`
+- a tracked production env template at repo root named `.env.example`
 - a deployment doc section or companion runbook with exact `/srv/blogit` rollout steps
 
 The compose file should define:
@@ -203,7 +203,7 @@ Important:
 The first real rollout should be:
 
 1. clone this repo directly into `/srv/blogit`
-2. copy `.env.production.example` to `.env.production` inside `/srv/blogit`
+2. copy `.env.example` to `.env.production` inside `/srv/blogit`
 3. fill the production secrets and host values in `.env.production`
 4. build and start the Blogit Compose stack with `docker compose -f docker-compose.production.yml --env-file .env.production up -d --build`
 5. verify `blogit_frontend`, `blogit_backend`, and `blogit_db` are healthy

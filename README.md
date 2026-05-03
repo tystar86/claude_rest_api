@@ -113,7 +113,7 @@ npm run dev
 | `CORS_ALLOWED_ORIGINS` | Frontend origin |
 | `CSRF_TRUSTED_ORIGINS` | CSRF whitelist |
 
-Files: `.env.local` (dev) · `.env.testing` (tests) · `.env.production.example` (production template) · `.env.production` (runtime env, untracked)
+Files: `.env.local` (dev) · `.env.testing` (tests) · `.env.example` (tracked production template) · `.env.production` (runtime env, untracked)
 
 Never commit real secrets. Keep only placeholder/template values in tracked env files and load live credentials from your local shell or the real `.env.production` runtime file on the server.
 
