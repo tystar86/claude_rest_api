@@ -28,6 +28,7 @@ Set these repository secrets before running the workflow:
 
 - `GHCR_PULL_TOKEN` — read-only token used on the VPS during deploy
 - `VPS_HOST` — production server hostname or IP
+- `VPS_HOST_KEY` — pinned SSH host key from the VPS, for example the contents of `/etc/ssh/ssh_host_ed25519_key.pub`
 - `VPS_USER` — deploy user on the VPS
 - `VPS_SSH_KEY` — private SSH key for that deploy user
 - `VPS_PORT` — optional SSH port; defaults to `22` when unset
@@ -56,6 +57,9 @@ nano /srv/blogit/.env.production
 4. Verify Docker and the Compose plugin are installed on the VPS.
 
 5. Verify the shared `edge` Docker network already exists if Caddy is running outside this stack.
+
+6. Copy the VPS SSH host public key into the `VPS_HOST_KEY` repository secret.
+   The workflow prefixes the host and port automatically, so the secret should contain only the key material line, such as `ssh-ed25519 AAAA... optional-comment`.
 
 The workflow will upload `docker-compose.production.yml` and `.release.env` for each release, so those files do not need to be managed manually after the initial setup.
 

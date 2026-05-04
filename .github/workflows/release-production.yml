@@ -197,10 +197,18 @@ jobs:
       - name: Add VPS host key
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_HOST_KEY: ${{ secrets.VPS_HOST_KEY }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
         run: |
           PORT="${VPS_PORT:-22}"
-          ssh-keyscan -p "$PORT" -H "$VPS_HOST" >> "$HOME/.ssh/known_hosts"
+          install -m 700 -d "$HOME/.ssh"
+          install -m 600 /dev/null "$HOME/.ssh/known_hosts"
+          if [ "$PORT" = "22" ]; then
+            HOST_PATTERN="$VPS_HOST"
+          else
+            HOST_PATTERN="[$VPS_HOST]:$PORT"
+          fi
+          printf '%s %s\n' "$HOST_PATTERN" "$VPS_HOST_KEY" > "$HOME/.ssh/known_hosts"
 
       - name: Write release env file
         run: |
@@ -235,6 +243,6 @@ jobs:
             cd '$VPS_DEPLOY_PATH'
             docker login ghcr.io -u '${{ needs.prepare.outputs.ghcr_owner }}' --password-stdin
             docker compose -f docker-compose.production.yml --env-file .env.production --env-file .release.env pull
-            docker compose -f docker-compose.production.yml --env-file .env.production --env-file .release.env up -d
+            docker compose -f docker-compose.production.yml --env-file .env.production --env-file .release.env up -d --wait
             docker compose -f docker-compose.production.yml --env-file .env.production --env-file .release.env ps
           "
