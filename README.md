@@ -80,7 +80,7 @@ docker compose -f docker-compose.local.yml up
 
 Backend → `http://localhost:8000` | Frontend → `http://localhost:5173`
 
-**Docker Compose** is for **local development** only. It runs Postgres, Django’s `runserver`, and the Vite dev server through `docker-compose.local.yml`. Production uses the Hetzner VPS rollout described in [docs/deployment/vps-phase1-caddy.md](docs/deployment/vps-phase1-caddy.md) and [docs/deployment/blogit-vps-rollout.md](docs/deployment/blogit-vps-rollout.md), with Gunicorn started via `start.sh` and `docker-compose.production.yml`.
+**Docker Compose** is for **local development** only. It runs Postgres, Django’s `runserver`, and the Vite dev server through `docker-compose.local.yml`. Production uses a manual GitHub Actions release workflow that builds/pushes GHCR images and deploys them to the VPS with `docker-compose.production.yml`; see [docs/deployment/github-actions-production-release.md](docs/deployment/github-actions-production-release.md), [docs/deployment/vps-phase1-caddy.md](docs/deployment/vps-phase1-caddy.md), and [docs/deployment/blogit-vps-rollout.md](docs/deployment/blogit-vps-rollout.md).
 
 ### Standalone
 
