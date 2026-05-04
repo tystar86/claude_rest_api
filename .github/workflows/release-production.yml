@@ -143,6 +143,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -158,6 +161,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile.backend
+          platforms: linux/amd64,linux/arm64
           push: true
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -172,6 +176,7 @@ jobs:
         with:
           context: ./frontend
           file: ./frontend/Dockerfile.frontend.production
+          platforms: linux/amd64,linux/arm64
           build-args: |
             VITE_API_URL=/api
           push: true
