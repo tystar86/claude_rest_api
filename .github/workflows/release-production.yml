@@ -225,9 +225,9 @@ jobs:
           VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
         run: |
           PORT="${VPS_PORT:-22}"
-          ssh -p "$PORT" "$VPS_USER@$VPS_HOST" "mkdir -p '$VPS_DEPLOY_PATH'"
-          scp -P "$PORT" docker-compose.production.yml "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_PATH/docker-compose.production.yml"
-          scp -P "$PORT" "$RUNNER_TEMP/blogit.release.env" "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_PATH/.release.env"
+          ssh -i "$HOME/.ssh/id_ed25519" -p "$PORT" "$VPS_USER@$VPS_HOST" "mkdir -p '$VPS_DEPLOY_PATH'"
+          scp -i "$HOME/.ssh/id_ed25519" -P "$PORT" docker-compose.production.yml "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_PATH/docker-compose.production.yml"
+          scp -i "$HOME/.ssh/id_ed25519" -P "$PORT" "$RUNNER_TEMP/blogit.release.env" "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_PATH/.release.env"
 
       - name: Pull and restart production services
         env:
@@ -238,7 +238,7 @@ jobs:
           VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
         run: |
           PORT="${VPS_PORT:-22}"
-          printf '%s\n' "$GHCR_PULL_TOKEN" | ssh -p "$PORT" "$VPS_USER@$VPS_HOST" "
+          printf '%s\n' "$GHCR_PULL_TOKEN" | ssh -i "$HOME/.ssh/id_ed25519" -p "$PORT" "$VPS_USER@$VPS_HOST" "
             set -eu
             cd '$VPS_DEPLOY_PATH'
             docker login ghcr.io -u '${{ needs.prepare.outputs.ghcr_owner }}' --password-stdin
