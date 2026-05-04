@@ -18,9 +18,7 @@ services:
       - blogit_internal
 
   blogit_backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
+    image: ghcr.io/${GHCR_OWNER:?GHCR_OWNER must be set}/blogit-backend:${BLOGIT_IMAGE_TAG:?BLOGIT_IMAGE_TAG must be set}
     restart: unless-stopped
     env_file:
       - .env.production
@@ -44,11 +42,7 @@ services:
       - edge
 
   blogit_frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.frontend.production
-      args:
-        VITE_API_URL: /api
+    image: ghcr.io/${GHCR_OWNER:?GHCR_OWNER must be set}/blogit-frontend:${BLOGIT_IMAGE_TAG:?BLOGIT_IMAGE_TAG must be set}
     restart: unless-stopped
     depends_on:
       blogit_backend:

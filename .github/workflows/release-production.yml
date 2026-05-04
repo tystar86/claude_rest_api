@@ -1,0 +1,248 @@
+name: Production release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE_NAME: blogit-backend
+  FRONTEND_IMAGE_NAME: blogit-frontend
+  DJANGO_ENV: testing
+  TEST_USE_POSTGRES: "true"
+  SECRET_KEY: django-insecure-ci-key
+  DEBUG: "False"
+  ALLOWED_HOSTS: "localhost,127.0.0.1,testserver"
+  DB_NAME: blog_test
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  DB_HOST: localhost
+  DB_PORT: "5432"
+  DB_CONN_MAX_AGE: "0"
+  SECURE_SSL_REDIRECT: "False"
+  SECURE_HSTS_SECONDS: "0"
+  SESSION_COOKIE_SECURE: "False"
+  CSRF_COOKIE_SECURE: "False"
+  CORS_ALLOWED_ORIGINS: "http://localhost:5173"
+  PASSWORD_HASHERS: "django.contrib.auth.hashers.MD5PasswordHasher"
+
+jobs:
+  prepare:
+    name: Prepare release metadata
+    runs-on: ubuntu-latest
+    outputs:
+      ghcr_owner: ${{ steps.vars.outputs.ghcr_owner }}
+      image_tag: ${{ steps.vars.outputs.image_tag }}
+
+    steps:
+      - name: Ensure production releases come from master
+        run: |
+          if [ "${GITHUB_REF_NAME}" != "master" ]; then
+            echo "Production releases must be run from master. Selected ref: ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+
+      - name: Compute image tags
+        id: vars
+        run: |
+          echo "ghcr_owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=sha-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+  backend-tests:
+    name: Backend tests and formatting
+    needs: prepare
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: blog_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Run pytest
+        run: uv run pytest tests/unit/
+
+      - name: Check formatting
+        run: uv run pre-commit run --all-files
+
+  frontend-tests:
+    name: Frontend tests and lint
+    needs: prepare
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Vitest
+        run: npm test
+
+      - name: Run ESLint
+        run: npm run lint
+
+  build-and-push:
+    name: Build and push release images
+    needs:
+      - prepare
+      - backend-tests
+      - frontend-tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.backend
+          push: true
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ needs.prepare.outputs.ghcr_owner }}/${{ env.BACKEND_IMAGE_NAME }}:${{ needs.prepare.outputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ needs.prepare.outputs.ghcr_owner }}/${{ env.BACKEND_IMAGE_NAME }}:latest
+          cache-from: type=gha,scope=blogit-backend
+          cache-to: type=gha,mode=max,scope=blogit-backend
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.frontend.production
+          build-args: |
+            VITE_API_URL=/api
+          push: true
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ needs.prepare.outputs.ghcr_owner }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ needs.prepare.outputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ needs.prepare.outputs.ghcr_owner }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
+          cache-from: type=gha,scope=blogit-frontend
+          cache-to: type=gha,mode=max,scope=blogit-frontend
+
+  deploy:
+    name: Deploy to production VPS
+    needs:
+      - prepare
+      - build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install SSH key
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+
+      - name: Add VPS host key
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_HOST_KEY: ${{ secrets.VPS_HOST_KEY }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+        run: |
+          PORT="${VPS_PORT:-22}"
+          install -m 700 -d "$HOME/.ssh"
+          install -m 600 /dev/null "$HOME/.ssh/known_hosts"
+          if [ "$PORT" = "22" ]; then
+            HOST_PATTERN="$VPS_HOST"
+          else
+            HOST_PATTERN="[$VPS_HOST]:$PORT"
+          fi
+          printf '%s %s\n' "$HOST_PATTERN" "$VPS_HOST_KEY" > "$HOME/.ssh/known_hosts"
+
+      - name: Write release env file
+        run: |
+          printf 'GHCR_OWNER=%s\nBLOGIT_IMAGE_TAG=%s\n' \
+            '${{ needs.prepare.outputs.ghcr_owner }}' \
+            '${{ needs.prepare.outputs.image_tag }}' \
+            > "$RUNNER_TEMP/blogit.release.env"
+
+      - name: Sync compose and release metadata
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+        run: |
+          PORT="${VPS_PORT:-22}"
+          ssh -p "$PORT" "$VPS_USER@$VPS_HOST" "mkdir -p '$VPS_DEPLOY_PATH'"
+          scp -P "$PORT" docker-compose.production.yml "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_PATH/docker-compose.production.yml"
+          scp -P "$PORT" "$RUNNER_TEMP/blogit.release.env" "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_PATH/.release.env"
+
+      - name: Pull and restart production services
+        env:
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+        run: |
+          PORT="${VPS_PORT:-22}"
+          printf '%s\n' "$GHCR_PULL_TOKEN" | ssh -p "$PORT" "$VPS_USER@$VPS_HOST" "
+            set -eu
+            cd '$VPS_DEPLOY_PATH'
+            docker login ghcr.io -u '${{ needs.prepare.outputs.ghcr_owner }}' --password-stdin
+            docker compose -f docker-compose.production.yml --env-file .env.production --env-file .release.env pull
+            docker compose -f docker-compose.production.yml --env-file .env.production --env-file .release.env up -d --wait
+            docker compose -f docker-compose.production.yml --env-file .env.production --env-file .release.env ps
+          "

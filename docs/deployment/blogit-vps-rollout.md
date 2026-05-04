@@ -1,6 +1,6 @@
 # Blogit VPS Rollout
 
-This runbook turns the shared Hetzner+Caddy phase-1 host into a real deployment for `blog-it.tystar.cz`.
+This runbook turns the shared Hetzner+Caddy phase-1 host into a real deployment target for `blog-it.tystar.cz`.
 
 It assumes:
 
@@ -8,6 +8,7 @@ It assumes:
 - Caddy is already running from `/srv/proxy`
 - DNS for `blog-it.tystar.cz` already resolves to the Hetzner VPS
 - the shared `edge` Docker network already exists
+- the manual [GitHub Actions production release](./github-actions-production-release.md) workflow will be used for application deploys
 
 ## Repo Artifacts Used
 
@@ -17,25 +18,24 @@ This rollout uses:
 - [.env.example](../../.env.example)
 - [frontend/Dockerfile.frontend.production](../../frontend/Dockerfile.frontend.production)
 
-## 1. Clone The Repo On The VPS
+## 1. Create The Production Env File
 
 On the server as `deploy`:
 
 ```bash
-cd /srv/blogit
-git init
-git remote add origin https://github.com/tystar86/claude_rest_api.git
-git fetch origin
-git checkout -t origin/master
+mkdir -p /srv/blogit
 ```
 
-If `/srv/blogit` is truly empty and has no existing `.git` directory, a plain clone into that path is also fine. The `git init` flow above is used here because it still works if the bootstrap step already created placeholder folders under `/srv/blogit`.
-
-## 2. Create The Production Env File
+From your local checkout:
 
 ```bash
-cp .env.example .env.production
-nano .env.production
+scp .env.example deploy@your_server_ip:/srv/blogit/.env.production
+```
+
+Then on the server:
+
+```bash
+nano /srv/blogit/.env.production
 ```
 
 Set at least:
@@ -49,22 +49,22 @@ Set at least:
 
 Keep `DB_HOST=blogit_db` and `DB_PORT=5432`.
 
-## 3. Build And Start Blogit
+## 2. Run The Production Release Workflow
 
-```bash
-docker compose -f docker-compose.production.yml --env-file .env.production up -d --build
-docker compose -f docker-compose.production.yml --env-file .env.production ps
-```
+From GitHub Actions, run the manual [`Production release`](../../.github/workflows/release-production.yml) workflow on the `master` branch.
 
-If you want logs while the stack settles:
+That workflow will:
 
-```bash
-docker compose -f docker-compose.production.yml --env-file .env.production logs --tail=200
-```
+- run backend and frontend test gates
+- build the backend and frontend images
+- push them to private GHCR
+- copy [docker-compose.production.yml](../../docker-compose.production.yml) into `/srv/blogit`
+- generate `/srv/blogit/.release.env`
+- run `docker compose pull && docker compose up -d` on the VPS
 
-## 4. Verify The Blogit Containers
+## 3. Verify The Blogit Containers
 
-Expected services:
+Expected services after the workflow completes:
 
 - `blogit_db`
 - `blogit_backend`
@@ -73,12 +73,13 @@ Expected services:
 Useful checks:
 
 ```bash
-docker compose -f docker-compose.production.yml --env-file .env.production ps
-docker compose -f docker-compose.production.yml --env-file .env.production logs blogit_backend --tail=100
-docker compose -f docker-compose.production.yml --env-file .env.production logs blogit_frontend --tail=100
+cd /srv/blogit
+docker compose -f docker-compose.production.yml --env-file .env.production --env-file .release.env ps
+docker compose -f docker-compose.production.yml --env-file .env.production --env-file .release.env logs blogit_backend --tail=100
+docker compose -f docker-compose.production.yml --env-file .env.production --env-file .release.env logs blogit_frontend --tail=100
 ```
 
-## 5. Replace The Caddy Placeholder Block
+## 4. Replace The Caddy Placeholder Block
 
 Edit `/srv/proxy/Caddyfile` and replace the placeholder `blog-it.tystar.cz` block with:
 
@@ -105,7 +106,7 @@ Important:
 - `/admin` also goes to Django
 - everything else goes to the frontend container
 
-## 6. Reload The Proxy
+## 5. Reload The Proxy
 
 On the server:
 
@@ -115,7 +116,7 @@ docker compose up -d
 docker compose logs --tail=100
 ```
 
-## 7. Verify The Live Site
+## 6. Verify The Live Site
 
 From your Mac:
 
@@ -131,7 +132,7 @@ What you want:
 - `/api/auth/csrf/` returns a Django response
 - `/admin/` is served by Django
 
-## 8. Functional Checks
+## 7. Functional Checks
 
 In the browser, verify:
 
@@ -143,7 +144,7 @@ In the browser, verify:
 
 ## Notes
 
-- `/srv/blogit` is the app root on the VPS. There is no extra nested `claude_rest_api/` directory in the intended layout.
-- The frontend production container builds the Vite app and serves it on internal port `80`.
+- `/srv/blogit` is the app root on the VPS. There is no repo checkout and no extra nested `claude_rest_api/` directory in the intended layout.
+- The frontend production container is built in GitHub Actions and serves the Vite output on internal port `80`.
 - The backend reuses the repo’s existing Gunicorn startup path from `start.sh`.
 - No Blogit container publishes ports directly to the VPS host; Caddy reaches them over `edge`.
