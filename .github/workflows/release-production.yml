@@ -2,6 +2,12 @@ name: Production release
 
 on:
   workflow_dispatch:
+    inputs:
+      allow_non_master_ref:
+        description: "Allow manual runs from non-master refs for SSH/debugging"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -44,9 +50,12 @@ jobs:
     steps:
       - name: Ensure production releases come from master
         run: |
-          if [ "${GITHUB_REF_NAME}" != "master" ]; then
+          if [ "${GITHUB_REF_NAME}" != "master" ] && [ "${{ inputs.allow_non_master_ref }}" != "true" ]; then
             echo "Production releases must be run from master. Selected ref: ${GITHUB_REF_NAME}" >&2
             exit 1
+          fi
+          if [ "${GITHUB_REF_NAME}" != "master" ]; then
+            echo "Running with allow_non_master_ref=true on ${GITHUB_REF_NAME} for debugging."
           fi
 
       - name: Compute image tags
@@ -216,6 +225,52 @@ jobs:
             '${{ needs.prepare.outputs.ghcr_owner }}' \
             '${{ needs.prepare.outputs.image_tag }}' \
             > "$RUNNER_TEMP/blogit.release.env"
+
+      - name: SSH preflight debug
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_HOST_KEY: ${{ secrets.VPS_HOST_KEY }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+        run: |
+          PORT="${VPS_PORT:-22}"
+          echo "VPS_HOST=$VPS_HOST"
+          echo "VPS_PORT=$PORT"
+          echo "VPS_USER=$VPS_USER"
+          echo "VPS_DEPLOY_PATH=$VPS_DEPLOY_PATH"
+          echo "SSH directory state:"
+          ls -ld "$HOME/.ssh"
+          ls -l "$HOME/.ssh"
+          echo "Deploy key fingerprint:"
+          ssh-keygen -y -f "$HOME/.ssh/id_ed25519" > "$RUNNER_TEMP/deploy_key.pub"
+          ssh-keygen -lf "$RUNNER_TEMP/deploy_key.pub"
+          echo "Pinned host key fingerprint:"
+          printf '%s\n' "$VPS_HOST_KEY" > "$RUNNER_TEMP/vps_host_key.pub"
+          ssh-keygen -lf "$RUNNER_TEMP/vps_host_key.pub"
+          echo "Known hosts entry:"
+          cat "$HOME/.ssh/known_hosts"
+          echo "DNS resolution:"
+          getent ahosts "$VPS_HOST" || true
+          echo "TCP connectivity test:"
+          if timeout 10 bash -lc "cat < /dev/null > /dev/tcp/$VPS_HOST/$PORT"; then
+            echo "TCP connection to $VPS_HOST:$PORT succeeded"
+          else
+            echo "TCP connection to $VPS_HOST:$PORT failed"
+          fi
+          echo "Verbose SSH handshake test:"
+          set +e
+          ssh -vvv \
+            -o BatchMode=yes \
+            -o ConnectTimeout=10 \
+            -o StrictHostKeyChecking=yes \
+            -i "$HOME/.ssh/id_ed25519" \
+            -p "$PORT" \
+            "$VPS_USER@$VPS_HOST" \
+            "exit"
+          SSH_STATUS=$?
+          set -e
+          echo "SSH preflight exit code: $SSH_STATUS"
 
       - name: Sync compose and release metadata
         env:
