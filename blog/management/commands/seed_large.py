@@ -1,19 +1,27 @@
 """
-Management command to seed 1000 users, 50 posts each, 20 IT tags, 8 votes per user.
+Management command to seed a large, production-like demo dataset.
 Run: python manage.py seed_large
 Add --clear to wipe previously seeded data first.
 """
 
 import random
+import re
+from bisect import bisect_left
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.utils.text import slugify
 
 from blog.models import Comment, CommentVote, Post, Tag
 
 User = get_user_model()
+
+SEED_USER_COUNT = 1000
+SEED_POST_TARGET = 50000
+SEED_EMAIL_DOMAIN = "seed.blogit.example.dev"
 
 # ---------------------------------------------------------------------------
 # Static data pools
@@ -43,119 +51,148 @@ TAGS = [
 ]
 
 FIRST_NAMES = [
-    "Alex",
-    "Jordan",
-    "Taylor",
-    "Morgan",
-    "Casey",
-    "Riley",
-    "Jamie",
-    "Avery",
-    "Quinn",
-    "Skyler",
-    "Drew",
-    "Reese",
-    "Blake",
-    "Cameron",
-    "Dakota",
-    "Emerson",
-    "Finley",
-    "Harley",
-    "Hayden",
-    "Jesse",
-    "Kai",
-    "Lane",
+    "Olivia",
+    "Liam",
+    "Emma",
+    "Noah",
+    "Ava",
+    "Mateo",
+    "Sofia",
+    "Ethan",
+    "Mia",
+    "Lucas",
+    "Amelia",
+    "Leo",
+    "Isabella",
+    "Mason",
+    "Harper",
+    "Elijah",
+    "Evelyn",
     "Logan",
-    "Mackenzie",
-    "Max",
-    "Nico",
-    "Parker",
-    "Payton",
-    "Peyton",
-    "Phoenix",
-    "Reagan",
-    "Remy",
-    "River",
-    "Robin",
-    "Rowan",
-    "Ryan",
-    "Sage",
-    "Sam",
-    "Sidney",
-    "Spencer",
-    "Stevie",
-    "Storm",
-    "Sydney",
-    "Tatum",
-    "Terry",
-    "Toby",
-    "Tracy",
-    "Val",
-    "Winter",
+    "Charlotte",
+    "James",
+    "Aria",
+    "Benjamin",
+    "Nora",
+    "Alexander",
+    "Luna",
+    "Samuel",
+    "Ella",
+    "Daniel",
+    "Chloe",
+    "Jack",
+    "Grace",
+    "Henry",
+    "Zoe",
+    "David",
+    "Hannah",
+    "Michael",
+    "Layla",
+    "Sebastian",
+    "Scarlett",
+    "Julian",
+    "Avery",
     "Wyatt",
+    "Penelope",
+    "Owen",
+    "Mila",
+    "Theodore",
+    "Riley",
+    "Gabriel",
+    "Stella",
+    "Levi",
+    "Aurora",
+    "Isaac",
+    "Paisley",
+    "Nathan",
+    "Aaliyah",
+    "Adrian",
+    "Elena",
+    "Caleb",
+    "Naomi",
+    "Dylan",
+    "Alice",
+    "Roman",
+    "Hazel",
+    "Elias",
+    "Lucy",
+    "Jasper",
+    "Ivy",
+    "Connor",
+    "Maya",
 ]
 
 LAST_NAMES = [
-    "Anderson",
-    "Bailey",
-    "Baker",
-    "Brooks",
-    "Brown",
-    "Campbell",
-    "Carter",
-    "Chen",
-    "Clark",
-    "Collins",
-    "Cooper",
-    "Davis",
-    "Evans",
-    "Fisher",
-    "Foster",
-    "Garcia",
-    "Gonzalez",
-    "Green",
-    "Hall",
-    "Harris",
-    "Hernandez",
-    "Hill",
-    "Jackson",
-    "Johnson",
-    "Jones",
-    "Kim",
-    "King",
-    "Lee",
-    "Lewis",
-    "Lopez",
     "Martin",
-    "Martinez",
-    "Miller",
-    "Mitchell",
-    "Moore",
-    "Morgan",
-    "Nelson",
-    "Parker",
-    "Patel",
-    "Perez",
-    "Phillips",
-    "Price",
-    "Rivera",
-    "Roberts",
-    "Robinson",
-    "Rodriguez",
-    "Scott",
     "Smith",
+    "Nguyen",
+    "Johnson",
+    "Garcia",
+    "Kim",
+    "Brown",
+    "Patel",
     "Taylor",
-    "Thomas",
-    "Thompson",
-    "Torres",
-    "Turner",
+    "Lopez",
+    "Anderson",
+    "Clark",
     "Walker",
-    "White",
-    "Williams",
-    "Wilson",
-    "Wood",
     "Wright",
+    "Hill",
+    "Allen",
     "Young",
+    "Scott",
+    "Adams",
+    "Baker",
+    "Nelson",
+    "Carter",
+    "Mitchell",
+    "Perez",
+    "Roberts",
+    "Turner",
+    "Phillips",
+    "Campbell",
+    "Parker",
+    "Evans",
+    "Edwards",
+    "Collins",
+    "Stewart",
+    "Sanchez",
+    "Morris",
+    "Rogers",
+    "Reed",
+    "Cook",
+    "Morgan",
+    "Bell",
+    "Murphy",
+    "Bailey",
+    "Rivera",
+    "Cooper",
+    "Richardson",
+    "Cox",
+    "Howard",
+    "Ward",
+    "Torres",
+    "Peterson",
+    "Gray",
+    "Ramirez",
+    "James",
+    "Watson",
+    "Brooks",
+    "Kelly",
+    "Sanders",
+    "Price",
+    "Bennett",
+    "Wood",
+    "Barnes",
+    "Ross",
+    "Henderson",
+    "Coleman",
+    "Jenkins",
+    "Perry",
+    "Powell",
+    "Long",
+    "Flores",
+    "Russell",
 ]
 
 BIO_TEMPLATES = [
@@ -230,14 +267,14 @@ IT_PARAGRAPHS = [
     (
         "Redis operates as an in-memory data structure store, offering sub-millisecond latency for "
         "caching, pub/sub messaging, and distributed locking. Choosing the right eviction policy "
-        "is crucial — allkeys-lru works well for caches, while noeviction suits use cases where "
+        "is crucial - allkeys-lru works well for caches, while noeviction suits use cases where "
         "data loss is unacceptable."
     ),
     (
         "Python's asyncio event loop enables writing highly concurrent I/O-bound code using "
         "cooperative multitasking. Async generators, context managers, and structured concurrency "
-        "via TaskGroups (introduced in Python 3.11) make it significantly easier to reason about "
-        "cancellation and error propagation in complex async workflows."
+        "via TaskGroups make it significantly easier to reason about cancellation and error "
+        "propagation in complex async workflows."
     ),
     (
         "Rust's ownership model eliminates entire classes of memory safety bugs at compile time, "
@@ -270,9 +307,9 @@ IT_PARAGRAPHS = [
         "of runtime bugs during compilation."
     ),
     (
-        "CI/CD pipelines should be treated as production code — versioned, reviewed, and tested. "
+        "CI/CD pipelines should be treated as production code - versioned, reviewed, and tested. "
         "Separating build, test, and deploy stages enables parallelism. Caching dependencies and "
-        "Docker layer builds between runs can cut pipeline times by 60-80%, accelerating "
+        "Docker layer builds between runs can cut pipeline times dramatically, accelerating "
         "developer feedback loops substantially."
     ),
     (
@@ -355,9 +392,9 @@ IT_PARAGRAPHS = [
     ),
     (
         "HTTP/2 multiplexes multiple streams over a single TCP connection, eliminating head-of-line "
-        "blocking from HTTP/1.1 pipelining. Server push, header compression via HPACK, and "
-        "stream prioritisation improve page load performance for APIs and web assets, particularly "
-        "on high-latency connections where connection establishment dominates."
+        "blocking from HTTP/1.1 pipelining. Header compression and stream prioritisation improve "
+        "page load performance for APIs and web assets, particularly on high-latency connections "
+        "where connection establishment dominates."
     ),
     (
         "Rate limiting protects backend services from both abusive clients and accidental traffic "
@@ -365,31 +402,18 @@ IT_PARAGRAPHS = [
         "tolerance. Storing rate limit state in Redis with atomic Lua scripts enables consistent "
         "enforcement across multiple application server instances."
     ),
-    (
-        "Dependency injection decouples component construction from usage, making code easier to "
-        "test and extend. Frameworks automate wiring, but understanding the underlying patterns — "
-        "constructor injection, interface segregation, and the dependency inversion principle — "
-        "lets developers build testable systems even without framework support."
-    ),
-    (
-        "WebAssembly brings near-native execution speed to browser environments, enabling "
-        "compute-intensive workloads like video encoding, cryptography, and simulation to run "
-        "client-side. WASI extends this to server-side sandboxed execution, with projects like "
-        "Wasmtime exploring Wasm as a lightweight container alternative."
-    ),
-    (
-        "Chaos engineering involves deliberately injecting failures into production or staging "
-        "systems to uncover weaknesses before incidents do. Starting with a steady-state hypothesis, "
-        "running controlled experiments, and automating regular game days builds organisational "
-        "confidence in system resilience and incident response procedures."
-    ),
-    (
-        "Protocol Buffers provide a language-neutral binary serialisation format that is both "
-        "smaller and faster to parse than JSON. Combined with gRPC's HTTP/2 transport and "
-        "streaming support, they are well-suited for high-throughput internal service communication "
-        "where schema evolution must be handled without breaking existing clients."
-    ),
 ]
+
+USERNAME_NUMERIC_SUFFIXES = [2, 7, 11, 19, 24, 42, 58, 73, 88, 96]
+
+
+@dataclass(frozen=True)
+class SeededUserPlan:
+    user: User
+    post_target: int
+    publish_rate: float
+    comment_weight: float
+    vote_weight: float
 
 
 def _make_body(rng: random.Random, min_len: int = 1000, max_len: int = 10000) -> str:
@@ -399,9 +423,9 @@ def _make_body(rng: random.Random, min_len: int = 1000, max_len: int = 10000) ->
     length = 0
     idx = 0
     while length < target:
-        p = paragraphs[idx % len(paragraphs)]
-        body_parts.append(p)
-        length += len(p) + 2  # account for "\n\n"
+        paragraph = paragraphs[idx % len(paragraphs)]
+        body_parts.append(paragraph)
+        length += len(paragraph) + 2  # account for "\n\n"
         idx += 1
     return "\n\n".join(body_parts)[:max_len]
 
@@ -423,10 +447,50 @@ def _make_bio(rng: random.Random) -> str:
     )
 
 
-BASE_DATE = datetime(2023, 1, 1, tzinfo=timezone.utc)
+def _normalise_name_token(value: str) -> str:
+    token = slugify(value).replace("-", "")
+    token = re.sub(r"[^a-z0-9]", "", token)
+    return token or "user"
 
 
-def _rand_date(rng: random.Random, span_days: int = 730) -> datetime:
+def _username_candidates(first: str, last: str, index: int) -> list[str]:
+    first_token = _normalise_name_token(first)
+    last_token = _normalise_name_token(last)
+    year_suffix = 80 + (index % 20)
+    two_digit = USERNAME_NUMERIC_SUFFIXES[index % len(USERNAME_NUMERIC_SUFFIXES)]
+
+    return [
+        f"{first_token}.{last_token}",
+        f"{first_token}-{last_token}",
+        f"{first_token}{last_token}",
+        f"{first_token[0]}{last_token}",
+        f"{first_token}.{last_token}{two_digit}",
+        f"{first_token}{last_token}{two_digit}",
+        f"{first_token}_{last_token[:1]}{year_suffix}",
+        f"{first_token[:1]}{last_token}{year_suffix}",
+    ]
+
+
+def _build_username(existing: set[str], first: str, last: str, index: int) -> str:
+    for candidate in _username_candidates(first, last, index):
+        if candidate not in existing:
+            existing.add(candidate)
+            return candidate
+
+    fallback_root = _username_candidates(first, last, index)[0]
+    suffix = 2
+    while True:
+        candidate = f"{fallback_root}{suffix}"
+        if candidate not in existing:
+            existing.add(candidate)
+            return candidate
+        suffix += 1
+
+
+BASE_DATE = datetime(2021, 1, 1, tzinfo=timezone.utc)
+
+
+def _rand_date(rng: random.Random, span_days: int = 1460) -> datetime:
     return BASE_DATE + timedelta(
         days=rng.randint(0, span_days),
         hours=rng.randint(0, 23),
@@ -434,8 +498,145 @@ def _rand_date(rng: random.Random, span_days: int = 730) -> datetime:
     )
 
 
+def _allocate_weighted_counts(weights: list[float], total: int) -> list[int]:
+    if not weights or total <= 0:
+        return [0 for _ in weights]
+
+    total_weight = sum(weights)
+    if total_weight <= 0:
+        return [0 for _ in weights]
+
+    raw_counts = [(weight / total_weight) * total for weight in weights]
+    counts = [int(raw) for raw in raw_counts]
+    remainder = total - sum(counts)
+
+    if remainder > 0:
+        order = sorted(
+            range(len(raw_counts)),
+            key=lambda idx: (raw_counts[idx] - counts[idx], weights[idx]),
+            reverse=True,
+        )
+        for idx in order[:remainder]:
+            counts[idx] += 1
+
+    return counts
+
+
+def _clamp(value: float, low: float, high: float) -> float:
+    return max(low, min(high, value))
+
+
+def _build_user_plans(users: list[User], rng: random.Random) -> list[SeededUserPlan]:
+    activity_weights = []
+    comment_weights = []
+    vote_weights = []
+
+    for _user in users:
+        activity = rng.paretovariate(2.35)
+        if rng.random() < 0.12:
+            activity *= rng.uniform(0.02, 0.20)
+        if rng.random() < 0.08:
+            activity *= rng.uniform(1.5, 2.8)
+
+        activity_weights.append(activity)
+        comment_weights.append(activity * rng.uniform(0.7, 1.7) + rng.uniform(0.2, 1.4))
+        vote_weights.append(activity * rng.uniform(0.5, 1.5) + rng.uniform(0.5, 1.8))
+
+    post_targets = _allocate_weighted_counts(activity_weights, SEED_POST_TARGET)
+    max_target = max(post_targets) if post_targets else 0
+
+    plans = []
+    for user, post_target, activity, comment_weight, vote_weight in zip(
+        users,
+        post_targets,
+        activity_weights,
+        comment_weights,
+        vote_weights,
+        strict=True,
+    ):
+        activity_ratio = (post_target / max_target) if max_target else 0
+        publish_rate = _clamp(
+            0.58 + (activity_ratio * 0.25) + rng.uniform(-0.05, 0.06),
+            0.55,
+            0.94,
+        )
+        plans.append(
+            SeededUserPlan(
+                user=user,
+                post_target=post_target,
+                publish_rate=publish_rate,
+                comment_weight=comment_weight,
+                vote_weight=vote_weight,
+            )
+        )
+
+    return plans
+
+
+def _make_post_slug(title: str, username: str, seq: int) -> str:
+    title_slug = slugify(title)[:160] or "post"
+    author_slug = slugify(username.replace(".", "-").replace("_", "-"))[:40] or "author"
+    return f"{title_slug}-{author_slug}-{seq:04d}"[:255]
+
+
+def _build_cumulative_weights(weights: list[float]) -> list[float]:
+    cumulative = []
+    running = 0.0
+    for weight in weights:
+        running += max(weight, 0.0001)
+        cumulative.append(running)
+    return cumulative
+
+
+def _weighted_choice_index(rng: random.Random, cumulative_weights: list[float]) -> int:
+    target = rng.random() * cumulative_weights[-1]
+    return bisect_left(cumulative_weights, target)
+
+
+def _pick_user(
+    rng: random.Random,
+    users: list[User],
+    cumulative_weights: list[float],
+    exclude_user_id: int | None = None,
+) -> User:
+    while True:
+        candidate = users[_weighted_choice_index(rng, cumulative_weights)]
+        if candidate.id != exclude_user_id:
+            return candidate
+
+
+def _comment_count_for_post(rng: random.Random, is_hot_author: bool) -> int:
+    roll = rng.random()
+    if is_hot_author:
+        roll += 0.08
+
+    if roll < 0.45:
+        return 0
+    if roll < 0.80:
+        return rng.randint(1, 2)
+    if roll < 0.95:
+        return rng.randint(3, 5)
+    if roll < 0.995:
+        return rng.randint(6, 12)
+    return rng.randint(15, 28)
+
+
+def _vote_count_for_comment(rng: random.Random, is_approved: bool) -> int:
+    if not is_approved and rng.random() < 0.85:
+        return 0
+
+    roll = rng.random()
+    if roll < 0.70:
+        return 0
+    if roll < 0.90:
+        return rng.randint(1, 2)
+    if roll < 0.98:
+        return rng.randint(3, 5)
+    return rng.randint(6, 14)
+
+
 class Command(BaseCommand):
-    help = "Seed 1000 users × 50 IT posts, 20 tags, 8 votes per user."
+    help = "Seed a large, production-like dataset with realistic identities and skewed activity."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -456,30 +657,33 @@ class Command(BaseCommand):
         if options["clear"]:
             self._clear()
 
-        self.stdout.write("Creating tags…")
+        self.stdout.write("Creating tags...")
         tag_objs = self._ensure_tags()
-        tag_names = [t.name for t in tag_objs]
+        tag_names = [tag.name for tag in tag_objs]
 
-        self.stdout.write("Creating 1000 users…")
+        self.stdout.write("Creating realistic demo users...")
         users = self._create_users(rng)
+        plans = _build_user_plans(users, rng)
 
-        self.stdout.write("Creating 50 posts per user (50 000 total)…")
-        posts = self._create_posts(rng, users, tag_objs, tag_names)
+        total_posts = sum(plan.post_target for plan in plans)
+        self.stdout.write(f"Planning {len(users)} users and {total_posts} posts...")
 
-        self.stdout.write("Creating one comment per post…")
-        comments = self._create_comments(rng, users, posts)
+        self.stdout.write("Creating skewed post activity...")
+        published_posts = self._create_posts(rng, plans, tag_objs, tag_names)
 
-        self.stdout.write("Creating 8 votes per user…")
-        self._create_votes(rng, users, comments)
+        self.stdout.write("Creating production-like comments...")
+        comments = self._create_comments(rng, plans, published_posts)
+
+        self.stdout.write("Creating production-like votes...")
+        self._create_votes(rng, plans, comments)
 
         self.stdout.write(self.style.SUCCESS("Done."))
 
     # ------------------------------------------------------------------
 
     def _clear(self):
-        self.stdout.write("Clearing seeded data…")
-        usernames = [f"techuser_{i:04d}" for i in range(1, 1001)]
-        qs = User.objects.filter(username__in=usernames)
+        self.stdout.write("Clearing previously seeded demo users...")
+        qs = User.objects.filter(email__iendswith=f"@{SEED_EMAIL_DOMAIN}")
         count, _ = qs.delete()
         self.stdout.write(f"  Deleted {count} objects.")
 
@@ -492,138 +696,189 @@ class Command(BaseCommand):
 
     def _create_users(self, rng: random.Random) -> list[User]:
         existing = set(User.objects.values_list("username", flat=True))
+        seeded_usernames = []
         to_create = []
-        for i in range(1, 1001):
-            username = f"techuser_{i:04d}"
-            if username in existing:
-                continue
+
+        for index in range(1, SEED_USER_COUNT + 1):
             first = rng.choice(FIRST_NAMES)
             last = rng.choice(LAST_NAMES)
+            username = _build_username(existing, first, last, index)
+            seeded_usernames.append(username)
+
             to_create.append(
                 User(
                     username=username,
-                    email=f"{username}@example.dev",
+                    email=f"{username}@{SEED_EMAIL_DOMAIN}",
                     first_name=first,
                     last_name=last,
-                    password="pbkdf2_sha256$870000$placeholder$placeholder=",
+                    password="!",
                     is_active=True,
                     date_joined=_rand_date(rng),
                     role="user",
                     bio=_make_bio(rng),
                 )
             )
+
         User.objects.bulk_create(to_create, batch_size=500)
-        return list(
-            User.objects.filter(
-                username__in=[f"techuser_{i:04d}" for i in range(1, 1001)]
-            ).order_by("username")
-        )
+        return list(User.objects.filter(username__in=seeded_usernames).order_by("username"))
 
     def _create_posts(
         self,
         rng: random.Random,
-        users: list[User],
+        plans: list[SeededUserPlan],
         tag_objs: list[Tag],
         tag_names: list[str],
     ) -> list[Post]:
         existing_slugs = set(Post.objects.values_list("slug", flat=True))
-        PostTag = Post.tags.through
+        post_tag_through = Post.tags.through
+        published_posts: list[Post] = []
+        hot_author_ids = {
+            plan.user.id
+            for plan in sorted(plans, key=lambda item: item.post_target, reverse=True)[:50]
+        }
 
-        all_posts: list[Post] = []
-        BATCH = 200  # users per transaction
+        for plan in plans:
+            if plan.post_target == 0:
+                continue
 
-        for batch_start in range(0, len(users), BATCH):
-            batch_users = users[batch_start : batch_start + BATCH]
             new_posts: list[Post] = []
+            through_rows = []
+            author = plan.user
 
-            for user in batch_users:
-                for j in range(1, 51):
-                    slug = f"{user.username}-post-{j:02d}"
-                    if slug in existing_slugs:
-                        continue
-                    existing_slugs.add(slug)
-                    title = _make_title(rng, tag_names)
-                    pub_date = _rand_date(rng)
-                    new_posts.append(
-                        Post(
-                            title=title,
-                            slug=slug,
-                            author=user,
-                            body=_make_body(rng),
-                            excerpt=_make_body(rng, 100, 300)[:300],
-                            status="published",
-                            created_at=pub_date,
-                            updated_at=pub_date,
-                            published_at=pub_date,
-                        )
+            for seq in range(1, plan.post_target + 1):
+                title = _make_title(rng, tag_names)
+                slug = _make_post_slug(title, author.username, seq)
+                if slug in existing_slugs:
+                    continue
+                existing_slugs.add(slug)
+
+                created_at = _rand_date(rng)
+                status = (
+                    Post.Status.PUBLISHED if rng.random() < plan.publish_rate else Post.Status.DRAFT
+                )
+                published_at = created_at if status == Post.Status.PUBLISHED else None
+                updated_at = created_at + timedelta(hours=rng.randint(0, 240))
+
+                new_posts.append(
+                    Post(
+                        title=title,
+                        slug=slug,
+                        author=author,
+                        body=_make_body(rng),
+                        excerpt=_make_body(rng, 100, 300)[:300],
+                        status=status,
+                        created_at=created_at,
+                        updated_at=updated_at,
+                        published_at=published_at,
                     )
+                )
+
+            if not new_posts:
+                continue
 
             with transaction.atomic():
-                created = Post.objects.bulk_create(new_posts, batch_size=500)
-                # M2M: assign 2-5 random tags per post
-                through_rows = []
-                for post in created:
-                    chosen = rng.sample(tag_objs, rng.randint(2, 5))
-                    for tag in chosen:
-                        through_rows.append(PostTag(post_id=post.pk, tag_id=tag.pk))
-                PostTag.objects.bulk_create(through_rows, batch_size=1000)
-                all_posts.extend(created)
+                created_posts = Post.objects.bulk_create(new_posts, batch_size=500)
+                for post in created_posts:
+                    tag_count = rng.choices([1, 2, 3, 4, 5], weights=[20, 36, 24, 14, 6], k=1)[0]
+                    chosen_tags = rng.sample(tag_objs, tag_count)
+                    for tag in chosen_tags:
+                        through_rows.append(post_tag_through(post_id=post.pk, tag_id=tag.pk))
 
-            done = min(batch_start + BATCH, len(users))
-            self.stdout.write(f"  {done}/{len(users)} users processed…")
+                post_tag_through.objects.bulk_create(through_rows, batch_size=1000)
+                published_posts.extend(
+                    post for post in created_posts if post.status == Post.Status.PUBLISHED
+                )
 
-        return all_posts
+            if author.id in hot_author_ids:
+                self.stdout.write(
+                    f"  {author.username}: {len(new_posts)} posts (high-activity author)..."
+                )
+
+        return published_posts
 
     def _create_comments(
-        self, rng: random.Random, users: list[User], posts: list[Post]
+        self,
+        rng: random.Random,
+        plans: list[SeededUserPlan],
+        published_posts: list[Post],
     ) -> list[Comment]:
+        if not published_posts:
+            return []
+
         existing_post_ids = set(Comment.objects.values_list("post_id", flat=True))
-        to_create = []
-        for post in posts:
-            if post.pk in existing_post_ids:
+        users = [plan.user for plan in plans]
+        cumulative_weights = _build_cumulative_weights([plan.comment_weight for plan in plans])
+        hot_author_ids = {
+            plan.user.id
+            for plan in sorted(plans, key=lambda item: item.post_target, reverse=True)[:50]
+        }
+
+        comments_to_create: list[Comment] = []
+        post_ids_with_new_comments = set()
+
+        for post in published_posts:
+            if post.id in existing_post_ids:
                 continue
-            author = rng.choice(users)
-            to_create.append(
-                Comment(
-                    post=post,
-                    author=author,
-                    body=_make_body(rng, 80, 400)[:400],
-                    is_approved=True,
-                    created_at=post.published_at,
-                    updated_at=post.published_at,
+
+            quota = _comment_count_for_post(rng, post.author_id in hot_author_ids)
+            for _ in range(quota):
+                author = _pick_user(rng, users, cumulative_weights, exclude_user_id=post.author_id)
+                created_at = post.published_at + timedelta(hours=rng.randint(1, 24 * 90))
+                comments_to_create.append(
+                    Comment(
+                        post=post,
+                        author=author,
+                        body=_make_body(rng, 80, 450)[:450],
+                        is_approved=rng.random() < 0.90,
+                        created_at=created_at,
+                        updated_at=created_at + timedelta(hours=rng.randint(0, 48)),
+                    )
                 )
-            )
-        Comment.objects.bulk_create(to_create, batch_size=1000)
-        # Return all comments for these posts
-        post_ids = [p.pk for p in posts]
-        return list(Comment.objects.filter(post_id__in=post_ids))
+                post_ids_with_new_comments.add(post.id)
+
+        Comment.objects.bulk_create(comments_to_create, batch_size=1000)
+        return list(
+            Comment.objects.filter(post_id__in=post_ids_with_new_comments).select_related("author")
+        )
 
     def _create_votes(
         self,
         rng: random.Random,
-        users: list[User],
+        plans: list[SeededUserPlan],
         comments: list[Comment],
     ) -> None:
+        if not comments:
+            return
+
+        users = [plan.user for plan in plans]
+        user_ids = [user.id for user in users]
+        cumulative_weights = _build_cumulative_weights([plan.vote_weight for plan in plans])
         existing = set(CommentVote.objects.values_list("comment_id", "user_id"))
         to_create: list[CommentVote] = []
-        vote_types = ["like", "dislike"]
-        comment_pool = comments[:]
 
-        for user in users:
-            candidates = [c for c in comment_pool if c.author_id != user.pk]
-            if len(candidates) < 8:
+        for comment in comments:
+            quota = _vote_count_for_comment(rng, comment.is_approved)
+            if quota == 0:
                 continue
-            chosen = rng.sample(candidates, 8)
-            for comment in chosen:
-                key = (comment.pk, user.pk)
-                if key in existing:
+
+            chosen_voters = set()
+            attempts = 0
+            while len(chosen_voters) < quota and attempts < quota * 8:
+                voter_id = user_ids[_weighted_choice_index(rng, cumulative_weights)]
+                attempts += 1
+                if voter_id == comment.author_id:
                     continue
-                existing.add(key)
+                if (comment.id, voter_id) in existing or voter_id in chosen_voters:
+                    continue
+                chosen_voters.add(voter_id)
+
+            for voter_id in chosen_voters:
+                existing.add((comment.id, voter_id))
                 to_create.append(
                     CommentVote(
-                        comment=comment,
-                        user=user,
-                        vote=rng.choice(vote_types),
+                        comment_id=comment.id,
+                        user_id=voter_id,
+                        vote=rng.choice([CommentVote.VoteType.LIKE, CommentVote.VoteType.DISLIKE]),
                     )
                 )
 
