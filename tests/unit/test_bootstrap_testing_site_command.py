@@ -4,6 +4,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.test.utils import override_settings
 
 from blog.models import Post
 
@@ -65,3 +66,18 @@ def test_bootstrap_force_on_empty_db_superuser_only():
     assert Post.objects.count() == 0
     assert User.objects.count() == 1
     assert User.objects.get(username="testing").check_password("testing")
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(
+    TESTING_BOOTSTRAP_SUPERUSER_USERNAME="vps_boot_user",
+    TESTING_BOOTSTRAP_SUPERUSER_EMAIL="vps_boot@example.test",
+    TESTING_BOOTSTRAP_SUPERUSER_PASSWORD="vps-boot-secret",
+)
+def test_bootstrap_uses_settings_for_superuser_credentials():
+    User = get_user_model()
+    call_command("bootstrap_testing_server", force=True)
+
+    user = User.objects.get(username="vps_boot_user")
+    assert user.email == "vps_boot@example.test"
+    assert user.check_password("vps-boot-secret")

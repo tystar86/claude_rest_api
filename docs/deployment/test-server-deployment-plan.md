@@ -113,6 +113,8 @@ Use **different tags** so the test VPS cannot accidentally deploy the same ref a
 
 Rule of thumb: **test stacks use `BLOGIT_TESTING_IMAGE_TAG` (must be `testing-*`).** Production uses **`BLOGIT_IMAGE_TAG`** only. Different variable names avoids copying prod `.release.env` onto a test VPS by mistake.
 
+The **`bootstrap_testing_server`** command reads **`TESTING_BOOTSTRAP_SUPERUSER_USERNAME`**, **`TESTING_BOOTSTRAP_SUPERUSER_EMAIL`**, and **`TESTING_BOOTSTRAP_SUPERUSER_PASSWORD`** from the environment (via `config/settings.py`; set them in `.env.testing`). Omitted values keep the historic defaults `testing` / `testing@testing.com` / `testing`.
+
 PRs targeting `master` / `main` build and push when unit + frontend gates pass (same-repo PRs only; forks skip push). Manual runs produce `testing-manual-sha-…`.
 
 ## CI/CD Follow-Up
