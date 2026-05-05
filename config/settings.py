@@ -146,6 +146,17 @@ STORAGES: dict[str, Any] = {
 
 DEFAULT_AUTO_FIELD: str = "django.db.models.BigAutoField"
 
+# `bootstrap_testing_server` — disposable test-VPS superuser (set in `.env.testing`).
+TESTING_BOOTSTRAP_SUPERUSER_USERNAME: str = os.environ.get(
+    "TESTING_BOOTSTRAP_SUPERUSER_USERNAME", "testing"
+)
+TESTING_BOOTSTRAP_SUPERUSER_EMAIL: str = os.environ.get(
+    "TESTING_BOOTSTRAP_SUPERUSER_EMAIL", "testing@testing.com"
+)
+TESTING_BOOTSTRAP_SUPERUSER_PASSWORD: str = os.environ.get(
+    "TESTING_BOOTSTRAP_SUPERUSER_PASSWORD", "testing"
+)
+
 # Security
 CSRF_FAILURE_VIEW: str = "blog.api.csrf.csrf_failure_view"
 X_FRAME_OPTIONS: str = os.environ.get("X_FRAME_OPTIONS", "DENY")
