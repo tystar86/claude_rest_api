@@ -1,6 +1,9 @@
+from pathlib import Path
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
+from django.core.management.base import CommandError
 
 from blog.models import Post
 
@@ -42,6 +45,16 @@ def test_bootstrap_force_wipes_fixture_leaves_superuser_only():
     user = User.objects.get(username="testing")
     assert user.email == "testing@testing.com"
     assert user.check_password("testing")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_missing_fixture_raises_command_error(monkeypatch):
+    monkeypatch.setattr(
+        "blog.management.commands.bootstrap_testing_server.FIXTURE_PATH",
+        Path("/nonexistent/missing_fixture.json"),
+    )
+    with pytest.raises(CommandError, match="Fixture missing"):
+        call_command("bootstrap_testing_server")
 
 
 @pytest.mark.django_db(transaction=True)

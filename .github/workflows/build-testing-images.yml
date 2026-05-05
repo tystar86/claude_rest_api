@@ -16,7 +16,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: testing-images-${{ github.event.pull_request.number || github.run_id }}
@@ -118,6 +117,9 @@ jobs:
       - backend-tests
       - frontend-tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - uses: actions/checkout@v4

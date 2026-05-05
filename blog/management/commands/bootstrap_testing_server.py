@@ -15,7 +15,7 @@ from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from blog.models import Post
@@ -65,8 +65,7 @@ class Command(BaseCommand):
             )
         else:
             if not FIXTURE_PATH.is_file():
-                self.stderr.write(f"Fixture missing: {FIXTURE_PATH}")
-                raise SystemExit(1)
+                raise CommandError(f"Fixture missing: {FIXTURE_PATH}")
             self.stdout.write(f"Loading fixture {FIXTURE_PATH.name} ...")
             call_command("loaddata", str(FIXTURE_PATH), verbosity=1)
 
