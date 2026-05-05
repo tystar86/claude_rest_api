@@ -100,6 +100,19 @@ docker compose down -v
 
 Only use `down -v` when you intentionally want to wipe the database volume.
 
+## GHCR images: testing vs production
+
+Use **different tags** so the test VPS cannot accidentally deploy the same ref as prod:
+
+| Workflow | Tags | Variable + compose file |
+|---------|------|--------------------------|
+| [Production release](../../.github/workflows/release-production.yml) | `sha-<12>` + `latest` only | `BLOGIT_IMAGE_TAG` via `.release.env` + `docker-compose.production.yml` |
+| [Build testing GHCR images](../../.github/workflows/build-testing-images.yml) | `testing-pr-<N>`, `testing-pr-<N>-sha-<12>`, or `testing-manual-sha-<12>` | `BLOGIT_TESTING_IMAGE_TAG` + `docker-compose.yml` or `docker-compose.testing.yml` |
+
+Rule of thumb: **test stacks use `BLOGIT_TESTING_IMAGE_TAG` (must be `testing-*`).** Production uses **`BLOGIT_IMAGE_TAG`** only. Different variable names avoids copying prod `.release.env` onto a test VPS by mistake.
+
+PRs targeting `master` / `main` build and push when unit + frontend gates pass (same-repo PRs only; forks skip push). Manual runs produce `testing-manual-sha-…`.
+
 ## CI/CD Follow-Up
 
 Once the manual flow is stable and boring, GitHub Actions can SSH into the server and run the same update/restart sequence. Keep app secrets on the server unless you have a strong reason to inject them through CI.

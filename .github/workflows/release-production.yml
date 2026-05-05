@@ -159,6 +159,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ needs.prepare.outputs.ghcr_owner }}/${{ env.BACKEND_IMAGE_NAME }}:${{ needs.prepare.outputs.image_tag }}
             ${{ env.REGISTRY }}/${{ needs.prepare.outputs.ghcr_owner }}/${{ env.BACKEND_IMAGE_NAME }}:latest
+          # Never add testing-* tags here; disposable PR images use workflows/build-testing-images.yml.
           cache-from: type=gha,scope=blogit-backend
           cache-to: type=gha,mode=max,scope=blogit-backend
 

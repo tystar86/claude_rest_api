@@ -1,0 +1,201 @@
+# Pushes disposable images for the Hetzner/VPS test stack. Tags ALWAYS start with
+# "testing-" so they are distinct from production (:latest, :sha-… from release-production.yml).
+#
+# On pull_request: tagging-pr-<N>           — moving head of that PR
+#                   testing-pr-<N>-sha-… — immutable for a given commit
+#
+# workflow_dispatch (manual): testing-manual-sha-<12>
+#
+name: Build testing GHCR images
+
+on:
+  pull_request:
+    branches: [master, main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: testing-images-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE_NAME: blogit-backend
+  FRONTEND_IMAGE_NAME: blogit-frontend
+  DJANGO_ENV: testing
+  TEST_USE_POSTGRES: "true"
+  SECRET_KEY: django-insecure-ci-key
+  DEBUG: "False"
+  ALLOWED_HOSTS: "localhost,127.0.0.1,testserver"
+  DB_NAME: blog_test
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  DB_HOST: localhost
+  DB_PORT: "5432"
+  DB_CONN_MAX_AGE: "0"
+  SECURE_SSL_REDIRECT: "False"
+  SECURE_HSTS_SECONDS: "0"
+  SESSION_COOKIE_SECURE: "False"
+  CSRF_COOKIE_SECURE: "False"
+  CORS_ALLOWED_ORIGINS: "http://localhost:5173"
+  PASSWORD_HASHERS: "django.contrib.auth.hashers.MD5PasswordHasher"
+
+jobs:
+  allow:
+    name: Repo gate (no fork/package noise)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "OK"
+
+  backend-tests:
+    name: Backend tests (gate for push)
+    needs: allow
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: blog_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Run pytest (unit)
+        run: uv run pytest tests/unit/
+
+  frontend-tests:
+    name: Frontend tests (gate for push)
+    needs: allow
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npm run lint
+
+  build-and-push:
+    name: Build and push testing-tagged images
+    needs:
+      - allow
+      - backend-tests
+      - frontend-tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Compute testing-only tags
+        id: tag
+        shell: bash
+        run: |
+          set -eu
+          o=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")
+          s="${GITHUB_SHA:0:12}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            n="${{ github.event.pull_request.number }}"
+            echo "primary=testing-pr-${n}" >> "$GITHUB_OUTPUT"
+            echo "immutable=testing-pr-${n}-sha-${s}" >> "$GITHUB_OUTPUT"
+          else
+            echo "primary=testing-manual-sha-${s}" >> "$GITHUB_OUTPUT"
+            echo "immutable=testing-manual-sha-${s}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "owner=${o}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push backend (testing-* tags only)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.backend
+          platforms: linux/amd64,linux/arm64
+          push: true
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.tag.outputs.owner }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.tag.outputs.primary }}
+            ${{ env.REGISTRY }}/${{ steps.tag.outputs.owner }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.tag.outputs.immutable }}
+          cache-from: type=gha,scope=blogit-backend-testing
+          cache-to: type=gha,mode=max,scope=blogit-backend-testing
+
+      - name: Build and push frontend (testing-* tags only)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.frontend.production
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            VITE_API_URL=/api
+          push: true
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.tag.outputs.owner }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ steps.tag.outputs.primary }}
+            ${{ env.REGISTRY }}/${{ steps.tag.outputs.owner }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ steps.tag.outputs.immutable }}
+          cache-from: type=gha,scope=blogit-frontend-testing
+          cache-to: type=gha,mode=max,scope=blogit-frontend-testing
+
+      - name: Summary
+        shell: bash
+        run: |
+          set -eu
+          O="${{ steps.tag.outputs.owner }}"
+          P="${{ steps.tag.outputs.primary }}"
+          I="${{ steps.tag.outputs.immutable }}"
+          echo "Testing images (use on VPS; production must keep using release workflow tags only):"
+          echo "  ${REGISTRY}/${O}/${BACKEND_IMAGE_NAME}:${P}"
+          echo "  ${REGISTRY}/${O}/${BACKEND_IMAGE_NAME}:${I}"
+          echo "  ${REGISTRY}/${O}/${FRONTEND_IMAGE_NAME}:${P}"
+          echo "  ${REGISTRY}/${O}/${FRONTEND_IMAGE_NAME}:${I}"
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          BACKEND_IMAGE_NAME: ${{ env.BACKEND_IMAGE_NAME }}
+          FRONTEND_IMAGE_NAME: ${{ env.FRONTEND_IMAGE_NAME }}
