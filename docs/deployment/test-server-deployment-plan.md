@@ -41,6 +41,7 @@ Guidelines:
 For this repo:
 
 - local full-stack development uses `docker-compose.local.yml`
+- the test VPS stack uses `docker-compose.testing.yml` (GHCR `testing-*` tags only)
 - the VPS-style production shape uses `docker-compose.production.yml`
 - the frontend production image is `frontend/Dockerfile.frontend.production`
 - the proxy source of truth lives under [proxy/](../../proxy/)
@@ -68,8 +69,8 @@ WSGI and ASGI apps can share one VPS as separate services. Standard Django HTTP 
 
 ```text
 /srv/test-app/
-  docker-compose.yml
-  .env.production
+  docker-compose.testing.yml
+  .env.testing
   Caddyfile
   app checkout
 ```
@@ -83,19 +84,20 @@ Start manual first:
 ```bash
 cd /srv/test-app
 git pull
-docker compose up -d --build
-docker compose ps
-docker compose logs -f
+docker compose -f docker-compose.testing.yml --env-file .env.testing pull
+docker compose -f docker-compose.testing.yml --env-file .env.testing up -d --wait
+docker compose -f docker-compose.testing.yml --env-file .env.testing ps
+docker compose -f docker-compose.testing.yml --env-file .env.testing logs -f
 ```
 
 Useful admin commands:
 
 ```bash
-docker compose exec backend python manage.py migrate
-docker compose exec backend python manage.py createsuperuser
-docker compose exec backend python manage.py shell
-docker compose down
-docker compose down -v
+docker compose -f docker-compose.testing.yml --env-file .env.testing exec blogit_backend python manage.py migrate
+docker compose -f docker-compose.testing.yml --env-file .env.testing exec blogit_backend python manage.py createsuperuser
+docker compose -f docker-compose.testing.yml --env-file .env.testing exec blogit_backend python manage.py shell
+docker compose -f docker-compose.testing.yml --env-file .env.testing down
+docker compose -f docker-compose.testing.yml --env-file .env.testing down -v
 ```
 
 Only use `down -v` when you intentionally want to wipe the database volume.
@@ -107,7 +109,7 @@ Use **different tags** so the test VPS cannot accidentally deploy the same ref a
 | Workflow | Tags | Variable + compose file |
 |---------|------|--------------------------|
 | [Production release](../../.github/workflows/release-production.yml) | `sha-<12>` + `latest` only | `BLOGIT_IMAGE_TAG` via `.release.env` + `docker-compose.production.yml` |
-| [Build testing GHCR images](../../.github/workflows/build-testing-images.yml) | `testing-pr-<N>`, `testing-pr-<N>-sha-<12>`, or `testing-manual-sha-<12>` | `BLOGIT_TESTING_IMAGE_TAG` + `docker-compose.yml` or `docker-compose.testing.yml` |
+| [Build testing GHCR images](../../.github/workflows/build-testing-images.yml) | `testing-pr-<N>`, `testing-pr-<N>-sha-<12>`, or `testing-manual-sha-<12>` | `BLOGIT_TESTING_IMAGE_TAG` + `docker-compose.testing.yml` |
 
 Rule of thumb: **test stacks use `BLOGIT_TESTING_IMAGE_TAG` (must be `testing-*`).** Production uses **`BLOGIT_IMAGE_TAG`** only. Different variable names avoids copying prod `.release.env` onto a test VPS by mistake.
 

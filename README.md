@@ -190,6 +190,7 @@ claude_rest_api/
 │   ├── robot/       # E2E tests (API + UI)
 │   └── security/    # Smoke + load tests
 ├── docker-compose.local.yml
+├── docker-compose.testing.yml
 ├── docker-compose.production.yml
 ├── Dockerfile.backend
 └── pyproject.toml
